@@ -1,0 +1,108 @@
+---
+- id: 0
+  name: " "
+  scenes:
+  - name: p
+    layers:
+    - program: piano
+      range:
+      - 0
+      - 127
+      transposition: 0
+  - name: pb
+    layers:
+    - program: piano
+      range:
+      - 60
+      - 127
+      transposition: 0
+    - program: bass
+      range:
+      - 0
+      - 59
+      transposition: 0
+  - name: p+b
+    layers:
+    - program: piano
+      range:
+      - 60
+      - 127
+      transposition: -12
+    - program: bass
+      range:
+      - 0
+      - 59
+      transposition: 0
+  - name: e+b
+    layers:
+    - program: epiano
+      range:
+      - 60
+      - 127
+      transposition: -12
+    - program: bass
+      range:
+      - 0
+      - 59
+      transposition: 0
+  - name: b-transpose
+    layers:
+    - program: bass
+      range:
+      - 0
+      - 127
+      transposition: -48
+- id: 100
+  name: You hit the spot
+  scenes:
+  - tempo: 160
+    layers-model: 0:p+b
+    layers:
+    - {}
+    - {}
+    - program: vibraphone
+      range:
+      - 60
+      - 127
+      transposition: -12
+      volume: 70
+- id: 101
+  name: Taking chance on love
+  scenes:
+  - layers-model: 0:e+b
+- id: 102
+  name: Embraceable you
+  scenes:
+  - layers:
+    - program: epiano
+      range:
+      - 60
+      - 96
+      transposition: 0
+    - program: bass
+      range:
+      - 0
+      - 60
+      transposition: 0
+- id: 103
+  name: Take the A train
+  scenes:
+  - layers-model: 0:p+b
+  - layers:
+    - transposition: -1
+    - {}
+  - layers:
+    - transposition: 0
+    - {}
+- id: 104
+  name: Obelix Samba
+  scenes:
+  - layers-model: 0:e+b
+    layers:
+    - {}
+    - program: fretlessbass
+- name: A1
+- name: A2
+- name: A3
+- name: A4
+

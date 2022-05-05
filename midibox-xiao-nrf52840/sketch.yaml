@@ -1,0 +1,2 @@
+default_fqbn: Seeeduino:nrf52:xiaonRF52840
+default_port: /dev/ttyACM0
