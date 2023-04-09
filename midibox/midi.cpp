@@ -135,21 +135,21 @@ void roland_sysex_xmit(unsigned char byte)
 void roland_sysex_end()
 {
 	Serial1.write(128 - (roland_sysex_crc & 0x7F));
-	Serial1.write(0xF7);
+	Serial1.write(MIDI_SYSEX_END);
 }
 
 void setProgram(char channel, char program)
 {
 	struct midi_program_t *pgm = &midi_programs[program];
-	uint8_t i, j;
+	uint8_t i, j, ch;
 
 
 	sendMidiControlChange(channel, MIDI_CC_BANK_SELECT, pgm->ccm);
 	sendMidiControlChange(channel, MIDI_CC_BANK_SELECT + MIDI_CC_LSB_OFFSET, pgm->ccl);
 	sendMidiProgramChange(channel, pgm->program - 1);
 
-	for (i = 0, j = 0; pgm->sysex[i] != 0xF7; i++) {
-		if (pgm->sysex[i] == 0xF0 && j != 0) { /* j == 0 should not occur */
+	for (i = 0, j = 0; pgm->sysex[i] != MIDI_SYSEX_END; i++) {
+		if (pgm->sysex[i] == MIDI_SYSEX/* && j != 0*/) { /* j == 0 should not occur */
 			roland_sysex_end();
 			j = 0;
 			continue;
@@ -159,7 +159,12 @@ void setProgram(char channel, char program)
 		}
 
 		if (j == 1) {
-			roland_sysex_xmit(0x40 | (channel + 1));
+			switch (channel) {
+				case 0 ... 9: ch = channel + 1; break;
+				case 10: ch = 0; break;
+				default: ch = channel;
+			}
+			roland_sysex_xmit(pgm->sysex[i] | ch);
 		} else {
 			roland_sysex_xmit(pgm->sysex[i]);
 		}
