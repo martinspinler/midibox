@@ -209,3 +209,13 @@ def ProgramPresetModel(box):
     #print(box.layers[0].programs)
 
     return model
+
+def PedalCcModel(box):
+    model = QtGui.QStandardItemModel()
+    model.setItemRoleNames({
+        QtCore.Qt.DisplayRole: b"text",
+        QtCore.Qt.UserRole: b"value",
+    })
+    [model.appendRow(QtGui.QStandardItem(name)) for name in box.layers[0].pedal_cc.keys()]
+
+    return model
