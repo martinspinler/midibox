@@ -16,16 +16,14 @@ we = PyQt5.QtWebEngine.QtWebEngine
 we.initialize()
 
 class MidiboxQuickWidget(QQuickWidget):
-    def __init__(self, app):
+    def __init__(self, app, midibox_params={}):
         super().__init__()
 
         e = self.engine()
         path = pathlib.Path(__file__).parent.resolve()
         #e.addImportPath(str(path.joinpath("midibox/style/")))
 
-        box = Midibox("Control", "GigPanel", virtual=True, find=False, debug=True)
-        #box = Midibox("XIAO nRF52840")
-        #box = Midibox("Midibox XIAO BLE")
+        box = Midibox(**midibox_params)
 
         self.midibox = box
         self.reterm = False

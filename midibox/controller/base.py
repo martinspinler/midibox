@@ -168,6 +168,9 @@ class BaseMidiBox():
         self._requestKey = None
         self._mute = False
 
+    def connect(self):
+        ret = self._connect()
+
     def inputCallback(self, msg):
         for c in self._callbacks:
             c(msg)
