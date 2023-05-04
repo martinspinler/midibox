@@ -41,6 +41,7 @@ struct layer_state {
 	uint8_t hi; /* Upper range */
 	uint8_t volume;
 	int8_t  transposition;
+	int8_t  transposition_extra;
 	int8_t  channel_out_offset;
 	uint8_t last_note_vol;
 	uint8_t last_note;

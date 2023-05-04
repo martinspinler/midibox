@@ -45,7 +45,7 @@ class MidiboxQuickWidget(QQuickWidget):
 
         self.setResizeMode(self.SizeRootObjectToView)
 
-        self.setSource(QUrl.fromLocalFile("midibox/StandaloneWidget.qml"));
+        self.setSource(QUrl.fromLocalFile(str(pathlib.Path(__file__).parent/"StandaloneWidget.qml")));
 
         if hasattr(app, "aboutToQuit"):
             getattr(app, "aboutToQuit").connect(functools.partial(self.setSource, QUrl.fromLocalFile("")))

@@ -91,8 +91,8 @@ class Midibox(BaseMidiBox):
         c = l._config
         c[3:8] = [
             1 if l._active and not self._mute else 0,
-            l._transposition + 64 + l._transposition_extra,
-            l._rangel, l._rangeu, l._mode
+            l._transposition + 64,
+            l._rangel, l._rangeu, l._mode, l._transposition_extra + 64,
         ]
         self._write_sysex(c)
 
@@ -110,6 +110,7 @@ class Midibox(BaseMidiBox):
         l._transposition = c[4] - 64
         l._rangel, self._rangeu = c[5], c[6]
         l._mode = c[7]
+        l._transposition_extra = c[8] - 64
 
     def _rc_callback(self, msg):
         if msg.type == 'sysex' and len(msg.data) > 2 and msg.data[0] == self._SYSEX_ID:

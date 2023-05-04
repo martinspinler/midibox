@@ -76,7 +76,7 @@ void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 
 		rlen = 5 + PEDALS * 2;
 	} else if (cmd == MIDIBOX_CMD_SET_LAYER) {
-		if (len < 8)
+		if (len < 9 + 2*pedals)
 			return;
 
 		l = c[2];
@@ -87,10 +87,11 @@ void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 		lr.lo = c[5];
 		lr.hi = c[6];
 		lr.mode = c[7];
+		lr.transposition_extra = c[8] - 0x40;
 
 		for (i = 0; i < PEDALS; i++) {
-			lr.pedal_cc[i] = c[8 + i*2 + 0];
-			lr.pedal_mode[i] = c[8 + i*2 + 1];
+			lr.pedal_cc[i] = c[9 + i*2 + 0];
+			lr.pedal_mode[i] = c[9 + i*2 + 1];
 		}
 
 		ls[l] = lr;
@@ -107,12 +108,13 @@ void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 		s[5] = lr.lo;
 		s[6] = lr.hi;
 		s[7] = lr.mode;
+		s[8] = lr.transposition_extra + 0x40;
 
 		for (i = 0; i < PEDALS; i++) {
-			s[8 + 0 + i*2] = lr.pedal_cc[i];
-			s[8 + 1 + i*2] = lr.pedal_mode[i];
+			s[9 + 0 + i*2] = lr.pedal_cc[i];
+			s[9 + 1 + i*2] = lr.pedal_mode[i];
 		}
-		rlen = 8 + PEDALS * 2;
+		rlen = 10 + PEDALS * 2;
 	}
 
 	if (rlen) {
@@ -263,11 +265,11 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 		struct layer_state & lr = ls[l];
 		lmask = 1 << l;
 		lchannel = ((lr.channel_out_offset + l) & 0x0F) + 1;
-		lnote = (b1 + lr.transposition) & 0x7F;
+		lnote = (b1 + lr.transposition + lr.transposition_extra) & 0x7F;
 		lenabled = lr.enabled && (lr.channel_in_mask & (1 << (uint16_t) (channel-1)));
 
 
-		note_in_bounds = (b1 + lr.transposition) == lnote ? 1 : 0;
+		note_in_bounds = (b1 + lr.transposition + lr.transposition_extra) == lnote ? 1 : 0;
 
 		/* NoteOff must be passed even when midibox not enabled */
 		if (cmd == midi::NoteOff) {
@@ -417,6 +419,7 @@ void midi_init()
 		ls[l].channel_in_mask = 0xffff;
 		ls[l].channel_out_offset = 0;
 		ls[l].transposition = 0;
+		ls[l].transposition_extra = 0;
 		ls[l].volume = 100;
 		ls[l].mode = 0;
 
