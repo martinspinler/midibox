@@ -198,64 +198,6 @@ class GraphUpdater(QObject):
             #i = int(time.time())
             self._deque_count += 1
 
-import warnings
-
-class PlaylistModel(QtGui.QStandardItemModel):
-    def __init__(self, app = None):
-        super().__init__()
-        self.setItemRoleNames({
-            QtCore.Qt.DisplayRole: b"text",
-            QtCore.Qt.UserRole: b"pid",
-        })
-
-        self.app = app
-
-    def client_add(self, pli):
-        song = self.gp.songs[pli['songId']]
-        self.playlist.addItem(PlaylistItem(song, pli))
-
-    def client_del(self, pli):
-        item = self.playlist.items_by_id[pli['id']]
-        x = self.playlist.takeItem(self.playlist.row(item))
-        del x
-
-    def load(self, playlist):
-        #print(self.app.songs)
-        if self.app is None:
-            warnings.warn('No app in Midibox PlaylistModel')
-            return
-
-        for songItem in playlist["items"]:
-            song = self.app.songs[songItem['songId']]
-            i = QtGui.QStandardItem(song['name'])
-            i.setData(songItem['songId'], QtCore.Qt.UserRole)
-            self.appendRow(i)
-
-    def load_(self, playlist):
-        if self.app is None:
-            warnings.warn('No app in Midibox PlaylistModel')
-            return
-
-        self.playlist.clear()
-        
-        #x = self.playlist.takeItem(self.playlist.row(item))
-        #del x
-
-        for songItem in playlist["items"]:
-            songId = songItem['songId']
-            #print(songId)
-            try:
-                #song = [x for x in self.gp.db['Songs'] if x['name'] == name][0]
-                song = app.songs[songId]
-            except:
-                #print("Cant find playlist song:", name)
-                print("Cant find playlist song:", songItem)
-            else:
-                self.playlist.addItem(PlaylistItem(song, songItem))
-
-    def play(self, pli):
-        item = self.playlist.items_by_id[pli['id']]
-        x = self.playlist.setCurrentRow(self.playlist.row(item))
 
 def ProgramPresetModel(box):
     model = QtGui.QStandardItemModel()
