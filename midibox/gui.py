@@ -35,17 +35,27 @@ class QMidiBox(QObject):
 
         self._layers = []
         for l in self.box.layers:
-            l.bind(control_change=self.on_control_change)
             self._layers.append(QMidiboxLayer(l, self.box))
+            l.bind(control_change=self.on_control_change)
 
-    @pyqtSlot(QObject)
-    def loadSong(self, obj):
-        #print(obj.property('text'), obj.property('pid'))
-        pass
+    @pyqtProperty(bool, notify=enableChange)
+    def enable(self): return self.box.enable
+
+    @enable.setter
+    def enable(self, v):
+        self.box.enable = v
+        self.enableChange.emit()
 
     @pyqtProperty(list, notify=layersChange)
     def layers(self):
         return self._layers
+
+    @pyqtProperty(bool, notify=transpositionExtraChange)
+    def transpositionExtra(self): return self.box.layers[0].transposition_extra == -12
+
+    @transpositionExtra.setter
+    def transpositionExtra(self, v):
+        self.box.layers[0].transposition_extra = -12 if v else 0
 
     def on_control_change(self, *args, **kwargs):
         name = list(kwargs.keys())[0]
@@ -65,21 +75,6 @@ class QMidiBox(QObject):
     def split12(self):
         self.layers[0].rangel = 56
         self.layers[1].rangeu = 55
-
-    @pyqtProperty(bool, notify=enableChange)
-    def enable(self): return self.box.enable
-
-    @enable.setter
-    def enable(self, v):
-        self.box.enable = v
-        self.enableChange.emit()
-
-    @pyqtProperty(bool, notify=transpositionExtraChange)
-    def transpositionExtra(self): return self.box.layers[0].transposition_extra == -12
-
-    @transpositionExtra.setter
-    def transpositionExtra(self, v):
-        self.box.layers[0].transposition_extra = -12 if v else 0
 
     @pyqtSlot()
     def allSoundsOff(self):
