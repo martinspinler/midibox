@@ -37,6 +37,7 @@ class MidiBoxLayer(Dispatcher):
         'GPC3': 18,
         'GPC4': 19,
     }
+
     def __init__(self, dev, index):
         self._index = index
         self._part = (index + 1) & 0xF # if index != 9 else 0
@@ -51,6 +52,7 @@ class MidiBoxLayer(Dispatcher):
         self._volume = 100
         self._mode = 0
 
+        self._pedal_cc = [self.pedal_cc[x] if x in self.pedal_cc else x for x in ['Sustain', 'Hold', 'Expression'] + [0] + ['GPC1', 'GPC2', 'GPC3', 'GPC4'] ]
 
         self._channel_in_mask = 0x7F
 
