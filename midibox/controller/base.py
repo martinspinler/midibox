@@ -22,6 +22,21 @@ class MidiBoxLayer(Dispatcher):
         'fretlessbass'  : MidiBoxProgram(36,  0,  0, [[0x40, 0x40, 0x23, 0x00, 0x00, 0x00, 0x00, 0x08, 0x04]], 'FB', 'Fretlett Bass'),
     }
 
+    pedal_cc = {
+        'Unknown': 0,
+        'Sustain': 64,
+        'Expression': 11,
+        'Portamento': 65,
+        'Portamento time': 5,
+        'Sostenuto': 66,
+        'Soft': 67,
+        'Legato': 68,
+        'Hold': 69,
+        'GPC1': 16,
+        'GPC2': 17,
+        'GPC3': 18,
+        'GPC4': 19,
+    }
     def __init__(self, dev, index):
         self._index = index
         self._part = (index + 1) & 0xF # if index != 9 else 0
