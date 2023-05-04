@@ -11,7 +11,7 @@ class MidiBoxProgram():
 
 class MidiBoxLayer(Dispatcher):
     _events_ = ['control_change', 'transposition', 'active']
-    controls = ['transposition', 'range', 'active', "channel_in_mask", "channel_out_offset"]
+    controls = ['transposition', 'transposition_extra', 'range', 'active', "channel_in_mask", "channel_out_offset"]
     programs = {          #PC MSB LSB
         'piano'         : MidiBoxProgram( 1,  0, 68, [[0x40, 0x40, 0x23, 0x00, 0x40, 0x32, 0x40, 0x32, 0x00]], 'Pn', 'Piano'),
         'epiano'        : MidiBoxProgram( 5,  0, 67, [[0x40, 0x40, 0x23, 0x01, 0x42, 0x00, 0x40, 0x37, 0x02]], 'eP', 'E-Piano'),
@@ -42,6 +42,7 @@ class MidiBoxLayer(Dispatcher):
         self._part = (index + 1) & 0xF # if index != 9 else 0
         self._dev = dev
         self._transposition = 0
+        self._transposition_extra = 0
         self._active = False
         self._channel_in_mask = 0
         self._channel_out_offset = 0
@@ -50,7 +51,6 @@ class MidiBoxLayer(Dispatcher):
         self._volume = 100
         self._mode = 0
 
-        self._transposition_extra = 0
 
         self._channel_in_mask = 0x7F
 
