@@ -40,17 +40,14 @@ Item {
 			Layout.fillWidth: true
 
 			Component.onCompleted: currentIndex = 0
-			TabButton {
-				text: qsTr("Program")
-				background: Rectangle {color: parent.checked ? palette.window : palette.button}
-			}
-			TabButton {
-				text: qsTr("Config")
-				background: Rectangle {color: parent.checked ? palette.window : palette.button}
-			}
-			TabButton {
-				text: qsTr("Pedal")
-				background: Rectangle {color: parent.checked ? palette.window : palette.button}
+			Repeater {
+				Layout.fillWidth: true
+				model: ["Program", "Config", "Pedals"]
+
+				delegate: TabButton {
+					text: qsTr(modelData)
+					background: Rectangle {color: parent.checked ? palette.window : palette.button}
+				}
 			}
 		}
 
