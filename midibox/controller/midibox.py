@@ -104,7 +104,11 @@ class Midibox(BaseMidiBox):
     def _write_layer_config(self, layer):
         l = layer
         c = l._config
-        c[3:8] = [
+        if c is None:
+            print("not connected")
+            return
+
+        c[3:9] = [
             1 if l._active and not self._mute else 0,
             l._transposition + 64,
             l._rangel, l._rangeu, l._mode, l._transposition_extra + 64,
