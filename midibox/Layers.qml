@@ -110,7 +110,7 @@ Item {
 			Item { // GroupBox {
 				Layout.fillWidth: true
 				GridLayout {
-					width: parent.width
+					anchors.fill: parent
 					columns: 2
 
 					Label {text: "Range:\n" + midibox.note2text(layerx.current.rangel) + " - " + midibox.note2text(layerx.current.rangeu)}
@@ -183,6 +183,28 @@ Item {
 							onMoved: layerx.current.volume = Math.round(value)
 						}
 						RoundButton {icon.name: "audio-volume-high-symbolic"; onClicked: layerx.current.volume += 10}
+					}
+				}
+			}
+			/* Pedals */
+			Item {
+				Layout.fillWidth: true
+				GridLayout {
+					anchors.fill: parent
+					columns: 2
+
+					Repeater {
+					Layout.fillWidth: true
+					model: 7
+						Label{text: qsTr("Pedal" + modelData)}
+
+						ComboBox {
+							model: pedalCcModel
+							id:xxx
+							onActivated: layerx.current.program = currentText
+							textRole: 'text'
+							valueRole: 'value'
+						}
 					}
 				}
 			}

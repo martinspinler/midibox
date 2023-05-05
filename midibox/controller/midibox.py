@@ -88,7 +88,7 @@ class Midibox(BaseMidiBox):
 
     def _write_config(self):
         c = self._config
-        c[2] = (self._config[2] | 1) if self.local_ctl else (self._config[2] & ~1)
+        c[2] = (self._config[2] | 1) if self._enable else (self._config[2] & ~1)
         c[3:4] = [120, 0] # tempo
         self._write_sysex(c)
 
@@ -99,7 +99,7 @@ class Midibox(BaseMidiBox):
             time.sleep(0.01)
         self._config[1] = self._CMD_SET_GLOBAL
 
-        self.local_ctl = True if self._config[2] & 1 else False
+        self._enable = True if self._config[2] & 1 else False
 
     def _write_layer_config(self, layer):
         l = layer

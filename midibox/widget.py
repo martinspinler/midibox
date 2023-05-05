@@ -31,15 +31,15 @@ class MidiboxQuickWidget(QQuickWidget):
         self.gu = GraphUpdater(box)
 
         # Info: store all CP into main class (setContextProperty doesnt't increment refcnt)
-        self.pl = PlaylistModel()
         self.ppm = ProgramPresetModel(box)
+        self.pcm = PedalCcModel(box)
 
         ctx = self.rootContext()
         ctx.setContextProperty("midibox", self.qbox)
         ctx.setContextProperty("programPresetsModel", self.ppm)
         ctx.setContextProperty("monitor", self.gu)
-        ctx.setContextProperty("playlistModel", self.pl)
         ctx.setContextProperty("reterm", self.reterm)
+        ctx.setContextProperty(f"pedalCcModel", self.pcm)
 
         self.setResizeMode(self.SizeRootObjectToView)
 

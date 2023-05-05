@@ -17,49 +17,108 @@ from PyQt5.QtCore import QPoint, QRectF, QTimer
 import functools
 import collections
 
+from .controller.base import MidiBoxLayer, MidiBoxLayerProps, MidiBoxProps
 
-class ProgramPreset(QtGui.QStandardItem):
-    def __init__(self, pid, name):
-        super().__init__(name)
-        self.setData(pid, QtCore.Qt.UserRole)
 
-class QMidiBox(QObject):
+class PropertyMeta(type(QtCore.QObject)):
+    def __new__(cls, name, bases, attrs):
+        if '_prop_meta_dict' in attrs:
+            props = attrs.pop('_prop_meta_dict')
+            for prop in props:
+                attrs[prop.name] = Property(prop.init_value, prop.name)
+
+        for key in list(attrs.keys()):
+            attr = attrs[key]
+            if not isinstance(attr, Property):
+                continue
+
+            initial_value = attr.initial_value
+            type_ = type(initial_value)
+            notifier = QtCore.pyqtSignal(type_)
+            attrs[key] = PropertyImpl(
+                initial_value, name=key, type_=type_, notify=notifier)
+            attrs[signal_attribute_name(key)] = notifier
+        return super().__new__(cls, name, bases, attrs)
+
+
+class Property:
+    def __init__(self, initial_value, name=''):
+        self.initial_value = initial_value
+        self.name = name
+
+class PropertyImpl(QtCore.pyqtProperty):
+    def __init__(self, initial_value, name='', type_=None, notify=None):
+        super().__init__(type_, self.getter, self.setter, notify=notify)
+        self.initial_value = initial_value
+        self.name = name
+
+    def getter(self, inst):
+        return getattr(inst._proxy, self.name, self.initial_value)
+
+    def setter(self, inst, value):
+        setattr(inst._proxy, self.name, value)
+        getattr(inst, signal_attribute_name(self.name)).emit(value)
+
+def signal_attribute_name(property_name):
+    return f'_{property_name}_prop_signal_'
+
+
+class QMidiboxLayer(QObject, metaclass=PropertyMeta):
+    _prop_meta_dict = MidiBoxLayerProps
+
+    programChange = pyqtSignal()
+
+    def __init__(self, layer, handler):
+        super().__init__()
+        self._proxy = self._cl = layer
+        self._cl.bind(control_change=self.on_control_change)
+
+    def on_control_change(self, *args, **kwargs):
+        for name, value in kwargs.items():
+            if name == "program":
+                self.programChange.emit()
+
+            if hasattr(self, signal_attribute_name(name)):
+                getattr(self, signal_attribute_name(name)).emit(value)
+
+    @pyqtProperty(str, notify=programChange)
+    def shortName(self):
+        return self._cl.programs[self._cl.program].short if self._cl.program in self._cl.programs else '?'
+
+class QMidiBox(QObject, metaclass=PropertyMeta):
+    _prop_meta_dict = MidiBoxProps
+
     layersChange = pyqtSignal() # Not used
-    enableChange = pyqtSignal()
-
     transpositionExtraChange = pyqtSignal()
 
     def __init__(self, box):
         super().__init__()
-        self.box = box
+        self._proxy = self.box = box
+
+        self.box.bind(control_change=self.on_control_change)
 
         self._layers = []
         for l in self.box.layers:
             self._layers.append(QMidiboxLayer(l, self.box))
-            l.bind(control_change=self.on_control_change)
-
-    @pyqtProperty(bool, notify=enableChange)
-    def enable(self): return self.box.enable
-
-    @enable.setter
-    def enable(self, v):
-        self.box.enable = v
-        self.enableChange.emit()
+            l.bind(control_change=self.on_layer_control_change)
 
     @pyqtProperty(list, notify=layersChange)
-    def layers(self):
-        return self._layers
+    def layers(self): return self._layers
 
     @pyqtProperty(bool, notify=transpositionExtraChange)
     def transpositionExtra(self): return self.box.layers[0].transposition_extra == -12
 
     @transpositionExtra.setter
-    def transpositionExtra(self, v):
-        self.box.layers[0].transposition_extra = -12 if v else 0
+    def transpositionExtra(self, v): self.box.layers[0].transposition_extra = -12 if v else 0
 
     def on_control_change(self, *args, **kwargs):
+        for name, value in kwargs.items():
+            if hasattr(self, signal_attribute_name(name)):
+                getattr(self, signal_attribute_name(name)).emit(value)
+
+    def on_layer_control_change(self, *args, **kwargs):
         name = list(kwargs.keys())[0]
-        if name == "transpositionExtra":
+        if name == "transposition_extra":
             self.transpositionExtraChange.emit()
 
     @pyqtSlot(int, str)
@@ -99,72 +158,6 @@ class QMidiBox(QObject):
             self.enable = True
 
 
-class PropertyMeta(type(QtCore.QObject)):
-    def __new__(cls, name, bases, attrs):
-        for key in list(attrs.keys()):
-            attr = attrs[key]
-            if not isinstance(attr, Property):
-                continue
-            initial_value = attr.initial_value
-            type_ = type(initial_value)
-            notifier = QtCore.pyqtSignal(type_)
-            attrs[key] = PropertyImpl(
-                initial_value, name=key, type_=type_, notify=notifier)
-            attrs[signal_attribute_name(key)] = notifier
-        return super().__new__(cls, name, bases, attrs)
-
-
-class Property:
-    def __init__(self, initial_value, name=''):
-        self.initial_value = initial_value
-        self.name = name
-
-class PropertyImpl(QtCore.pyqtProperty):
-    def __init__(self, initial_value, name='', type_=None, notify=None):
-        super().__init__(type_, self.getter, self.setter, notify=notify)
-        self.initial_value = initial_value
-        self.name = name
-
-    def getter(self, inst):
-        return getattr(inst._cl, self.name, self.initial_value)
-
-    def setter(self, inst, value):
-        setattr(inst._cl, self.name, value)
-        getattr(inst, signal_attribute_name(self.name)).emit(value)
-
-def signal_attribute_name(property_name):
-    return f'_{property_name}_prop_signal_'
-
-class QMidiboxLayer(QObject, metaclass=PropertyMeta):
-    transposition = Property(0, 'transposition')
-    program = Property('', 'program')
-    volume = Property(100, 'volume')
-    rangel = Property(0, 'rangel')
-    rangeu = Property(127, 'rangeu')
-    active = Property(False, 'active')
-
-    programChange = pyqtSignal()
-    #active = pyqtProperty(bool, notify=programChange)
-
-    def __init__(self, layer, handler):
-        super().__init__()
-        self._cl = layer
-        self._cl.bind(control_change=self.on_control_change)
-
-    def prop_get(self, ):
-        return self._cl.programs[self._cl.program].short
-
-    def on_control_change(self, *args, **kwargs):
-        name = list(kwargs.keys())[0]
-        if name == "program":
-            self.programChange.emit()
-        if name in ["rangel", "rangeu", "active", "transposition", "program", "volume"]:
-            getattr(self, signal_attribute_name(name)).emit(getattr(self._cl, name))
-
-    @pyqtProperty(str, notify=programChange)
-    def shortName(self):
-        return self._cl.programs[self._cl.program].short
-
 
 class GraphUpdater(QObject):
     foo = pyqtSignal(int, int)
@@ -194,6 +187,11 @@ class GraphUpdater(QObject):
             self._deque_count += 1
 
 
+class ProgramPreset(QtGui.QStandardItem):
+    def __init__(self, pid, name):
+        super().__init__(name)
+        self.setData(pid, QtCore.Qt.UserRole)
+
 def ProgramPresetModel(box):
     model = QtGui.QStandardItemModel()
     model.setItemRoleNames({
@@ -201,8 +199,6 @@ def ProgramPresetModel(box):
         QtCore.Qt.UserRole: b"pid",
     })
     [model.appendRow(ProgramPreset(k, v.name)) for k, v in box.layers[0].programs.items()]
-    #print(box.layers[0].programs)
-
     return model
 
 def PedalCcModel(box):
@@ -211,6 +207,6 @@ def PedalCcModel(box):
         QtCore.Qt.DisplayRole: b"text",
         QtCore.Qt.UserRole: b"value",
     })
-    [model.appendRow(QtGui.QStandardItem(name)) for name in box.layers[0].pedal_cc.keys()]
+    [model.appendRow(QtGui.QStandardItem(name)) for name in box.pedal_cc.keys()]
 
     return model
