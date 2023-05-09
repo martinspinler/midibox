@@ -85,6 +85,8 @@ struct global_state {
 	uint8_t pedal_cc[PEDALS];
 	uint8_t pedal_mode[PEDALS];
 
+	uint8_t selected_layer;
+
 	unsigned long tempo;
 	struct midi_clock mc;
 };

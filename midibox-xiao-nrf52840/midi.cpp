@@ -367,10 +367,24 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 				MS1.send(msg);
 			}
 		#endif
+		} else if (cmd == midi::ProgramChange) {
+			/* Send PC only to selected layer */
+			if (l == gs.selected_layer) {
+				MS1.send(msg_out);
+			}
+		} else if (cmd == midi::ControlChange) {
+			if (b1 == BankSelect || b1 == BankSelectLSB) {
+				if (l == gs.selected_layer) {
+					MS1.send(msg_out);
+				}
+			} else {
+				MS1.send(msg_out);
+			}
 		} else if (cmd == midi::SystemExclusive) {
-			if (l == 0) {
+			/* FIXME: modify sysex */
+			if (l == gs.selected_layer) {
 				/* INFO: copy sysex array if modified */
-				//MS1.send(msg);
+				MS1.send(msg);
 			}
 		} else {
 			/* TODO: filter out:
@@ -392,6 +406,7 @@ void midi_init()
 {
 	gs.config = 0;
 	gs.tempo = 120;
+	gs.selected_layer = 0;
 
 	gs.pedal_cc[0] = Sustain;
 	gs.pedal_cc[1] = SoftPedal;
