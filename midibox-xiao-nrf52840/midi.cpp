@@ -76,7 +76,7 @@ void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 
 		rlen = 5 + PEDALS * 2;
 	} else if (cmd == MIDIBOX_CMD_SET_LAYER) {
-		if (len < 9 + 2*pedals)
+		if (len < 9 + 2*PEDALS)
 			return;
 
 		l = c[2];
