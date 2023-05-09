@@ -202,6 +202,30 @@ class BaseMidiBox(Dispatcher):
                 self._requestKey = None
                 self.mute = False
 
+        if msg.type == 'sysex':
+            try:
+                if msg.data[0] == 119:
+                    pass
+                else:
+                    if msg.data[0:4] == (65, 16, 66, 18):
+                        if msg.data[4] == 0x40:
+                            part = msg.data[5] & 0x0F
+                            bank = msg.data[5] & 0xF0
+                            addr = msg.data[6]
+
+                            if bank == 0x00:
+                                "System Parameters"
+                            if bank >= 0x10:
+                                "Part Parameters"
+                                if bank == 0x40 and addr == 0x23:
+                                    "Effect"
+                                    eff_type = (msg.data[7] << 8) | msg.data[8]
+                                    if eff_type == 0x0125:
+                                        "Tremolo"
+            except:
+                pass
+                                    #print(eff_type, msg.data)
+
     def requestKey(self, target, index, prop):
         self.mute = True
         self._requestKey = (target, index, prop)
