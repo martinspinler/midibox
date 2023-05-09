@@ -75,7 +75,7 @@ MidiBoxLayerProps = [
     ),
     CheckedProp('volume', 100,
         lambda s, v: clamp(v, 0, 127),
-        lambda s, v: s._dev.setPartParam(s._part + 1, 0x19, v) # CHECK + 1?
+        lambda s, v: s._dev.setPartParam(s._part, 0x19, v) # CHECK + 1?
     ),
 ]
 
@@ -96,7 +96,7 @@ class MidiBoxLayer(Dispatcher):
 
     def __init__(self, dev, index):
         self._index = index
-        self._part = (index + 1) & 0xF # if index != 9 else 0
+        self._part = (index + 1) & 0xF if index != 9 else 0
         self._dev = dev
         self._mode = 0
 
