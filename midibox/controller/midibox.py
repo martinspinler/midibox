@@ -113,6 +113,8 @@ class Midibox(BaseMidiBox):
             l._transposition + 64,
             l._rangel, l._rangeu, l._mode, l._transposition_extra + 64,
         ]
+        for i in range(len(l.pedals)):
+            c[9+2*i+0] = l.pedals[i]._cc
         self._write_sysex(c)
 
     def _read_layer_config(self, layer):
@@ -130,6 +132,8 @@ class Midibox(BaseMidiBox):
         l._rangel, self._rangeu = c[5], c[6]
         l._mode = c[7]
         l._transposition_extra = c[8] - 64
+        for i in range(len(l.pedals)):
+             l.pedals[i]._cc = c[9+2*i+0]
 
     def _rc_callback(self, msg):
         if msg.type == 'sysex' and len(msg.data) > 2 and msg.data[0] == self._SYSEX_ID:

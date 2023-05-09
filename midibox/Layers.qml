@@ -38,7 +38,7 @@ Item {
 		TabBar {
 			id: layerBar
 			Layout.fillWidth: true
-
+/* FIXME: doesn't updates for example pedals cc */
 			Component.onCompleted: currentIndex = 0
 			Repeater {
 				Layout.fillWidth: true
@@ -195,13 +195,13 @@ Item {
 
 					Repeater {
 					Layout.fillWidth: true
-					model: 7
+					model: 8
 						Label{text: qsTr("Pedal" + modelData)}
 
 						ComboBox {
 							model: pedalCcModel
-							id:xxx
-							onActivated: layerx.current.program = currentText
+							onActivated: layerx.current.pedals[modelData].cc = currentValue
+							currentIndex: indexOfValue(layerx.current.pedals[modelData].cc)
 							textRole: 'text'
 							valueRole: 'value'
 						}

@@ -32,8 +32,18 @@ def mb_properties_init(cls):
             setattr(cls, item.name, item.prop)
     return cls
 
-#@mb_properties_init
+MidiBoxPedalProps = [
+    CheckedProp('cc', 0,
+        lambda s, v: clamp(v, 0, 127),
+        lambda self, v: self._layer._write_config()
+    ),
+]
+
+@mb_properties_init
 class MidiBoxPedal(Dispatcher):
+    _mb_properties = MidiBoxPedalProps
+    _events_ = ['control_change']
+
     def __init__(self, layer, index):
         self._layer = layer
 
@@ -95,7 +105,7 @@ class MidiBoxLayer(Dispatcher):
 
         self._hb = [0] * 9
 
-        self.pedals = [MidiBoxPedal(self, i) for i in range(7)]
+        self.pedals = [MidiBoxPedal(self, i) for i in range(8)]
 
     def setProgram(self, value):
         p = self.programs[value]
@@ -171,6 +181,11 @@ class BaseMidiBox(Dispatcher):
             for ctrl in MidiBoxLayer._mb_properties:
                 kwargs = {ctrl.name: getattr(l, ctrl.name)}
                 l.emit('control_change', **kwargs)
+
+            for p in l.pedals:
+                for ctrl in MidiBoxPedal._mb_properties:
+                    kwargs = {ctrl.name: getattr(p, ctrl.name)}
+                    p.emit('control_change', **kwargs)
 
     def inputCallback(self, msg):
         for c in self._callbacks:

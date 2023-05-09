@@ -17,7 +17,7 @@ from PyQt5.QtCore import QPoint, QRectF, QTimer
 import functools
 import collections
 
-from .controller.base import MidiBoxLayer, MidiBoxLayerProps, MidiBoxProps
+from .controller.base import MidiBoxLayer, MidiBoxLayerProps, MidiBoxProps, MidiBoxPedalProps
 
 
 class PropertyMeta(type(QtCore.QObject)):
@@ -62,16 +62,31 @@ class PropertyImpl(QtCore.pyqtProperty):
 def signal_attribute_name(property_name):
     return f'_{property_name}_prop_signal_'
 
+class QMidiboxPedal(QObject, metaclass=PropertyMeta):
+    _prop_meta_dict = MidiBoxPedalProps
+
+    def __init__(self, p, handler):
+        super().__init__()
+        self._proxy = p
+
 
 class QMidiboxLayer(QObject, metaclass=PropertyMeta):
     _prop_meta_dict = MidiBoxLayerProps
 
     programChange = pyqtSignal()
+    pedalsChange = pyqtSignal()
 
     def __init__(self, layer, handler):
         super().__init__()
         self._proxy = self._cl = layer
         self._cl.bind(control_change=self.on_control_change)
+
+        self._pedals = []
+        for p in self._cl.pedals:
+            self._pedals.append(QMidiboxPedal(p, handler))
+
+    @pyqtProperty(list, notify=pedalsChange)
+    def pedals(self): return self._pedals
 
     def on_control_change(self, *args, **kwargs):
         for name, value in kwargs.items():
@@ -201,12 +216,17 @@ def ProgramPresetModel(box):
     [model.appendRow(ProgramPreset(k, v.name)) for k, v in box.layers[0].programs.items()]
     return model
 
+class PedalCc(QtGui.QStandardItem):
+    def __init__(self, pid, name):
+        super().__init__(name)
+        self.setData(pid, QtCore.Qt.UserRole)
+
 def PedalCcModel(box):
     model = QtGui.QStandardItemModel()
     model.setItemRoleNames({
         QtCore.Qt.DisplayRole: b"text",
         QtCore.Qt.UserRole: b"value",
     })
-    [model.appendRow(QtGui.QStandardItem(name)) for name in box.pedal_cc.keys()]
+    [model.appendRow(PedalCc(cc, name)) for name, cc in box.pedal_cc.items()]
 
     return model
