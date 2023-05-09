@@ -129,7 +129,7 @@ class Midibox(BaseMidiBox):
         c = l._config
         l._active = True if c[3] & 1 else False
         l._transposition = c[4] - 64
-        l._rangel, self._rangeu = c[5], c[6]
+        l._rangel, l._rangeu = c[5], c[6]
         l._mode = c[7]
         l._transposition_extra = c[8] - 64
         for i in range(len(l.pedals)):
