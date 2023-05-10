@@ -33,6 +33,36 @@ void sendMidiAllOff()
 	}
 }
 
+void midi_handle_pedal_input(uint8_t pedal, uint8_t val)
+{
+	uint8_t i;
+	uint8_t cmd, cc, pm;
+
+	if (pedal >= 8)
+		return;
+
+	if (gs.pedal_mode[pedal] == PEDAL_MODE_NORMAL) {
+		MU.sendControlChange(gs.pedal_cc[pedal], val, 1);
+		MB.sendControlChange(gs.pedal_cc[pedal], val, 1);
+	}
+
+	for (i = 0; i < LAYERS; i++) {
+		struct layer_state & lr = ls[i];
+
+		cc = lr.pedal_cc[pedal];
+		pm = lr.pedal_mode[pedal];
+		if (pm == PEDAL_MODE_NORMAL) {
+			MS1.sendControlChange(cc, val, i + 1);
+		} else if (pm == PEDAL_MODE_TOGGLE_EN) {
+			if (val == 0) {
+				lr.enabled = lr.status;
+			} else if (val == 0x7F) {
+				lr.enabled = !lr.status;
+			}
+		}
+	}
+}
+
 void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 {
 	static uint8_t s[32] = {0};

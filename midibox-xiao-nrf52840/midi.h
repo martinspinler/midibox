@@ -106,6 +106,7 @@ void midi_loop();
 void midi_handle_config();
 void midi_handle_instrument_cmd(uint8_t cmd);
 void midi_handle_controller_cmd(int origin, const uint8_t *cmd, uint16_t len);
+void midi_handle_pedal_input(uint8_t pedal, uint8_t val);
 
 void midi_secondary_handle_input();
 

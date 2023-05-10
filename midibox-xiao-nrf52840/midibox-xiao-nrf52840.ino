@@ -21,36 +21,6 @@ static struct pt pt_charlieplex;
 const int CPP_FIRST = 3;
 const int CPP_LAST  = 5;
 
-void handle_pedal_input(uint8_t pedal, uint8_t val)
-{
-	uint8_t i;
-	uint8_t cmd, cc, pm;
-
-	if (pedal >= 8)
-		return;
-
-	if (gs.pedal_mode[pedal] == PEDAL_MODE_NORMAL) {
-		MU.sendControlChange(gs.pedal_cc[pedal], val, 1);
-		MB.sendControlChange(gs.pedal_cc[pedal], val, 1);
-	}
-
-	for (i = 0; i < LAYERS; i++) {
-		struct layer_state & lr = ls[i];
-
-		cc = lr.pedal_cc[pedal];
-		pm = lr.pedal_mode[pedal];
-		if (pm == PEDAL_MODE_NORMAL) {
-			MS1.sendControlChange(cc, val, i + 1);
-		} else if (pm == PEDAL_MODE_TOGGLE_EN) {
-			if (val == 0) {
-				lr.enabled = lr.status;
-			} else if (val == 0x7F) {
-				lr.enabled = !lr.status;
-			}
-		}
-	}
-}
-
 static int charlieplex(struct pt *pt)
 {
 	static int i;
@@ -82,7 +52,7 @@ static int charlieplex(struct pt *pt)
 			if (val != b[i]) {
 				b[i] = val;
 				if (btn_map[i] >= 0) {
-					handle_pedal_input(btn_map[i], val);
+					midi_handle_pedal_input(btn_map[i], val);
 				}
 			}
 
@@ -122,7 +92,7 @@ void check_inputs()
 
 			if (pedal_value_prev[i] != val) {
 				pedal_value_prev[i] = val;
-				handle_pedal_input(i, val);
+				midi_handle_pedal_input(i, val);
 			}
 		}
 	}
