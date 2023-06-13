@@ -13,51 +13,40 @@ extern MidiInterfaceUsb MU;
 extern MidiInterfaceHwserial MS1;
 extern MidiInterfaceBle MB;
 
+#include "api.h"
 
-#define LAYERS 8
-#define PEDALS 8
-
-#define MIDIBOX_SYSEX_ID        0x77
-
-#define PEDAL_MODE_IGNORE       0
-#define PEDAL_MODE_NORMAL       1
-#define PEDAL_MODE_NOTELENGTH   2
-#define PEDAL_MODE_TOGGLE_EN    3
-
-#define NOTE_MODE_NORMAL        0
-#define NOTE_MODE_HOLD          0x40
-#define NOTE_MODE_CUT           0x20
-#define NOTE_MODE_SHUFFLE       0x10
-#define NOTE_MODE_HOLDTONEXT    (NOTE_MODE_HOLD | 1)
-#define NOTE_MODE_HOLD1_2       (NOTE_MODE_HOLD | 2)
-#define NOTE_MODE_HOLD1_4       (NOTE_MODE_HOLD | 4)
-#define NOTE_MODE_CUT1_4        (NOTE_MODE_CUT  | 2)
 
 struct layer_state {
-	uint16_t channel_in_mask;
-	uint16_t program_index;
-	uint8_t enabled;
-	uint8_t lo; /* Lower range */
-	uint8_t hi; /* Upper range */
-	uint8_t volume;
+	struct layer_state_reg r;
+
+	struct {
+		uint8_t active: 1;
+		uint8_t activate: 1;
+	};
 	int8_t  transposition;
 	int8_t  transposition_extra;
-	int8_t  channel_out_offset;
-	uint8_t last_note_vol;
-	uint8_t last_note;
 	uint8_t cc_sustain;
 	uint8_t cc_expression;
+	uint8_t part; /* Maybe RO */
+	uint8_t channel; /* 1..16, Maybe RO */
+	uint8_t channel_out_offset;
+	uint16_t channel_in_mask;
+	uint8_t last_note_vol;
+	uint8_t last_note;
+
+	/*
+	int8_t release;
+	int8_t attack;
+	int8_t cutoff;
+	int8_t decay;
+	*/
 #if 0
 	uint8_t cc_pedal1_mode; /* ignore, normal, bass... */
 	uint8_t cc_pedal2_mode;
 	uint8_t cc_pedal3_mode;
 #endif
-	uint8_t mode;
-	uint8_t status;
+//	uint8_t status;
 	uint8_t note[128/8];
-
-	uint8_t pedal_cc[PEDALS];
-	uint8_t pedal_mode[PEDALS];
 
 	uint8_t ticks_remains[128];
 	uint8_t note_origin[128];
@@ -70,23 +59,9 @@ struct midi_clock {
 };
 
 struct global_state {
-	union {
-		struct {
-			bool enabled: 1;
-			bool debug_s2u_all: 1;
-			bool debug_s2b_all: 1;
-			bool debug_s2b: 1;
-			bool debug_smsg_print: 1;
-			bool debug_cfg_print: 1;
-		};
-		uint8_t config;
-	};
+	struct global_state_reg r;
 
-	uint8_t pedal_cc[PEDALS];
-	uint8_t pedal_mode[PEDALS];
-
-	uint8_t selected_layer;
-
+	/* Not paged values */
 	unsigned long tempo;
 	struct midi_clock mc;
 };
@@ -94,12 +69,6 @@ struct global_state {
 extern struct layer_state ls[LAYERS];
 extern struct global_state gs;
 
-enum {
-	MIDIBOX_CMD_GET_GLOBAL  = 1,
-	MIDIBOX_CMD_SET_GLOBAL  = 2,
-	MIDIBOX_CMD_GET_LAYER   = 3,
-	MIDIBOX_CMD_SET_LAYER   = 4,
-};
 
 void midi_init();
 void midi_loop();

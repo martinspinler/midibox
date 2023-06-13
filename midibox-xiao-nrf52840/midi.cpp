@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include "midi.h"
 
 #define MIDI_TC_INTERNAL
@@ -33,6 +34,68 @@ void sendMidiAllOff()
 	}
 }
 
+static const char roland_sysex_header[4] = {0x41, 0x10, 0x42, 0x12};
+
+/* data is without 0xF0 / 0xF7 */
+int8_t roland_sysex_begin(unsigned char * data)
+{
+	uint8_t i = sizeof(roland_sysex_header);
+	memcpy(data, roland_sysex_header, i);
+	return i;
+}
+
+/* length is only for the user part */
+int8_t roland_sysex_finish(unsigned char * data, uint8_t length)
+{
+	const uint8_t o = sizeof(roland_sysex_header);
+	uint8_t i;
+
+	unsigned char crc = 0;
+
+	for (i = 0; i < length; i++) {
+		crc += data[o + i];
+	}
+
+	data[o + i] = 128 - (crc & 0x7F);
+	return o + i + 1;
+}
+
+void layer2reg(struct layer_state &lr)
+{
+	lr.r.transposition = lr.transposition + 0x40;
+	lr.r.transposition_extra = lr.transposition_extra + 0x40;
+#if 0
+	lr.r.release = lr.release + 0x40;
+	lr.r.attack = lr.attack + 0x40;
+	lr.r.cutoff = lr.cutoff + 0x40;
+	lr.r.decay = lr.decay + 0x40;
+#endif
+}
+
+void reg2layer(struct layer_state &lr)
+{
+	lr.transposition = lr.r.transposition - 0x40;
+	lr.transposition_extra = lr.r.transposition_extra - 0x40;
+#if 0
+	lr.release = lr.r.release - 0x40;
+	lr.attack = lr.r.attack - 0x40;
+	lr.cutoff = lr.r.cutoff - 0x40;
+	lr.decay = lr.r.decay - 0x40;
+#endif
+}
+
+void gs2reg(struct global_state &gs)
+{
+	gs.r.tempo_lsb = (gs.tempo >> 0) & 0x7F;
+	gs.r.tempo_msb = (gs.tempo >> 7) & 0x7F;
+}
+
+void reg2gs(struct global_state &gs)
+{
+	gs.tempo  = gs.r.tempo_lsb << 0;
+	gs.tempo |= gs.r.tempo_msb << 7;
+}
+
 void midi_handle_pedal_input(uint8_t pedal, uint8_t val)
 {
 	uint8_t i;
@@ -41,23 +104,26 @@ void midi_handle_pedal_input(uint8_t pedal, uint8_t val)
 	if (pedal >= 8)
 		return;
 
-	if (gs.pedal_mode[pedal] == PEDAL_MODE_NORMAL) {
-		MU.sendControlChange(gs.pedal_cc[pedal], val, 1);
-		MB.sendControlChange(gs.pedal_cc[pedal], val, 1);
+	if (gs.r.pedal_mode[pedal] == PEDAL_MODE_NORMAL) {
+		MU.sendControlChange(gs.r.pedal_cc[pedal], val, 1);
+		MB.sendControlChange(gs.r.pedal_cc[pedal], val, 1);
 	}
 
 	for (i = 0; i < LAYERS; i++) {
 		struct layer_state & lr = ls[i];
 
-		cc = lr.pedal_cc[pedal];
-		pm = lr.pedal_mode[pedal];
+		cc = lr.r.pedal_cc[pedal];
+		pm = lr.r.pedal_mode[pedal];
 		if (pm == PEDAL_MODE_NORMAL) {
 			MS1.sendControlChange(cc, val, i + 1);
-		} else if (pm == PEDAL_MODE_TOGGLE_EN) {
+		} else if (pm == PEDAL_MODE_TOGGLE_ACT) {
+			/* FIXME */
 			if (val == 0) {
-				lr.enabled = lr.status;
+				lr.activate = 0;
+				//lr.r.enabled = lr.status;
 			} else if (val == 0x7F) {
-				lr.enabled = !lr.status;
+				lr.activate = 1;
+				//lr.r.enabled = !lr.status;
 			}
 		}
 	}
@@ -65,107 +131,168 @@ void midi_handle_pedal_input(uint8_t pedal, uint8_t val)
 
 void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 {
-	static uint8_t s[32] = {0};
-	struct layer_state lr;
+	static struct layer_state lr_prev;
+	static struct global_state gs_prev;
+	static uint8_t sysex[32];
+
+	uint8_t * s = sysex;
 	uint8_t cmd;
 	int i;
-	uint8_t l;
-	uint8_t rlen = 0;
+	uint8_t layer;
+	uint8_t offset;
+	uint8_t reqlen;
+	uint8_t reslen = 0;
+	uint8_t rescmd = 0;
 
-	if (len < 2)
+	struct {
+		int gs_enabled : 1;
+		int gs_tempo : 1;
+		int program : 1;
+		int volume: 1;
+		int all : 1;
+#if 0
+		int part: 1;
+#endif
+	} changes = {0};
+
+	if (len < 4)
 		return;
 
-	cmd = c[1];
+	cmd = (c[1] >> 4) & 0x07;
+	layer = c[1] & 0x0F;
+	offset = c[2];
+	reqlen = c[3];
 
-	if (cmd == MIDIBOX_CMD_SET_GLOBAL) {
-		if (len < 5 + PEDALS * 2)
+	c += 4;
+	s += 4;
+	len -= 4;
+
+	if (cmd == MIDIBOX_CMD_WRITE_REQ && layer == 15) {
+		if (reqlen != len || offset + reqlen > sizeof(gs.r))
 			return;
 
-		bool prev_enabled = gs.enabled;
+		gs_prev = gs;
 
-		gs.config = c[2];
-		gs.tempo = c[3] | (c[4] << 7);
+		memcpy(&gs.r + offset, c, len);
 
-		if (gs.enabled != prev_enabled)
-			sendMidiLocalCTL(!gs.enabled);
+		gs.tempo = gs.r.tempo_msb << 7 + gs.r.tempo_lsb;
 
-		for (i = 0; i < PEDALS; i++) {
-			gs.pedal_cc[i] = c[5 + i*2 + 0];
-			gs.pedal_mode[i] = c[5 + i*2 + 1];
-		}
-		midi_change_tempo(gs.tempo);
-	} else if (cmd == MIDIBOX_CMD_GET_GLOBAL) {
-		s[2] = gs.config;
-		s[3] = (gs.tempo >> 0) & 0x7F;
-		s[4] = (gs.tempo >> 7) & 0x7F;
-
-		for (i = 0; i < PEDALS; i++) {
-			s[5 + i*2 + 0] = gs.pedal_cc[i];
-			s[5 + i*2 + 1] = gs.pedal_mode[i];
+		if (gs.r.init) {
+			gs.r.init = 0;
+			changes.gs_enabled = 1;
+			changes.gs_tempo = 1;
 		}
 
-		rlen = 5 + PEDALS * 2;
-	} else if (cmd == MIDIBOX_CMD_SET_LAYER) {
-		if (len < 9 + 2*PEDALS)
+		if (gs.r.enabled != gs_prev.r.enabled)
+			changes.gs_enabled = 1;
+		if (gs.tempo != gs_prev.tempo)
+			changes.gs_tempo = 1;
+
+		if (changes.gs_enabled)
+			sendMidiLocalCTL(!gs.r.enabled);
+		if (changes.gs_tempo)
+			midi_change_tempo(gs.tempo);
+
+	} else if (cmd == MIDIBOX_CMD_READ_REQ && layer == 15) {
+		if (offset + reqlen > sizeof(gs.r))
 			return;
 
-		l = c[2];
-		lr = ls[l];
+		memcpy(s, &gs.r + offset, reqlen);
+		reslen = reqlen;
+		rescmd = MIDIBOX_CMD_READ_RES;
+	} else if (cmd == MIDIBOX_CMD_WRITE_REQ && layer < LAYERS) {
+		struct layer_state & lr = ls[layer];
 
-		lr.enabled = c[3];
-		lr.transposition = c[4] - 0x40;
-		lr.lo = c[5];
-		lr.hi = c[6];
-		lr.mode = c[7];
-		lr.transposition_extra = c[8] - 0x40;
-
-		for (i = 0; i < PEDALS; i++) {
-			lr.pedal_cc[i] = c[9 + i*2 + 0];
-			lr.pedal_mode[i] = c[9 + i*2 + 1];
-		}
-
-		ls[l] = lr;
-	} else if (cmd == MIDIBOX_CMD_GET_LAYER) {
-		if (len < 3)
+		if (reqlen != len || offset + reqlen > sizeof(lr.r))
 			return;
 
-		l = c[2];
-		lr = ls[l];
+		lr_prev = ls[layer];
 
-		s[2] = l;
-		s[3] = lr.enabled;
-		s[4] = lr.transposition + 0x40;
-		s[5] = lr.lo;
-		s[6] = lr.hi;
-		s[7] = lr.mode;
-		s[8] = lr.transposition_extra + 0x40;
+		memcpy(&lr.r + offset, c, reqlen);
 
-		for (i = 0; i < PEDALS; i++) {
-			s[9 + 0 + i*2] = lr.pedal_cc[i];
-			s[9 + 1 + i*2] = lr.pedal_mode[i];
+		reg2layer(lr);
+
+		if (lr.r.init) {
+			lr.r.init = 0;
+			changes.all = 1;
 		}
-		rlen = 10 + PEDALS * 2;
+
+		if (lr_prev.r.bs != lr.r.bs || lr_prev.r.bs_lsb != lr.r.bs_lsb || lr_prev.r.pgm != lr.r.pgm)
+			changes.program = 1;
+
+		if (lr_prev.r.volume != lr.r.volume)
+			changes.volume = 1;
+
+#if 0
+		if (lr_prev.part != lr.part) {
+			changes.program = 1;
+			changes.volume = 1;
+			changes.part = 1;
+		}
+#endif
+
+		if (changes.program || changes.all) {
+			MS1.sendControlChange(BankSelect, lr.r.bs, lr.channel);
+			MS1.sendControlChange(BankSelectLSB, lr.r.bs_lsb, lr.channel);
+			MS1.sendProgramChange(lr.r.pgm, lr.channel);
+		}
+#if 1
+		if (lr_prev.r.release != lr.r.release || changes.all)
+			MS1.sendControlChange(72, lr.r.release, lr.channel);
+
+		if (lr_prev.r.attack != lr.r.attack || changes.all)
+			MS1.sendControlChange(73, lr.r.attack, lr.channel);
+
+		if (lr_prev.r.cutoff != lr.r.cutoff || changes.all)
+			MS1.sendControlChange(74, lr.r.cutoff, lr.channel);
+
+		if (lr_prev.r.decay != lr.r.decay || changes.all)
+			MS1.sendControlChange(75, lr.r.decay, lr.channel);
+#endif
+		if (changes.volume || changes.all) {
+			i = roland_sysex_begin(sysex);
+			sysex[i+0] = 0x40;
+			sysex[i+1] = 0x10 | lr.part;
+			sysex[i+2] = 0x19;
+			sysex[i+3] = lr.r.volume;
+			reslen = roland_sysex_finish(sysex, 3+1);
+			MS1.sendSysEx(reslen, sysex, false);
+
+			reslen = 0;
+		}
+	} else if (cmd == MIDIBOX_CMD_READ_REQ && layer < LAYERS) {
+		struct layer_state & lr = ls[layer];
+
+		if (offset + reqlen > sizeof(lr.r))
+			return;
+
+		memcpy(s, &lr.r + offset, reqlen);
+		reslen = reqlen;
+		rescmd = MIDIBOX_CMD_READ_RES;
 	}
 
-	if (rlen) {
-		s[0] = MIDIBOX_SYSEX_ID;
-		s[1] = cmd;
+	if (reslen) {
+		sysex[0] = MIDIBOX_SYSEX_ID;
+		sysex[1] = ((rescmd & 0x07) << 4) | (layer & 0x0F);
+		sysex[2] = offset;
+		sysex[3] = reslen;
 
-		for (i = 0; i < rlen; i++) {
-			if (s[i] & 0x80) {
+		reslen += 4;
+
+		for (i = 0; i < reslen; i++) {
+			if (sysex[i] & 0x80) {
 				//Serial.println(String("S1 ERR send pos: ") + i + " val" + s[i]);
-				s[i] &= ~0x80;
+				sysex[i] &= ~0x80;
 			}
 		}
 
 		if (origin == 0) {
-			MU.sendSysEx(rlen, s, false);
+			MU.sendSysEx(reslen, sysex, false);
 		} else if (origin == 1) {
-			MB.sendSysEx(rlen, s, false);
+			MB.sendSysEx(reslen, sysex, false);
 		}
 	}
 }
-
 
 void handleUsbMidiMessage(const Message<128> & msg)
 {
@@ -282,13 +409,13 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 	b2 = msg.data2;
 	l = msg.length;
 
-	Serial.println(String("S1 MSG: ") + cmd + " len: " + l);
+	//Serial.println(String("S1 MSG: ") + cmd + " len: " + l);
 
-	if (gs.debug_s2u_all) {
+	if (gs.r.debug_s2u_all) {
 		MU.send(msg);
 	}
 
-	if (gs.debug_s2b_all || (gs.debug_s2b && (msg.type == 0xF0 || msg.type == 0xf7)))
+	if (gs.r.debug_s2b_all || (gs.r.debug_s2b && (msg.type == 0xF0 || msg.type == 0xf7)))
 		MB.send(msg);
 
 	for (l = 0; l < LAYERS; l++) {
@@ -296,8 +423,8 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 		lmask = 1 << l;
 		lchannel = ((lr.channel_out_offset + l) & 0x0F) + 1;
 		lnote = (b1 + lr.transposition + lr.transposition_extra) & 0x7F;
-		lenabled = lr.enabled && (lr.channel_in_mask & (1 << (uint16_t) (channel-1)));
-
+		lenabled = lr.r.enabled && ((lr.activate == 0 && lr.active == 1) || (lr.activate == 1 && lr.active == 0));
+//			(lr.channel_in_mask & (1 << (uint16_t) (channel-1)));
 
 		note_in_bounds = (b1 + lr.transposition + lr.transposition_extra) == lnote ? 1 : 0;
 
@@ -310,7 +437,7 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 			}
 
 			if (note_in_bounds && layer_is_playing(lr, lnote)) {
-				if (lr.mode & NOTE_MODE_HOLD && lr.ticks_remains[lnote] != 0)
+				if (lr.r.mode & NOTE_MODE_HOLD && lr.ticks_remains[lnote] != 0)
 					continue;
 
 				layer_set_playing(lr, lnote, false, b1);
@@ -319,14 +446,14 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 				/* FIXME: better handling */
 				lr.ticks_remains[lnote] = 0;
 
-				if (lr.mode == NOTE_MODE_SHUFFLE) {
+				if (lr.r.mode == NOTE_MODE_SHUFFLE) {
 					/* TODO: cancel next note on */
 				}
 			}
 			continue;
 		}
 
-		if (!gs.enabled)
+		if (!gs.r.enabled)
 			continue;
 
 #if 0
@@ -365,13 +492,13 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 		msg_out.length = msg.length;
 
 		if (cmd == midi::NoteOn) {
-			if (note_in_bounds /*&& !layer_is_playing(lr, lnote)*/ && b1 >= lr.lo && b1 <= lr.hi) {
+			if (note_in_bounds /*&& !layer_is_playing(lr, lnote)*/ && b1 >= lr.r.lo && b1 <= lr.r.hi) {
 				/* FIXME: Repeat already playing same note for NOTE_MODE_HOLD */
 				layer_set_playing(lr, lnote, true, b1);
 				layer_handle_note_on_special(lr, lnote, b2);
 
 				vol = b2;
-				vol *= lr.volume;
+				vol *= lr.r.volume;
 
 				MS1.sendNoteOn(lnote, vol / 100, lchannel);
 			}
@@ -399,12 +526,12 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 		#endif
 		} else if (cmd == midi::ProgramChange) {
 			/* Send PC only to selected layer */
-			if (l == gs.selected_layer) {
+			if (l == gs.r.selected_layer) {
 				MS1.send(msg_out);
 			}
 		} else if (cmd == midi::ControlChange) {
 			if (b1 == BankSelect || b1 == BankSelectLSB) {
-				if (l == gs.selected_layer) {
+				if (l == gs.r.selected_layer) {
 					MS1.send(msg_out);
 				}
 			} else {
@@ -412,7 +539,7 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 			}
 		} else if (cmd == midi::SystemExclusive) {
 			/* FIXME: modify sysex */
-			if (l == gs.selected_layer) {
+			if (l == gs.r.selected_layer) {
 				/* INFO: copy sysex array if modified */
 				MS1.send(msg);
 			}
@@ -434,65 +561,103 @@ void midi_loop()
 
 void midi_init()
 {
-	gs.config = 0;
+	int i;
+	gs.r.config = 0;
+	gs.r.status = 0;
+	gs.r.init = 0;
+	gs.r.selected_layer = 0;
+
 	gs.tempo = 120;
-	gs.selected_layer = 0;
 
-	gs.pedal_cc[0] = Sustain;
-	gs.pedal_cc[1] = SoftPedal;
-	gs.pedal_cc[2] = Sostenuto;
-	gs.pedal_cc[3] = 0;
-	gs.pedal_cc[4] = GeneralPurposeController1;
-	gs.pedal_cc[5] = GeneralPurposeController2;
-	gs.pedal_cc[6] = GeneralPurposeController3;
-	gs.pedal_cc[7] = GeneralPurposeController4;
+	gs2reg(gs);
 
-	gs.pedal_mode[0] = PEDAL_MODE_NORMAL;
-	gs.pedal_mode[1] = PEDAL_MODE_NORMAL;
-	gs.pedal_mode[2] = PEDAL_MODE_NORMAL;
-	gs.pedal_mode[3] = PEDAL_MODE_IGNORE;
-	gs.pedal_mode[4] = PEDAL_MODE_NORMAL;
-	gs.pedal_mode[5] = PEDAL_MODE_NORMAL;
-	gs.pedal_mode[6] = PEDAL_MODE_NORMAL;
-	gs.pedal_mode[7] = PEDAL_MODE_NORMAL;
+	gs.r.pedal_cc[0] = Sustain;
+	gs.r.pedal_cc[1] = SoftPedal;
+	gs.r.pedal_cc[2] = Sostenuto;
+
+	gs.r.pedal_cc[0] = 0;
+	gs.r.pedal_cc[1] = 0;
+	gs.r.pedal_cc[2] = 0;
+
+	gs.r.pedal_cc[3] = 0;
+	gs.r.pedal_cc[4] = GeneralPurposeController1;
+	gs.r.pedal_cc[5] = GeneralPurposeController2;
+	gs.r.pedal_cc[6] = GeneralPurposeController3;
+	gs.r.pedal_cc[7] = GeneralPurposeController4;
+
+	for (i = 0; i < MIDIBOX_PEDALS; i++)
+		gs.r.pedal_mode[i] = PEDAL_MODE_NORMAL;
+	gs.r.pedal_mode[3] = PEDAL_MODE_IGNORE;
 
 	for (uint8_t l = 0; l < LAYERS; l++) {
-		ls[l].enabled = 0;
-		ls[l].status = ls[l].enabled;
-		ls[l].lo = 0;
-		ls[l].hi = 127;
-		ls[l].channel_in_mask = 0xffff;
-		ls[l].channel_out_offset = 0;
-		ls[l].transposition = 0;
-		ls[l].transposition_extra = 0;
-		ls[l].volume = 100;
-		ls[l].mode = 0;
+		struct layer_state & lr = ls[l];
 
-		ls[l].pedal_cc[0] = Sustain;
-		ls[l].pedal_cc[1] = SoftPedal;
-		ls[l].pedal_cc[2] = Sostenuto;
-		ls[l].pedal_cc[3] = 0;
-		ls[l].pedal_cc[4] = GeneralPurposeController1;
-		ls[l].pedal_cc[5] = GeneralPurposeController2;
-		ls[l].pedal_cc[6] = GeneralPurposeController3;
-		ls[l].pedal_cc[7] = GeneralPurposeController4;
+		lr.r.enabled = 0;
+		lr.r.status = 0;
+		lr.r.init = 0;
+		lr.r.pgm = 0;
+		lr.r.bs = 0;
+		lr.r.bs_lsb = 68;
+		lr.r.lo = 0;
+		lr.r.hi = 127;
 
-		ls[l].pedal_mode[0] = PEDAL_MODE_NORMAL;
-		ls[l].pedal_mode[1] = PEDAL_MODE_NORMAL;
-		ls[l].pedal_mode[2] = PEDAL_MODE_NORMAL;
-		ls[l].pedal_mode[3] = PEDAL_MODE_IGNORE;
-		ls[l].pedal_mode[4] = PEDAL_MODE_NORMAL;
-		ls[l].pedal_mode[5] = PEDAL_MODE_NORMAL;
-		ls[l].pedal_mode[6] = PEDAL_MODE_NORMAL;
-		ls[l].pedal_mode[7] = PEDAL_MODE_NORMAL;
+		lr.r.volume = 100;
+		lr.r.mode = 0;
 
-		ls[l].cc_expression = 100;
-		ls[l].cc_sustain = 0;
+		lr.transposition = 0;
+		lr.transposition_extra = 0;
+		lr.channel_in_mask = 0xffff;
+		lr.channel = l + 1;
+		lr.channel_out_offset = 0;
+		lr.cc_sustain = 0;
+		lr.cc_expression = 100;
+
+		lr.r.release = 0x40;
+		lr.r.attack = 0x40;
+		lr.r.cutoff = 0x40;
+		lr.r.decay = 0x40;
+
+		/* TODO: "activate" feature (mode of pedal) is to temporary disable (default) or enable channel */
+		//lr.active = 0; /* pedal mode == activate */
+		lr.active = 1; /* pedal mode == deactivate */
+		lr.activate = 0; /* This represents current state of the "activate" pedal */
+
+		//lr.part = l + 1;
+		layer2reg(lr);
+
+		lr.r.pedal_cc[0] = Sustain;
+		lr.r.pedal_cc[1] = SoftPedal;
+		lr.r.pedal_cc[2] = Sostenuto;
+
+		lr.r.pedal_cc[0] = 0;
+		lr.r.pedal_cc[1] = 0;
+		lr.r.pedal_cc[2] = 0;
+		lr.r.pedal_cc[3] = 0;
+		lr.r.pedal_cc[4] = GeneralPurposeController1;
+		lr.r.pedal_cc[5] = GeneralPurposeController2;
+		lr.r.pedal_cc[6] = GeneralPurposeController3;
+		lr.r.pedal_cc[7] = GeneralPurposeController4;
+
+		for (i = 0; i < MIDIBOX_PEDALS; i++)
+			lr.r.pedal_mode[i] = PEDAL_MODE_NORMAL;
+		lr.r.pedal_mode[3] = PEDAL_MODE_IGNORE;
 
 		for (uint8_t j = 0; j < 128/8; j++) {
-			ls[l].note[j] = 0;
+			lr.note[j] = 0;
 		}
 	}
+
+	ls[0].transposition_extra = -12;
+	ls[0].r.enabled = 1;
+	ls[0].r.lo = 56;
+	ls[1].r.hi = 55;
+	ls[1].r.enabled = 1;
+	ls[1].r.bs_lsb = 71;
+	ls[1].r.bs = 0;
+	ls[1].r.pgm = 33-1;
+
+	layer2reg(ls[0]);
+	layer2reg(ls[1]);
 
 	next_tick = micros();
 
@@ -741,8 +906,8 @@ void midi_loop()
 				}
 
 				if (
-					(b1 == midi::Sostenuto && lr.cc_pedal2_mode == PEDAL_MODE_TOGGLE_EN) ||
-					(b1 == midi::SoftPedal && lr.cc_pedal3_mode == PEDAL_MODE_TOGGLE_EN)
+					(b1 == midi::Sostenuto && lr.cc_pedal2_mode == PEDAL_MODE_TOGGLE_ACT) ||
+					(b1 == midi::SoftPedal && lr.cc_pedal3_mode == PEDAL_MODE_TOGGLE_ACT)
 				) {
 					if (b2 == 0) {
 						lr.enabled = lr.status;
