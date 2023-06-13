@@ -42,7 +42,7 @@ Item {
 			Component.onCompleted: currentIndex = 0
 			Repeater {
 				Layout.fillWidth: true
-				model: ["Program", "Config", "Pedals"]
+				model: ["Program", "Config", "Effects", "Pedals"]
 
 				delegate: TabButton {
 					text: qsTr(modelData)
@@ -67,13 +67,7 @@ Item {
 						Label{text: qsTr("Program     ")}
 
 						RoundButton {
-							onClicked: {
-								layerx.current.transposition = 0;
-								layerx.current.rangel = 0;
-								layerx.current.rangeu = 127;
-								layerx.current.volume = 100;
-							}
-							
+							onClicked: layerx.current.reset()
 							text: "Reset"
 						}
 						Switch{
@@ -186,6 +180,48 @@ Item {
 					}
 				}
 			}
+			/* Effects */
+			Item {
+				Layout.fillWidth: true
+				GridLayout {
+					anchors.fill: parent
+					columns: 2
+
+					Label{text: qsTr("Release: " + (layerx.current.release))}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
+						from: -64; to: 63; stepSize: 1
+						value: layerx.current.release
+						onMoved: layerx.current.release = Math.round(value)
+					}
+					Label{text: qsTr("Attack: " + (layerx.current.attack))}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
+						from: -64; to: 63; stepSize: 1
+						value: layerx.current.attack
+						onMoved: layerx.current.attack = Math.round(value)
+					}
+					Label{text: qsTr("Cutoff: " + (layerx.current.cutoff))}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
+						from: -64; to: 63; stepSize: 1
+						value: layerx.current.cutoff
+						onMoved: layerx.current.cutoff = Math.round(value)
+					}
+					Label{text: qsTr("Decay: " + (layerx.current.decay))}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
+						from: -64; to: 63; stepSize: 1
+						value: layerx.current.decay
+						onMoved: layerx.current.decay = Math.round(value)
+					}
+				}
+
+			}
 			/* Pedals */
 			Item {
 				Layout.fillWidth: true
@@ -194,16 +230,24 @@ Item {
 					columns: 2
 
 					Repeater {
-					Layout.fillWidth: true
-					model: 8
-						Label{text: qsTr("Pedal" + modelData)}
+						id: pedal
+						Layout.fillWidth: true
+						model: 8
 
-						ComboBox {
-							model: pedalCcModel
-							onActivated: layerx.current.pedals[modelData].cc = currentValue
-							currentIndex: indexOfValue(layerx.current.pedals[modelData].cc)
-							textRole: 'text'
-							valueRole: 'value'
+						GridLayout {
+							Layout.fillWidth: true
+							//anchors.fill: parent
+							columns: 2
+							Label{text: qsTr("Pedal " + (modelData+1))}
+
+							ComboBox {
+								Layout.fillWidth: true
+								model: pedalCcModel
+								onActivated: layerx.current.pedals[modelData].cc = currentValue
+								currentIndex: indexOfValue(layerx.current.pedals[modelData].cc)
+								textRole: 'text'
+								valueRole: 'value'
+							}
 						}
 					}
 				}

@@ -5,7 +5,9 @@ import QtQuick.Layouts 1.15
 
 Column{
 	//Layout.fillWidth: true
+	Layout.fillHeight: true
 	//padding: 0
+
 	Switch{
 		text: "Enable"
 		onToggled: midibox.enable = checked
@@ -15,6 +17,11 @@ Column{
 		text: "Transpose 1ova on ch0"
 		onToggled: midibox.transpositionExtra = checked
 		checked: midibox.transpositionExtra
+	}
+	RoundButton {
+		onClicked: midibox.initialize()
+		text: "Init"
+		icon.name: "sidebar-show-symbolic"
 	}
 	RoundButton {
 		onClicked: midibox.split12()

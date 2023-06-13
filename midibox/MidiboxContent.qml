@@ -10,6 +10,8 @@ Pane {
 	width: parent.width / my_scale
 	height: parent.height / my_scale
 
+	Layout.fillHeight: true
+
 	palette {
 		window: "#15171a"
 		button: "#282b30"
@@ -38,6 +40,7 @@ Pane {
 
 	ColumnLayout {
 		anchors.fill: parent
+		Layout.fillHeight: true
 		TabBar {
 			id: mainBar
 			objectName: "mainBar"
@@ -54,6 +57,7 @@ Pane {
 
 		StackLayout {
 			Layout.fillWidth: true
+			Layout.fillHeight: true
 			currentIndex: mainBar.currentIndex
 
 			MainPanel {

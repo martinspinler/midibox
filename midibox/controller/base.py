@@ -71,11 +71,33 @@ MidiBoxLayerProps = [
     ),
     CheckedProp('program', '-unknown-',
         lambda s, v: v if v in s.programs else s.programs[s._program],
-        lambda s, v: s.setProgram(v)
+        lambda self, _: self._write_config()
+       #lambda s, v: s.setProgram(v)
     ),
     CheckedProp('volume', 100,
         lambda s, v: clamp(v, 0, 127),
-        lambda s, v: s._dev.setPartParam(s._part, 0x19, v) # CHECK + 1?
+        lambda self, _: self._write_config()
+       #lambda s, v: s._dev.setPartParam(s._part, 0x19, v) # CHECK + 1?
+    ),
+    #CheckedProp('init', False,
+    #    lambda s, v: True if v else False,
+    #    lambda self, _: self._write_config()
+    #),
+    CheckedProp('release', 0,
+        lambda s, v: clamp(v, -64, 63),
+        lambda self, _: self._write_config()
+    ),
+    CheckedProp('attack', 0,
+        lambda s, v: clamp(v, -64, 63),
+        lambda self, _: self._write_config()
+    ),
+    CheckedProp('cutoff', 0,
+        lambda s, v: clamp(v, -64, 63),
+        lambda self, _: self._write_config()
+    ),
+    CheckedProp('decay', 0,
+        lambda s, v: clamp(v, -64, 63),
+        lambda self, _: self._write_config()
     ),
 ]
 
@@ -99,6 +121,7 @@ class MidiBoxLayer(Dispatcher):
         self._part = (index + 1) & 0xF if index != 9 else 0
         self._dev = dev
         self._mode = 0
+        self._initialize = False
 
         pedal_cc = ['Sustain', 'Hold', 'Expression'] + [0] + ['GPC1', 'GPC2', 'GPC3', 'GPC4']
         self._pedal_cc = [self._dev.pedal_cc[x] if x in self._dev.pedal_cc else x for x in pedal_cc]
@@ -107,6 +130,12 @@ class MidiBoxLayer(Dispatcher):
 
         self.pedals = [MidiBoxPedal(self, i) for i in range(8)]
 
+    def reset(self):
+        for p in self._mb_properties:
+            if p.name == 'program':
+                setattr(self, p.name, 'piano')
+            else:
+                setattr(self, p.name, p.init_value)
     def setProgram(self, value):
         p = self.programs[value]
 
@@ -165,6 +194,7 @@ class BaseMidiBox(Dispatcher):
     }
 
     def __init__(self):
+        self._initialize = False
         self.layers = [MidiBoxLayer(self, i) for i in range(8)]
         self._callbacks = []
 
@@ -225,6 +255,14 @@ class BaseMidiBox(Dispatcher):
             except:
                 pass
                                     #print(eff_type, msg.data)
+
+    def initialize(self):
+        self._initialize = True
+        self._write_config()
+
+        for i, l in enumerate(self.layers):
+            l._initialize = True
+            self._write_layer_config(l)
 
     def requestKey(self, target, index, prop):
         self.mute = True

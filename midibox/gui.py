@@ -85,6 +85,10 @@ class QMidiboxLayer(QObject, metaclass=PropertyMeta):
         for p in self._cl.pedals:
             self._pedals.append(QMidiboxPedal(p, handler))
 
+    @pyqtSlot()
+    def reset(self):
+        self._proxy.reset()
+
     @pyqtProperty(list, notify=pedalsChange)
     def pedals(self): return self._pedals
 
@@ -144,6 +148,10 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
     def note2text(self, note):
         note_names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
         return note_names[note % 12] + str(note // 12 - 2)
+
+    @pyqtSlot()
+    def initialize(self):
+        self.box.initialize()
 
     @pyqtSlot()
     def split12(self):
