@@ -46,10 +46,13 @@ class MidiboxQuickWidget(QQuickWidget):
         self.setSource(QUrl.fromLocalFile(str(pathlib.Path(__file__).parent/"StandaloneWidget.qml")));
 
         if hasattr(app, "aboutToQuit"):
+            # Set empty source to avoid bad contextProperty references on exit
             getattr(app, "aboutToQuit").connect(functools.partial(self.setSource, QUrl.fromLocalFile("")))
 
-#    def minimumSizeHint(self):
-#        return QSize(1280//2, 720//2)
-#
-#    def sizeHint(self):
-#        return QSize(1280//1, 720//1)
+    def minimumSizeHint(self):
+        return QSize(0, 720)#1280//2, 720//2)
+        return QSize(1280//2, 720//2)
+
+    def sizeHint(self):
+        return QSize(0, 720)
+        return QSize(1280//1, 720//1)
