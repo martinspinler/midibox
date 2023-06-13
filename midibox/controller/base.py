@@ -101,19 +101,25 @@ MidiBoxLayerProps = [
     ),
 ]
 
+efx = {
+    'none':   [0x40, 0x40, 0x23, 0x00, 0x00, 0x00, 0x00, 0x08, 0x04],
+    'dumper': [0x40, 0x40, 0x23, 0x00, 0x40, 0x32, 0x40, 0x32, 0x00],
+    'rotary': [0x40, 0x40, 0x23, 0x01, 0x22, 0x00, 0x40, 0x00, 0x7F],
+    'epiano': [0x40, 0x40, 0x23, 0x01, 0x42, 0x00, 0x40, 0x37, 0x02],
+}
 
 @mb_properties_init
 class MidiBoxLayer(Dispatcher):
     _mb_properties = MidiBoxLayerProps
     _events_ = ['control_change']
     programs = {          #PC MSB LSB
-        'piano'         : MidiBoxProgram( 1,  0, 68, [[0x40, 0x40, 0x23, 0x00, 0x40, 0x32, 0x40, 0x32, 0x00]], 'Pn', 'Piano'),
-        'epiano'        : MidiBoxProgram( 5,  0, 67, [[0x40, 0x40, 0x23, 0x01, 0x42, 0x00, 0x40, 0x37, 0x02]], 'eP', 'E-Piano'),
-        'bass'          : MidiBoxProgram(33,  0, 71, [[0x40, 0x40, 0x23, 0x00, 0x00, 0x00, 0x00, 0x08, 0x04]], 'Bs', 'Bass'),
-        'hammond'       : MidiBoxProgram(17, 32, 68, [[0x40, 0x40, 0x23, 0x01, 0x22, 0x00, 0x40, 0x00, 0x7F]], 'Hm', 'Hammond'),
-        'vibraphone'    : MidiBoxProgram(12,  0,  0, [[0x40, 0x40, 0x23, 0x01, 0x22, 0x00, 0x40, 0x00, 0x7F]], 'Vp', 'Vibraphone'),
-        'marimba'       : MidiBoxProgram(13,  0, 64, [[0x40, 0x40, 0x23, 0x01, 0x22, 0x00, 0x40, 0x00, 0x7F]], 'Mb', 'Marimba'),
-        'fretlessbass'  : MidiBoxProgram(36,  0,  0, [[0x40, 0x40, 0x23, 0x00, 0x00, 0x00, 0x00, 0x08, 0x04]], 'FB', 'Fretlett Bass'),
+        'piano'         : MidiBoxProgram( 1,  0, 68, [efx['dumper']], 'Pn', 'Piano'),
+        'epiano'        : MidiBoxProgram( 5,  0, 67, [efx['epiano']], 'eP', 'E-Piano'),
+        'bass'          : MidiBoxProgram(33,  0, 71, [efx['none']],   'Bs', 'Bass'),
+        'hammond'       : MidiBoxProgram(17, 32, 68, [efx['rotary']], 'Hm', 'Hammond'),
+        'vibraphone'    : MidiBoxProgram(12,  0,  0, [efx['rotary']], 'Vp', 'Vibraphone'),
+        'marimba'       : MidiBoxProgram(13,  0, 64, [efx['rotary']], 'Mb', 'Marimba'),
+        'fretlessbass'  : MidiBoxProgram(36,  0,  0, [efx['none']],   'FB', 'Fretlett Bass'),
     }
 
     def __init__(self, dev, index):
