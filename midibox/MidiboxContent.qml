@@ -74,6 +74,7 @@ Pane {
 			}
 
 			WebEngineView {
+				objectName: "playlistWebView"
 				url: "https://perfecttime.livelist.cz/"
 				//zoomFactor: reterm ? 2 : 1
 			}

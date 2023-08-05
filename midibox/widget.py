@@ -16,7 +16,7 @@ we = PyQt5.QtWebEngine.QtWebEngine
 we.initialize()
 
 class MidiboxQuickWidget(QQuickWidget):
-    def __init__(self, app, midibox_params={}):
+    def __init__(self, app, midibox_params={}, **kwargs):
         super().__init__()
 
         e = self.engine()
@@ -44,6 +44,11 @@ class MidiboxQuickWidget(QQuickWidget):
         self.setResizeMode(self.SizeRootObjectToView)
 
         self.setSource(QUrl.fromLocalFile(str(pathlib.Path(__file__).parent/"StandaloneWidget.qml")));
+
+        if kwargs.get("playlist_url"):
+            ro = self.rootObject()
+            wv = ro.findChild(QObject, "playlistWebView")
+            wv.setProperty("url", kwargs.get("playlist_url"))
 
         if hasattr(app, "aboutToQuit"):
             # Set empty source to avoid bad contextProperty references on exit
