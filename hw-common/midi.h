@@ -1,6 +1,11 @@
 #ifndef __MIDI_H__
 #define __MIDI_H__
 
+#ifdef ARDUINO_Seeed_XIAO_nRF52840
+#define MIDIBOX_HAVE_BT
+#else
+#endif
+
 #include <MIDI.h>
 
 #ifdef ARDUINO
@@ -9,9 +14,14 @@
 #include <midibox-compat.h>
 #endif
 
+#ifdef MIDIBOX_HAVE_BT
 extern MidiInterfaceUsb MU;
 extern MidiInterfaceHwserial MS1;
 extern MidiInterfaceBle MB;
+#else
+extern MidiInterfaceHwserial MS1;
+extern MidiInterfaceHwserial MS2;
+#endif
 
 #include "api.h"
 
@@ -34,17 +44,19 @@ struct layer_state {
 	uint8_t last_note_vol;
 	uint8_t last_note;
 
-	/*
+#if 0
 	int8_t release;
 	int8_t attack;
 	int8_t cutoff;
 	int8_t decay;
-	*/
+#endif
+
 #if 0
 	uint8_t cc_pedal1_mode; /* ignore, normal, bass... */
 	uint8_t cc_pedal2_mode;
 	uint8_t cc_pedal3_mode;
 #endif
+
 //	uint8_t status;
 	uint8_t note[128/8];
 
@@ -70,12 +82,15 @@ extern struct layer_state ls[LAYERS];
 extern struct global_state gs;
 
 
+void smidi_init();
 void midi_init();
 void midi_loop();
 void midi_handle_config();
 void midi_handle_instrument_cmd(uint8_t cmd);
 void midi_handle_controller_cmd(int origin, const uint8_t *cmd, uint16_t len);
 void midi_handle_pedal_input(uint8_t pedal, uint8_t val);
+
+void midi_piano_connect();
 
 void midi_secondary_handle_input();
 

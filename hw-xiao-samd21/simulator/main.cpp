@@ -17,9 +17,9 @@ VirtualSerialMidi vSerial_HW1(Serial_HW1);
 VirtualSerialMidi vSerial_USB(Serial_USB);
 VirtualSerialMidi vSerial_BLE(Serial_BLE);
 
-MidiInterfaceUsb MU(vSerial_USB);
-MidiInterfaceBle MB(vSerial_BLE);
 MidiInterfaceHwserial MS1(vSerial_HW1);
+MidiInterfaceUsb MS2(vSerial_USB);
+//MidiInterfaceBle MB(vSerial_BLE);
 
 StdoutSerial Serial;
 
@@ -42,6 +42,8 @@ int main(int argc, char **argv)
 	(void)argv; /*Unused*/
 
 	midi_init();
+	smidi_init();
+
 	Serial.begin(115200);
 
 	while(1) {
@@ -49,4 +51,9 @@ int main(int argc, char **argv)
 		usleep(50);
 	}
 	return 0;
+}
+
+void midi_piano_connect()
+{
+	usleep(300000);
 }

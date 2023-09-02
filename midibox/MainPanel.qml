@@ -65,7 +65,7 @@ Column{
 						y: modelData * parent.height/8
 						x: midibox.layers[modelData].rangel * (parent.width/127)
 						width: midibox.layers[modelData].rangeu * (parent.width/127) - midibox.layers[modelData].rangel * 5
-						height: midibox.layers[modelData].active ? parent.height/8 - 2 : 1
+						height: midibox.layers[modelData].enabled ? parent.height/8 - 2 : 1
 						color: ( modelData % 2 ? "orange" : "orange")
 					}
 				}

@@ -38,7 +38,7 @@ class PlaylistClient():
 
             try:
                 msg = await self.ws.receive(timeout=0.1)
-            except asyncio.TimeoutError as e:
+            except asyncio.TimeoutError:
                 continue
 
             if msg.type == aiohttp.WSMsgType.TEXT:

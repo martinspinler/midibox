@@ -7,9 +7,9 @@ using namespace midi;
 void VirtualMidiSerial::begin(int speed)
 {
 	m_midiin.openVirtualPort(m_port_name + "_input");
+	//m_midiin.ignoreTypes(false, false, false);
+	m_midiin.ignoreTypes(false, true, true);
 	m_midiout.openVirtualPort(m_port_name + "_output");
-
-	m_midiin.ignoreTypes(false, false, false);
 }
 
 int VirtualMidiSerial::available()

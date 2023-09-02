@@ -1,0 +1,9 @@
+[project]
+name = "midibox"
+version = "1.0.0"
+
+[project.scripts]
+midibox = "midibox.__main__:main"
+
+[tool.setuptools]
+packages = ["midibox"]

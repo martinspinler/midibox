@@ -2,106 +2,97 @@
 import os
 import sys
 import signal
-import time
 import socket
 import pathlib
+import argparse
 
-from PyQt5.QtCore import QObject, pyqtSlot, pyqtProperty
-from PyQt5.QtGui import QGuiApplication, QIcon, QFont
+import qasync
+import asyncio
+
+from PyQt5.QtGui import QIcon, QFont
 from PyQt5.QtQml import QQmlApplicationEngine
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtQuickWidgets import QQuickWidget
-import PyQt5.QtWebEngineCore
-import PyQt5.QtWebEngine
+#import PyQt5.QtWebEngineCore
 
-from PyQt5 import QtCore, QtGui, QtWidgets, QtQuickWidgets
+from .controller import Midibox
+from .widget import populate_context, initialize_webengine
 
-from controller import Midibox
-from gui import *
 
-import pathlib
-cwd = pathlib.Path(__file__).parent.resolve()
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-s", "--simulator", help="Use simulator", action='store_true')
+    parser.add_argument("--disable-sandbox", help="Disable sandbox for QtWebEngine", action='store_true')
+    return parser.parse_args()
 
-reterm = socket.gethostname() in ["alarmpi"]
-
-#os.environ["QT_QUICK_CONTROLS_CONF"] = str(cwd.joinpath("qtquickcontrols2.conf"))
-if reterm:
-    os.environ["QTWEBENGINE_DISABLE_SANDBOX"] = str(1)
-
-QIcon.setThemeName("Adwaita")
-
-from PyQt5.QtWebEngineWidgets import QWebEngineView
-
-def mymain():
+def mymain(*args, **kwargs):
     global app
-    we = PyQt5.QtWebEngine.QtWebEngine
-    we.initialize()
+
+    if kwargs.get("disable_sandbox"):
+        os.environ["QTWEBENGINE_DISABLE_SANDBOX"] = str(1)
+    initialize_webengine()
     app = QApplication(sys.argv)
+    reterm = socket.gethostname() in ["alarmpi"]
     if reterm:
         app.setFont(QFont("Helvetica", 36))
 
     #app = QApplication.instance()
-    def tryInstance(l):
-        for cls in l:
-            try: return cls()
-            except: pass
+    def tryInstance(lst):
+        for cls in lst:
+            try:
+                return cls()
+            except:
+                pass
         raise
 
     #if reterm:
-    #box = Midibox()
-    box = Midibox("Control", "GigPanel", virtual=True, find=False, debug=True)
-    #else:
-    #    box = tryInstance([RolandMidibox, FakeMidibox])
+    midibox_params = {'port_name': 'Midibox XIAO BLE'}
+    if kwargs.get("simulator"):
+        midibox_params["port_name"] = 'MidiboxSim'
+        midibox_params["virtual"] = True
+        midibox_params["find"] = False
+        midibox_params["find"] = True
+        midibox_params["debug"] = True
 
-    qbox = QMidiBox(box)
-    gu = GraphUpdater(box)
+    app.midibox = Midibox(**midibox_params)
 
-    w = QQmlApplicationEngine()
+    app.engine = w = QQmlApplicationEngine()
+    cwd = pathlib.Path(__file__).parent.resolve()
     w.addImportPath(str(cwd.joinpath("style/")))
 
-    pl = PlaylistModel(app)
-    ppm = ProgramPresetModel(box)
-    ctx = w.rootContext()
-    ctx.setContextProperty("midibox", qbox)
-    ctx.setContextProperty("programPresetsModel", ppm)
-    ctx.setContextProperty("monitor", gu)
-    ctx.setContextProperty("playlistModel", pl)
-    ctx.setContextProperty("reterm", reterm)
+    app.ctx = populate_context(w.rootContext(), app.midibox)
+
+    app.midibox.connect()
+
     w.load(str(cwd.joinpath('midibox.qml')))
     w.quit.connect(app.quit)
     app.aboutToQuit.connect(w.deleteLater)
 
-    if len(w.rootObjects()) == 0: exit(1)
+    if len(w.rootObjects()) == 0:
+        sys.exit(1)
     root = w.rootObjects()[0]
     if reterm:
         root.setProperty("visibility", "FullScreen")
         root.children()[1].setProperty("my_scale", 1)
     else:
-        root.setProperty("width", 1280 // 2)
-        root.setProperty("height", 720 // 2)
+        root.setProperty("width", 1280 // 1)
+        root.setProperty("height", 720 // 1)
         root.children()[1].setProperty("my_scale", 1)
 
-
-#mb = root.findChild(QObject, 'MidiStatsChart')
-#mb.setProperty("currentIndex", 1)
-#win = w.rootObjects()[0]
-
-    pc = playlist.PlaylistClient(None, 'perfecttime.livelist.cz')
-    app.pc = pc
-    app.pl = pl
-    app.mydata = [pl, ppm, qbox, box, gu, pl, w]
+    #pc = livelist.PlaylistClient(None, 'perfecttime.livelist.cz')
     return app
 
 
-import playlist
-import qasync
-import asyncio
 #from asyncqt import QEventLoop
 
 
-def umain():
+def main():
+    #os.environ["QT_QUICK_CONTROLS_CONF"] = str(cwd.joinpath("qtquickcontrols2.conf"))
+    QIcon.setThemeName("Adwaita")
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    args = parse_args()
+
     global app
-    app = mymain()
+    app = mymain(**vars(args))
     ##loop = asyncqt.QEventLoop(app)
     loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(loop)
@@ -112,15 +103,16 @@ def umain():
 
     with loop:
         loop.run_forever()
+    app.midibox.disconnect()
 
-async def main():
-    app = mymain()
-    loop = qasync.QEventLoop(app)
-    asyncio.set_event_loop(loop)
-    #app = QApplication.instance()
-    #init_parser(app)
-    #set_style(app)
-    loop, future = gigpanel.init_loop(app)
+#async def main_async(*args, **kwargs):
+#    app = mymain(*args, **kwargs)
+#    loop = qasync.QEventLoop(app)
+#    asyncio.set_event_loop(loop)
+#    #app = QApplication.instance()
+#    #init_parser(app)
+#    #set_style(app)
+#    loop, future = gigpanel.init_loop(app)
 
 async def xmain():
     global app
@@ -129,26 +121,29 @@ async def xmain():
     #dlpl = await app.pc.get_playlist()
     #app.pl.load(dlpl)
 
-if False:
-    app.exec()
 
-    with loop:
-        try:
-            loop.run_forever()
-        except asyncio.exceptions.CancelledError:
-            pass
-
-    #print("X")
-#    try:
-#        asyncio.ensure_future(app.pc.get_messages())
-#        await future
-#    except:
-#        raise
+use_async = False
 
 if __name__ == "__main__":
-    signal.signal(signal.SIGINT, signal.SIG_DFL)
-    umain()
-#    try:
-#        qasync.run(main())
-#    except asyncio.exceptions.CancelledError:
-#        sys.exit(0)
+    main()
+    #if not use_async:
+    #    main(**vars(args))
+    #else:
+    #    try:
+    #        qasync.run(main_async())
+    #    except asyncio.exceptions.CancelledError:
+    #        sys.exit(0)
+        #if False:
+        #    app.exec()
+        #    with loop:
+        #        try:
+        #            loop.run_forever()
+        #        except asyncio.exceptions.CancelledError:
+        #            pass
+
+            #print("X")
+        #    try:
+        #        asyncio.ensure_future(app.pc.get_messages())
+        #        await future
+        #    except:
+        #        raise

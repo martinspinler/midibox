@@ -10,6 +10,23 @@ static unsigned long next_tick = 0;
 struct global_state gs;
 struct layer_state ls[LAYERS];
 
+struct midi_changes {
+	int gs_enabled : 1;
+	int gs_tempo : 1;
+	int program : 1;
+	int volume: 1;
+	int all : 1;
+#if 0
+	int part: 1;
+#endif
+};
+
+void midi_loop()
+{
+	MS1.read();
+	MS2.read();
+}
+
 void midi_change_tempo(unsigned long t)
 {
 	gs.tempo = t % 1000;
@@ -96,6 +113,20 @@ void reg2gs(struct global_state &gs)
 	gs.tempo |= gs.r.tempo_msb << 7;
 }
 
+void midi_inform_lr_change(uint8_t l, uint8_t reg, uint8_t len)
+{
+	uint8_t m[4];
+
+	m[0] = MIDIBOX_SYSEX_ID1;
+	m[1] = (MIDIBOX_CMD_READ_REQ << 4) | (l);
+	m[2] = reg;
+	m[3] = len;
+	midi_handle_controller_cmd(1, m, 4);
+}
+
+/* TODO */
+
+#if 1
 void midi_handle_pedal_input(uint8_t pedal, uint8_t val)
 {
 	uint8_t i;
@@ -105,37 +136,113 @@ void midi_handle_pedal_input(uint8_t pedal, uint8_t val)
 		return;
 
 	if (gs.r.pedal_mode[pedal] == PEDAL_MODE_NORMAL) {
-		MU.sendControlChange(gs.r.pedal_cc[pedal], val, 1);
+#ifdef MIDIBOX_HAVE_UART2
+		MS2.sendControlChange(gs.r.pedal_cc[pedal], val, 1);
+#endif
+#ifdef MIDIBOX_HAVE_BT
 		MB.sendControlChange(gs.r.pedal_cc[pedal], val, 1);
+#endif
 	}
 
 	for (i = 0; i < LAYERS; i++) {
 		struct layer_state & lr = ls[i];
+		uint8_t prev_active = lr.r.active;
 
 		cc = lr.r.pedal_cc[pedal];
 		pm = lr.r.pedal_mode[pedal];
 		if (pm == PEDAL_MODE_NORMAL) {
 			MS1.sendControlChange(cc, val, i + 1);
 		} else if (pm == PEDAL_MODE_TOGGLE_ACT) {
-			/* FIXME */
+			if (val == 0x7F) {
+				#ifdef MIDIBOX_LOCAL_ACTIVE
+				lr.activate = lr.activate ? 0 : 1;
+				#else
+				lr.r.active = lr.r.active ? 0 : 1;
+				#endif
+			}
+		} else if (pm == PEDAL_MODE_PUSH_ACT) {
 			if (val == 0) {
-				lr.activate = 0;
-				//lr.r.enabled = lr.status;
+				#ifdef MIDIBOX_LOCAL_ACTIVE
+				lr.activate = lr.r.active ? 1 : 0;
+				#else
+				lr.r.active = lr.r.active ? 0 : 1;
+				#endif
 			} else if (val == 0x7F) {
-				lr.activate = 1;
-				//lr.r.enabled = !lr.status;
+				#ifdef MIDIBOX_LOCAL_ACTIVE
+				lr.activate = lr.r.active ? 0 : 1;
+				#else
+				lr.r.active = lr.r.active ? 0 : 1;
+				#endif
 			}
 		}
+		if (lr.r.active != prev_active) {
+			midi_inform_lr_change(i, 0, 1);
+		}
 	}
+}
+#endif
+
+void midi_update_layer(struct layer_state & lr, struct layer_state & lr_prev, struct midi_changes &changes)
+{
+	uint8_t i;
+	static uint8_t s[32];
+	uint8_t reslen = 0;
+
+	if (changes.program || changes.all) {
+		MS1.sendControlChange(BankSelect, lr.r.bs, lr.channel);
+		MS1.sendControlChange(BankSelectLSB, lr.r.bs_lsb, lr.channel);
+		MS1.sendProgramChange(lr.r.pgm, lr.channel);
+	}
+#if 1
+	if (lr_prev.r.release != lr.r.release || changes.all)
+		MS1.sendControlChange(72, lr.r.release, lr.channel);
+
+	if (lr_prev.r.attack != lr.r.attack || changes.all)
+		MS1.sendControlChange(73, lr.r.attack, lr.channel);
+
+	if (lr_prev.r.cutoff != lr.r.cutoff || changes.all)
+		MS1.sendControlChange(74, lr.r.cutoff, lr.channel);
+
+	if (lr_prev.r.decay != lr.r.decay || changes.all)
+		MS1.sendControlChange(75, lr.r.decay, lr.channel);
+#endif
+	if (changes.volume || changes.all) {
+		i = roland_sysex_begin(s);
+		s[i+0] = 0x40;
+		s[i+1] = 0x10 | lr.part;
+		s[i+2] = 0x19;
+		s[i+3] = lr.r.volume;
+		reslen = roland_sysex_finish(s, 3+1);
+		MS1.sendSysEx(reslen, s, false);
+
+		reslen = 0;
+	}
+}
+
+void control_handle_midi_msg(int origin, const Message<128> & msg)
+{
+#ifdef MIDIBOX_HAVE_UART2
+	if (gs.r.debug_s2u_all || ((origin || gs.r.debug_s2u)&& (msg.type == 0xF0 || msg.type == 0xf7))) {
+
+		MS2.send(msg);
+	}
+#endif
+
+#ifdef MIDIBOX_HAVE_BT
+	if (gs.r.debug_s2b_all || ((origin || gs.r.debug_s2b) && (msg.type == 0xF0 || msg.type == 0xf7))) {
+		MB.send(msg);
+	}
+#endif
 }
 
 void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 {
+	static Message<128> msg;
 	static struct layer_state lr_prev;
 	static struct global_state gs_prev;
-	static uint8_t sysex[32];
+	static uint8_t _sysex[32];
 
-	uint8_t * s = sysex;
+	uint8_t * s;
 	uint8_t cmd;
 	int i;
 	uint8_t layer;
@@ -144,28 +251,20 @@ void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 	uint8_t reslen = 0;
 	uint8_t rescmd = 0;
 
-	struct {
-		int gs_enabled : 1;
-		int gs_tempo : 1;
-		int program : 1;
-		int volume: 1;
-		int all : 1;
-#if 0
-		int part: 1;
-#endif
-	} changes = {0};
+	struct midi_changes changes = {0};
 
 	if (len < 4)
 		return;
+
+	s = _sysex;
 
 	cmd = (c[1] >> 4) & 0x07;
 	layer = c[1] & 0x0F;
 	offset = c[2];
 	reqlen = c[3];
 
-	c += 4;
-	s += 4;
 	len -= 4;
+	c += 4;
 
 	if (cmd == MIDIBOX_CMD_WRITE_REQ && layer == 15) {
 		if (reqlen != len || offset + reqlen > sizeof(gs.r))
@@ -230,77 +329,62 @@ void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 			changes.part = 1;
 		}
 #endif
-
-		if (changes.program || changes.all) {
-			MS1.sendControlChange(BankSelect, lr.r.bs, lr.channel);
-			MS1.sendControlChange(BankSelectLSB, lr.r.bs_lsb, lr.channel);
-			MS1.sendProgramChange(lr.r.pgm, lr.channel);
-		}
-#if 1
-		if (lr_prev.r.release != lr.r.release || changes.all)
-			MS1.sendControlChange(72, lr.r.release, lr.channel);
-
-		if (lr_prev.r.attack != lr.r.attack || changes.all)
-			MS1.sendControlChange(73, lr.r.attack, lr.channel);
-
-		if (lr_prev.r.cutoff != lr.r.cutoff || changes.all)
-			MS1.sendControlChange(74, lr.r.cutoff, lr.channel);
-
-		if (lr_prev.r.decay != lr.r.decay || changes.all)
-			MS1.sendControlChange(75, lr.r.decay, lr.channel);
-#endif
-		if (changes.volume || changes.all) {
-			i = roland_sysex_begin(sysex);
-			sysex[i+0] = 0x40;
-			sysex[i+1] = 0x10 | lr.part;
-			sysex[i+2] = 0x19;
-			sysex[i+3] = lr.r.volume;
-			reslen = roland_sysex_finish(sysex, 3+1);
-			MS1.sendSysEx(reslen, sysex, false);
-
-			reslen = 0;
-		}
+		midi_update_layer(lr, lr_prev, changes);
 	} else if (cmd == MIDIBOX_CMD_READ_REQ && layer < LAYERS) {
 		struct layer_state & lr = ls[layer];
 
 		if (offset + reqlen > sizeof(lr.r))
 			return;
 
-		memcpy(s, &lr.r + offset, reqlen);
+		memcpy(s, ((uint8_t*)(&lr.r)) + offset, reqlen);
 		reslen = reqlen;
 		rescmd = MIDIBOX_CMD_READ_RES;
 	}
 
 	if (reslen) {
-		sysex[0] = MIDIBOX_SYSEX_ID;
-		sysex[1] = ((rescmd & 0x07) << 4) | (layer & 0x0F);
-		sysex[2] = offset;
-		sysex[3] = reslen;
+		uint8_t *m = &(msg.sysexArray[1]);
+
+		memcpy(m + 4, s, reslen);
+
+		m[-1] = SystemExclusiveStart;
+		m[0] = c[-4]; /* TODO: set correct destination */
+		m[1] = ((rescmd & 0x07) << 4) | (layer & 0x0F);
+		m[2] = offset;
+		m[3] = reslen;
 
 		reslen += 4;
 
+		/* Add SysExStart and SysExEnd */
+
 		for (i = 0; i < reslen; i++) {
-			if (sysex[i] & 0x80) {
-				//Serial.println(String("S1 ERR send pos: ") + i + " val" + s[i]);
-				sysex[i] &= ~0x80;
+			if (m[i] & 0x80) {
+				//Serial.println(String("S1 ERR send pos: ") + i + " val" + m[i]);
+				m[i] &= ~0x80;
 			}
 		}
+		m[reslen] = SystemExclusiveEnd;
 
-		if (origin == 0) {
-			MU.sendSysEx(reslen, sysex, false);
-		} else if (origin == 1) {
-			MB.sendSysEx(reslen, sysex, false);
-		}
+		msg.channel = 1;
+		msg.type = SystemExclusive;
+		msg.length = reslen + 2;
+		msg.valid = true;
+		msg.data1 = msg.length << 0;
+		msg.data2 = msg.length << 8;
+
+		thread_midi_msg_send_to_control(origin, msg);
 	}
 }
 
+#ifdef MIDIBOX_HAVE_UART2
 void handleUsbMidiMessage(const Message<128> & msg)
 {
 	int i;
 
 	if (msg.type == SystemExclusive) {
-		if (msg.sysexArray[1] == MIDIBOX_SYSEX_ID) {
-			midi_handle_controller_cmd(0, msg.sysexArray + 1, msg.getSysExSize() - 2);
+		if (msg.sysexArray[1] == MIDIBOX_SYSEX_ID1 || msg.sysexArray[1] == MIDIBOX_SYSEX_ID2) {
+			midi_handle_controller_cmd(1, msg.sysexArray + 1, msg.getSysExSize() - 2);
+		} else if (msg.sysexArray[1] == MIDIBOX_PEDAL_SYSEX_ID) {
+			midi_handle_pedal_input(msg.sysexArray[3], msg.sysexArray[4]);
 		} else {
 			MS1.send(msg);
 		}
@@ -321,14 +405,21 @@ void handleUsbMidiMessage(const Message<128> & msg)
 		}
 	}
 }
+#endif
 
+#ifdef MIDIBOX_HAVE_BT
 void handleBleMidiMessage(const Message<128> & msg)
 {
 	int i;
+	thread_control_msg_send_to_midi(2, msg);
+}
+#endif
 
+void handleMidiMessage(int origin, const Message<128> & msg)
+{
 	if (msg.type == SystemExclusive) {
-		if (msg.sysexArray[1] == MIDIBOX_SYSEX_ID) {
-			midi_handle_controller_cmd(1, msg.sysexArray + 1, msg.getSysExSize() - 2);
+		if (msg.sysexArray[1] == MIDIBOX_SYSEX_ID1) {
+			midi_handle_controller_cmd(origin, msg.sysexArray + 1, msg.getSysExSize() - 2);
 		} else {
 			MS1.send(msg);
 		}
@@ -400,6 +491,12 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 	static unsigned char lmask;
 	static bool send, already_sent, note_in_bounds, lenabled;
 
+	static struct {
+		uint8_t pgm;
+		uint8_t bsm;
+		uint8_t bsl;
+	} tc;
+
 	if (msg.type == ActiveSensing || msg.type == Clock)
 		return;
 
@@ -411,19 +508,14 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 
 	//Serial.println(String("S1 MSG: ") + cmd + " len: " + l);
 
-	if (gs.r.debug_s2u_all) {
-		MU.send(msg);
-	}
-
-	if (gs.r.debug_s2b_all || (gs.r.debug_s2b && (msg.type == 0xF0 || msg.type == 0xf7)))
-		MB.send(msg);
+	thread_midi_msg_send_to_control(0, msg);
 
 	for (l = 0; l < LAYERS; l++) {
 		struct layer_state & lr = ls[l];
 		lmask = 1 << l;
 		lchannel = ((lr.channel_out_offset + l) & 0x0F) + 1;
 		lnote = (b1 + lr.transposition + lr.transposition_extra) & 0x7F;
-		lenabled = lr.r.enabled && ((lr.activate == 0 && lr.active == 1) || (lr.activate == 1 && lr.active == 0));
+		lenabled = lr.r.enabled && ((lr.activate == 0 && lr.r.active == 1) || (lr.activate == 1 && lr.r.active == 0));
 //			(lr.channel_in_mask & (1 << (uint16_t) (channel-1)));
 
 		note_in_bounds = (b1 + lr.transposition + lr.transposition_extra) == lnote ? 1 : 0;
@@ -527,12 +619,23 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 		} else if (cmd == midi::ProgramChange) {
 			/* Send PC only to selected layer */
 			if (l == gs.r.selected_layer) {
+				/* Roland sends the PC after all CC:BankSelect */
 				MS1.send(msg_out);
+				tc.pgm = msg_out.data1;
+
+				lr.r.pgm = tc.pgm;
+				lr.r.bs = tc.bsm;
+				lr.r.bs_lsb = tc.bsl;
+				midi_inform_lr_change(l, 3, 3);
 			}
 		} else if (cmd == midi::ControlChange) {
 			if (b1 == BankSelect || b1 == BankSelectLSB) {
 				if (l == gs.r.selected_layer) {
 					MS1.send(msg_out);
+					if (b1 == BankSelect)
+						tc.bsm = msg_out.data2;
+					else
+						tc.bsl = msg_out.data2;
 				}
 			} else {
 				MS1.send(msg_out);
@@ -552,16 +655,10 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 	}
 }
 
-void midi_loop()
-{
-	MU.read();
-	MB.read();
-	MS1.read();
-}
-
 void midi_init()
 {
 	int i;
+
 	gs.r.config = 0;
 	gs.r.status = 0;
 	gs.r.init = 0;
@@ -570,6 +667,8 @@ void midi_init()
 	gs.tempo = 120;
 
 	gs2reg(gs);
+
+	gs.r.debug_s2u_all = 1;
 
 	gs.r.pedal_cc[0] = Sustain;
 	gs.r.pedal_cc[1] = SoftPedal;
@@ -593,6 +692,7 @@ void midi_init()
 		struct layer_state & lr = ls[l];
 
 		lr.r.enabled = 0;
+		lr.r.active = 1;
 		lr.r.status = 0;
 		lr.r.init = 0;
 		lr.r.pgm = 0;
@@ -619,7 +719,7 @@ void midi_init()
 
 		/* TODO: "activate" feature (mode of pedal) is to temporary disable (default) or enable channel */
 		//lr.active = 0; /* pedal mode == activate */
-		lr.active = 1; /* pedal mode == deactivate */
+		lr.r.active = 1; /* pedal mode == deactivate */
 		lr.activate = 0; /* This represents current state of the "activate" pedal */
 
 		//lr.part = l + 1;
@@ -647,6 +747,7 @@ void midi_init()
 		}
 	}
 
+#if 0
 	ls[0].transposition_extra = -12;
 	ls[0].r.enabled = 1;
 	ls[0].r.lo = 56;
@@ -655,23 +756,47 @@ void midi_init()
 	ls[1].r.bs_lsb = 71;
 	ls[1].r.bs = 0;
 	ls[1].r.pgm = 33-1;
+#else
+	ls[0].transposition_extra = 0;
+	ls[0].r.enabled = 1;
+#endif
 
 	layer2reg(ls[0]);
 	layer2reg(ls[1]);
 
 	next_tick = micros();
 
-	MU.begin(MIDI_CHANNEL_OMNI);
-	MU.turnThruOff();
-	MU.setHandleMessage(handleUsbMidiMessage);
-
 	MS1.begin(MIDI_CHANNEL_OMNI);
 	MS1.turnThruOff();
 	MS1.setHandleMessage(handleS1MidiMessage);
 
+	midi_piano_connect();
+
+	/* Initialize default values */
+	sendMidiLocalCTL(!gs.r.enabled);
+
+	for (i = 0; i < LAYERS; i++) {
+		struct layer_state & lr = ls[i];
+		struct midi_changes changes;
+
+		changes.all = 1;
+		midi_update_layer(lr, lr, changes);
+	}
+}
+
+void smidi_init()
+{
+#ifdef MIDIBOX_HAVE_UART2
+	MS2.begin(MIDI_CHANNEL_OMNI);
+	MS2.turnThruOff();
+	MS2.setHandleMessage(handleUsbMidiMessage);
+#endif
+
+#ifdef MIDIBOX_HAVE_BT
 	MB.begin(MIDI_CHANNEL_OMNI);
 	MB.turnThruOff();
 	MB.setHandleMessage(handleBleMidiMessage);
+#endif
 }
 
 

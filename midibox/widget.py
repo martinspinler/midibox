@@ -1,49 +1,62 @@
 import functools
 
+from types import SimpleNamespace
+
 import PyQt5
 import PyQt5.QtWebEngine
 
 from PyQt5.QtQuickWidgets import QQuickWidget
-from PyQt5.QtCore import QUrl, QRegExp, QSize
+from PyQt5.QtCore import QUrl, QSize
 from PyQt5.QtQuickWidgets import *
 
 from .controller import Midibox
-from .gui import *
+from .gui import QMidiBox, ProgramPresetModel, PedalCcModel, PedalModeModel, GraphUpdater
 
 import pathlib
 
-we = PyQt5.QtWebEngine.QtWebEngine
-we.initialize()
+
+def initialize_webengine():
+    global __webengine
+    __webengine = PyQt5.QtWebEngine.QtWebEngine
+    __webengine.initialize()
+
+
+def populate_context(ctx, box: Midibox):
+    # Info: store all CP into namespace: setContextProperty doesnt't increment refcnt
+    ns = SimpleNamespace()
+
+    ns.midibox = box
+    ns.reterm = False
+    ns.qbox = QMidiBox(box)
+    ns.gu = GraphUpdater(box)
+
+    ns.ppm = ProgramPresetModel(box)
+    ns.pcm = PedalCcModel(box)
+    ns.pmm = PedalModeModel(box)
+
+    ctx.setContextProperty("midibox", ns.qbox)
+    ctx.setContextProperty("programPresetsModel", ns.ppm)
+    ctx.setContextProperty("monitor", ns.gu)
+    ctx.setContextProperty("reterm", ns.reterm)
+    ctx.setContextProperty("pedalCcModel", ns.pcm)
+    ctx.setContextProperty("pedalModeModel", ns.pmm)
+
+    return ns
 
 class MidiboxQuickWidget(QQuickWidget):
     def __init__(self, app, midibox_params={}, **kwargs):
         super().__init__()
 
-        e = self.engine()
-        path = pathlib.Path(__file__).parent.resolve()
+        pathlib.Path(__file__).parent.resolve()
         #e.addImportPath(str(path.joinpath("midibox/style/")))
 
-        box = Midibox(**midibox_params)
-
-        self.midibox = box
-        self.reterm = False
-        self.qbox = QMidiBox(box)
-        self.gu = GraphUpdater(box)
-
-        # Info: store all CP into main class (setContextProperty doesnt't increment refcnt)
-        self.ppm = ProgramPresetModel(box)
-        self.pcm = PedalCcModel(box)
-
-        ctx = self.rootContext()
-        ctx.setContextProperty("midibox", self.qbox)
-        ctx.setContextProperty("programPresetsModel", self.ppm)
-        ctx.setContextProperty("monitor", self.gu)
-        ctx.setContextProperty("reterm", self.reterm)
-        ctx.setContextProperty(f"pedalCcModel", self.pcm)
+        self.midibox = Midibox(**midibox_params)
+        self.ctx = populate_context(self.rootContext(), self.midibox)
+        self.qmidibox = self.ctx.qbox
 
         self.setResizeMode(self.SizeRootObjectToView)
 
-        self.setSource(QUrl.fromLocalFile(str(pathlib.Path(__file__).parent/"StandaloneWidget.qml")));
+        self.setSource(QUrl.fromLocalFile(str(pathlib.Path(__file__).parent/"StandaloneWidget.qml")))
 
         if kwargs.get("playlist_url"):
             ro = self.rootObject()

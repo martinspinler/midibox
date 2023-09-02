@@ -1,7 +1,10 @@
 import time
 import mido
+from typing import List, Optional
 
-from .base import BaseMidiBox
+from .base import BaseMidiBox, MidiBoxLayer
+
+from threading import Thread
 
 class Midibox(BaseMidiBox):
     _SYSEX_ID = 0x77
@@ -15,7 +18,9 @@ class Midibox(BaseMidiBox):
     _CMD_WRITE_ACK = 5
     _CMD_WRITE_NAK = 6
 
-    def __init__(self, port_name="XIAO nRF52840", client_name=None, virtual=False, find=True, debug=False):
+    _config: Optional[List[int]]
+
+    def __init__(self, port_name: str="XIAO nRF52840", client_name=None, virtual=False, find=True, debug=False):
         self._port_name = port_name
         self._client_name = client_name
         self._virtual = virtual
@@ -28,30 +33,46 @@ class Midibox(BaseMidiBox):
         super().__init__()
 
         self._config = None
-        for l in self.layers:
-            l._config = None
+        for lr in self.layers:
+            lr._config = None
 
         self._cb_data = None
+        self._cb_data_waiting = False
 
-    def _wait_for_cb_data(self, timeout=0.2):
+        if self._debug:
+            self._callbacks.append(lambda msg: print("recv", mido.format_as_string(msg, False)))
+
+        self._callbacks.append(self._rc_callback)
+
+    def _wait_for_cb_data(self, timeout=0.9):
+        self._cb_data_waiting = True
         while not self._cb_data and timeout > 0:
             time.sleep(0.01)
             timeout -= 0.01
         ret = self._cb_data
-        assert ret is not None
+        #assert ret is not None
+        if not ret:
+            print("Error: no data received")
         self._cb_data = None
+        self._cb_data_waiting = False
         return ret
 
 
+    def _disconnect(self):
+        self._midi_thread_exit = True
+        self._midi_thread.join()
+
     def _connect(self):
+        self._open_port()
+        self._init_configuration()
+
+    def _open_port(self):
         if self._find:
             def findSubstr(strings, substr):
                 for i in strings:
                     if substr in i:
                         return i
-                raise Exception('Midibox port not found...')
-
-            io_name = findSubstr(mido.get_input_names(), self._port_name)
+                raise Exception(f'Midibox port {substr} not found in: ' + ", ".join(strings))
             in_name = findSubstr(mido.get_input_names(), self._port_name)
             out_name = findSubstr(mido.get_output_names(), self._port_name)
         else:
@@ -77,11 +98,42 @@ class Midibox(BaseMidiBox):
 
         self.portin.callback = self.inputCallback
 
-        if self._debug:
-            self._callbacks.append(lambda msg: print("recv", mido.format_as_string(msg, False)))
+        self._midi_thread_exit = False
+        self._midi_thread = Thread(target=self._connection_check)
+        self._midi_thread.start()
 
-        self._callbacks.append(self._rc_callback)
-        self._init_configuration()
+    def _connection_check(self):
+        checking = False
+        self._midi_last_activity = time.time()
+        while not self._midi_thread_exit:
+            time.sleep(0.2)
+            if time.time() > self._midi_last_activity + 1:
+                if time.time() > self._midi_last_activity + 2:
+                    pass
+                    print("Reconnecting")
+                    self.portout = None
+                    self.portin = None
+                    #self._midi_thread_exit = True
+                    while not self.portin:
+                        try:
+                            self._open_port()
+                            self._init_configuration()
+                            self.emit_all()
+                        except:
+                            time.sleep(0.2)
+                    return
+
+                elif not checking:
+                    checking = True
+                    #print("Setting check and requesting")
+                    self._send_mbreq(self._CMD_READ_REQ, self._LAYER_GLOBAL, 0, 1)
+            elif checking:
+                checking = False
+                #print("Resetting check")
+
+    def inputCallback(self, msg):
+        self._midi_last_activity = time.time()
+        super().inputCallback(msg)
 
     def _init_configuration(self):
         self._read_config()
@@ -89,20 +141,20 @@ class Midibox(BaseMidiBox):
         # INFO: all debug, not enable
         self._config[2] = 0x7e
 
-        for l in self.layers:
-            self._read_layer_config(l)
+        for lr in self.layers:
+            self._read_layer_config(lr)
 
     def _write_sysex(self, msg):
         self._write([0xF0] + msg + [0xF7])
 
-    def _send_mbreq(self, cmd, layer, offset, reqlen, msg = []):
-        c = ((cmd & 0x07) << 4) | (layer & 0x0F);
+    def _send_mbreq(self, cmd: int, layer: int, offset: int, reqlen: int, msg = []):
+        c = ((cmd & 0x07) << 4) | (layer & 0x0F)
         assert c < 0xF0
         if msg:
             assert reqlen == len(msg)
         self._write([0xF0, self._SYSEX_ID, c, offset, reqlen] + msg + [0xF7])
 
-    def _write(self, b):
+    def _write(self, b: bytes):
         msg = mido.Message.from_bytes(b)
         if self._debug:
             print("send", mido.format_as_string(msg, False))
@@ -118,62 +170,74 @@ class Midibox(BaseMidiBox):
 
         c[0] = (self._config[0] | 1) if self._enable else (self._config[0] & ~1)
         c[2] = 1 if self._initialize else 0
+        #c[3] = self._selected_layer
         self._initialize = False
         #c[4:6] = [120, 0] # tempo
         self._send_mbreq(self._CMD_WRITE_REQ, self._LAYER_GLOBAL, 0, 3, c[0:3])
 
-    def _read_config(self,):
-        #self._config = None
+    def _read_config(self):
+        self._config = None
         self._cb_data = None
-        self._send_mbreq(self._CMD_READ_REQ, self._LAYER_GLOBAL, 0, 6+16)
-        self._config = self._wait_for_cb_data()
+        while not self._config:
+            self._send_mbreq(self._CMD_READ_REQ, self._LAYER_GLOBAL, 0, 6+16)
+            self._config = self._wait_for_cb_data()
+            if not self._config:
+                print("!!!!! Repeating, not yet connected?")
 
         self._enable = True if self._config[0] & 1 else False
 
-    def _write_layer_config(self, layer):
-        l = layer
-        c = l._config
+    def _write_layer_config(self, layer: MidiBoxLayer):
+        lr = layer
+        c = lr._config
         if c is None:
             print("not connected")
             return
 
-        c[0] = 1 if l._active and not self._mute else 0
-        c[2] = 1 if l._initialize else 0
-        l._initialize = False
-        c[6:9] = [l._rangel, l._rangeu, l._volume]
-        c[10:12] = [l._transposition + 64, l._transposition_extra + 64]
-        c[12:16] = [l._release + 64, l._attack + 64, l._cutoff + 64, l._decay + 64]
+        c[0] = 1 if lr._enabled and not self._mute else 0
+        c[0] |= 2 if lr._active else 0
 
-        if l._program in l.programs:
+        c[2] = 1 if lr._initialize else 0
+        lr._initialize = False
+        c[6:9] = [lr._rangel, lr._rangeu, lr._volume]
+        c[10:12] = [lr._transposition + 64, lr._transposition_extra + 64]
+        c[12:16] = [lr._release + 64, lr._attack + 64, lr._cutoff + 64, lr._decay + 64]
+
+        if lr._program in lr.programs:
             p = layer.programs[layer._program]
             c[3:6] = [p.pc-1, p.msb, p.lsb]
 
-        for i in range(len(l.pedals)):
-            c[16+0+i] = l.pedals[i]._cc
-            #c[16+8+i] = 0 # Disable pedal temporarily
+        for i in range(len(lr.pedals)):
+            c[16+0+i] = lr.pedals[i]._cc
+            c[16+8+i] = lr.pedals[i]._mode # Disable pedal temporarily
 
-        self._send_mbreq(self._CMD_WRITE_REQ, l._index, 0, len(c), c)
+        self._send_mbreq(self._CMD_WRITE_REQ, lr._index, 0, len(c), c)
 
-    def _read_layer_config(self, layer):
-        l = layer
-        l._config = None
+    def _read_layer_config(self, layer: MidiBoxLayer):
+        lr = layer
+        lr._config = None
         self._cb_data = None
-        self._send_mbreq(self._CMD_READ_REQ, l._index, 0, 16)
+        self._send_mbreq(self._CMD_READ_REQ, lr._index, 0, 16)
         c = self._wait_for_cb_data()
 
         self._cb_data = None
-        self._send_mbreq(self._CMD_READ_REQ, l._index, 16, 16)
+        self._send_mbreq(self._CMD_READ_REQ, lr._index, 16, 16)
         c += self._wait_for_cb_data()
 
-        l._config = c
-        l._active = True if c[0] & 1 else False
-        l._rangel, l._rangeu, l._volume = c[6], c[7], c[8]
-        l._transposition = c[10] - 64
-        l._transposition_extra = c[11] - 64
-        l._release = c[12] - 64
-        l._attack = c[13] - 64
-        l._cutoff= c[14] - 64
-        l._decay = c[15] - 64
+        lr._config = c
+        self._load_layer_config(lr)
+
+    def _load_layer_config(self, layer: MidiBoxLayer):
+        lr = layer
+        c = lr._config
+        lr._enabled = True if c[0] & 1 else False
+        lr._active = True if c[0] & 2 else False
+        lr._rangel, lr._rangeu, lr._volume = c[6], c[7], c[8]
+        lr._transposition = c[10] - 64
+        lr._transposition_extra = c[11] - 64
+        lr._release = c[12] - 64
+        lr._attack = c[13] - 64
+        lr._cutoff = c[14] - 64
+        lr._decay = c[15] - 64
 
         pc, bs, bs_lsb = c[3:6]
         program = '-unknown-'
@@ -183,11 +247,11 @@ class Midibox(BaseMidiBox):
                 program = pn
                 break
 
-        l._program = program
+        lr._program = program
 
-        for i in range(len(l.pedals)):
-             l.pedals[i]._cc = c[16+0+i]
-             #l.pedals[i]._mode = c[16+8+i]
+        for i in range(len(lr.pedals)):
+             lr.pedals[i]._cc = c[16+0+i]
+             lr.pedals[i]._mode = c[16+8+i]
 
     def _rc_callback(self, msg):
         if msg.type == 'sysex' and len(msg.data) > 2 and msg.data[0] == self._SYSEX_ID:
@@ -195,14 +259,35 @@ class Midibox(BaseMidiBox):
             layer = msg.data[1] & 0x0F
             offset = msg.data[2]
             reqlen = msg.data[3]
+            # FIXME: only READ_RES
+            data = list(msg.data[4:])
 
             #assert offset == 0
             assert reqlen == len(msg.data) - 4
 
-            self._cb_data = list(msg.data[4:])
-            #if cmd == self._CMD_READ_RES and layer == self._LAYER_GLOBAL:
-            #    #self._config = list(msg.data[4:])
-            #    self._cb_data = list(msg.data[4:])
-            #elif cmd == self._CMD_READ_RES and layer < 8:
-            #    #self.layers[layer]._config = list(msg.data[4:])
-            #    self._cb_data = list(msg.data[4:])
+            if self._cb_data_waiting:
+                self._cb_data = data
+                #if cmd == self._CMD_READ_RES and layer == self._LAYER_GLOBAL:
+                #    #self._config = list(msg.data[4:])
+                #    self._cb_data = list(msg.data[4:])
+                #elif cmd == self._CMD_READ_RES and layer < 8:
+                #    #self.layers[layer]._config = list(msg.data[4:])
+                #    self._cb_data = list(msg.data[4:])
+            else:
+                if cmd == self._CMD_READ_RES and layer < 8:
+                    lr = self.layers[layer]
+                    for i in range(len(data)):
+                        lr._config[offset + i] = data[i]
+
+                    program = lr._program
+                    volume = lr._volume
+
+                    self._load_layer_config(lr)
+
+                    # Emit value
+                    self.emit_all()
+                    if lr._program != program:
+                        self.emit_control('program')
+                        #print("Emit")
+                    if lr._program != volume:
+                        self.emit_control('volume')

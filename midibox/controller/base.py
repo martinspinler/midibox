@@ -1,29 +1,41 @@
-import time
 from pydispatch import Dispatcher
+from typing import NamedTuple, TypedDict, Any, List, Literal
 
-clamp = lambda x, l, u: l if x < l else u if x > u else x
+def clamp(val: int, lower: int, upper: int):
+    return lower if val < lower else upper if val > upper else val
 
-class MidiBoxProgram():
-    def __init__(self, *args):
-        keys = ['pc', 'msb', 'lsb', 'sysex', 'short', 'name']
-        for k, v in zip(keys, args): setattr(self, k, v)
+class MidiBoxProgram(NamedTuple):
+    pc: int
+    msb: int
+    lsb: int
+    sysex: List[List[int]]
+    short: str
+    name: str
+
 
 def propsetter(self, value, name, validator, callback):
     value = validator(self, value)
-    if value == getattr(self, name): return
+    if value == getattr(self, name):
+        return
     setattr(self, name, value)
-    ret = callback(self, value)
+    callback(self, value)
     self.emit('control_change', **{name[1:]: value})
+
 
 class CheckedProp():
     def __init__(self, *args):
         keys = ['name', 'init_value', 'validator', 'callback']
-        if len(args) < len(keys): keys = keys[:len(args)]
-        for k, v in zip(keys, args): setattr(self, k, v)
+        if len(args) < len(keys):
+            keys = keys[:len(args)]
+        for k, v in zip(keys, args):
+            setattr(self, k, v)
 
         setter = self.validator if hasattr(self, 'validator') else None
         if setter:
-            self.prop = property(lambda s, name=self.name: getattr(s, f'_{name}'), lambda s, val, name=self.name: propsetter(s, val, f'_{name}', setter, self.callback))
+            self.prop = property(
+                lambda s, name=self.name: getattr(s, f'_{name}'),
+                lambda s, val, name=self.name: propsetter(s, val, f'_{name}', setter, self.callback)
+            )
 
 def mb_properties_init(cls):
     for item in cls._mb_properties:
@@ -34,6 +46,10 @@ def mb_properties_init(cls):
 
 MidiBoxPedalProps = [
     CheckedProp('cc', 0,
+        lambda s, v: clamp(v, 0, 127),
+        lambda self, v: self._layer._write_config()
+    ),
+    CheckedProp('mode', 0,
         lambda s, v: clamp(v, 0, 127),
         lambda self, v: self._layer._write_config()
     ),
@@ -57,7 +73,11 @@ MidiBoxLayerProps = [
         lambda s, v: clamp(v, -64, 63),
         lambda self, _: self._write_config()
     ),
-    CheckedProp('active', False,
+    CheckedProp('enabled', False,
+        lambda s, v: True if v else False,
+        lambda self, _: self._write_config()
+    ),
+    CheckedProp('active', True,
         lambda s, v: True if v else False,
         lambda self, _: self._write_config()
     ),
@@ -122,7 +142,7 @@ class MidiBoxLayer(Dispatcher):
         'fretlessbass'  : MidiBoxProgram(36,  0,  0, [efx['none']],   'FB', 'Fretlett Bass'),
     }
 
-    def __init__(self, dev, index):
+    def __init__(self, dev: "BaseMidiBox", index: int):
         self._index = index
         self._part = (index + 1) & 0xF if index != 9 else 0
         self._dev = dev
@@ -130,7 +150,10 @@ class MidiBoxLayer(Dispatcher):
         self._initialize = False
 
         pedal_cc = ['Sustain', 'Hold', 'Expression'] + [0] + ['GPC1', 'GPC2', 'GPC3', 'GPC4']
-        self._pedal_cc = [self._dev.pedal_cc[x] if x in self._dev.pedal_cc else x for x in pedal_cc]
+        self._pedal_cc = [self._dev.pedal_cc[x] if isinstance(x, str) else x for x in pedal_cc]
+
+        pedal_mode = ['Ignore', 'Normal', 'NoteLength', 'Toggle Active', 'Push Active']
+        self._pedal_mode = [self._dev.pedal_mode[x] if x in self._dev.pedal_mode else x for x in pedal_mode]
 
         self._hb = [0] * 9
 
@@ -142,7 +165,8 @@ class MidiBoxLayer(Dispatcher):
                 setattr(self, p.name, 'piano')
             else:
                 setattr(self, p.name, p.init_value)
-    def setProgram(self, value):
+
+    def setProgram(self, value: str):
         p = self.programs[value]
 
         self._dev.cc((self._index) & 0xF, 0, p.msb)
@@ -198,6 +222,15 @@ class BaseMidiBox(Dispatcher):
         'GPC3': 18,
         'GPC4': 19,
     }
+    pedal_mode = {
+        'Ignore': 0,
+        'Normal': 1,
+        'NoteLength': 2,
+        'Toggle Active': 3,
+        'Push Active': 4,
+    }
+
+    layers: List[MidiBoxLayer]
 
     def __init__(self):
         self._initialize = False
@@ -206,19 +239,28 @@ class BaseMidiBox(Dispatcher):
 
         self._requestKey = None
 
-    def connect(self):
-        ret = self._connect()
+    def disconnect(self):
+        self._disconnect()
 
+    def connect(self):
+        self._connect()
+        self.emit_all()
+
+    def emit_control(self, name):
+            kwargs = {name: getattr(self, name)}
+            self.emit('control_change', **kwargs)
+
+    def emit_all(self):
         for ctrl in BaseMidiBox._mb_properties:
             kwargs = {ctrl.name: getattr(self, ctrl.name)}
             self.emit('control_change', **kwargs)
 
-        for l in self.layers:
+        for lr in self.layers:
             for ctrl in MidiBoxLayer._mb_properties:
-                kwargs = {ctrl.name: getattr(l, ctrl.name)}
-                l.emit('control_change', **kwargs)
+                kwargs = {ctrl.name: getattr(lr, ctrl.name)}
+                lr.emit('control_change', **kwargs)
 
-            for p in l.pedals:
+            for p in lr.pedals:
                 for ctrl in MidiBoxPedal._mb_properties:
                     kwargs = {ctrl.name: getattr(p, ctrl.name)}
                     p.emit('control_change', **kwargs)
@@ -240,35 +282,35 @@ class BaseMidiBox(Dispatcher):
 
         if msg.type == 'sysex':
             try:
-                if msg.data[0] == 119:
-                    pass
-                else:
-                    if msg.data[0:4] == (65, 16, 66, 18):
-                        if msg.data[4] == 0x40:
-                            part = msg.data[5] & 0x0F
-                            bank = msg.data[5] & 0xF0
-                            addr = msg.data[6]
-
-                            if bank == 0x00:
-                                "System Parameters"
-                            if bank >= 0x10:
-                                "Part Parameters"
-                                if bank == 0x40 and addr == 0x23:
-                                    "Effect"
-                                    eff_type = (msg.data[7] << 8) | msg.data[8]
-                                    if eff_type == 0x0125:
-                                        "Tremolo"
+                if msg.data[0:4] == (65, 16, 66, 18):
+                    self.input_callback_roland_sysex(msg)
             except:
                 pass
-                                    #print(eff_type, msg.data)
+
+    def input_callback_roland_sysex(self, msg):
+        if msg.data[4] == 0x40:
+            msg.data[5] & 0x0F
+            bank = msg.data[5] & 0xF0
+            addr = msg.data[6]
+
+            if bank == 0x00:
+                "System Parameters"
+            if bank >= 0x10:
+                "Part Parameters"
+                if bank == 0x40 and addr == 0x23:
+                    "Effect"
+                    eff_type = (msg.data[7] << 8) | msg.data[8]
+                    if eff_type == 0x0125:
+                        "Tremolo"
+                    #print(eff_type, msg.data)
 
     def initialize(self):
         self._initialize = True
         self._write_config()
 
-        for i, l in enumerate(self.layers):
-            l._initialize = True
-            self._write_layer_config(l)
+        for i, lr in enumerate(self.layers):
+            lr._initialize = True
+            self._write_layer_config(lr)
 
     def requestKey(self, target, index, prop):
         self.mute = True
@@ -276,17 +318,17 @@ class BaseMidiBox(Dispatcher):
 
     def setEnable(self, v: bool):
         self._write_config()
-        for i, l in enumerate(self.layers):
-            l._write_config()
-            #self.setPartParam(l._part, 3, i)
+        for i, lr in enumerate(self.layers):
+            lr._write_config()
+            #self.setPartParam(lr._part, 3, i)
         #self.cc(0, 122, 127 if self._enable else 0)
 
     def setMute(self, v: bool):
-        for l in self.layers:
-            l._write_config()
+        for lr in self.layers:
+            lr._write_config()
 
     def allSoundsOff(self):
-        for i, l in enumerate(self.layers):
+        for i, lr in enumerate(self.layers):
             self.cc(i, 120, 0)
 
     def note_on(self, channel, note, vel):  self._write([0x90 | (channel & 0xF), note & 0x7F, vel & 0x7F])
@@ -297,9 +339,10 @@ class BaseMidiBox(Dispatcher):
     def roland_sysex(self, data):
         self._write_sysex([0x41, 0x10, 0x42, 0x12] + data + [(128 - sum(data)) & 0x7F])
 
-    def setPartParam(self, part, param, val):
+    def setPartParam(self, part: int, param: int, val: int):
         self.setSystemParam(0x10 | (part & 0xF), param, val)
 
     def setSystemParam(self, a, param, val):
-        if type(val) not in [bytes, list]: val = [val]
+        if type(val) not in [bytes, list]:
+            val = [val]
         self.roland_sysex([0x40, 0x00 | a, param] + val)

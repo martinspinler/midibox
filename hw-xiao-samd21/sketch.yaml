@@ -1,0 +1,2 @@
+default_fqbn: Seeeduino:samd:seeed_XIAO_m0
+default_port: /dev/ttyACM0

@@ -5,13 +5,16 @@
 
 const uint8_t MIDIBOX_LAYERS = LAYERS;
 const uint8_t MIDIBOX_PEDALS = PEDALS;
-const uint8_t MIDIBOX_SYSEX_ID = 0x77;
+const uint8_t MIDIBOX_SYSEX_ID1 = 0x77;
+const uint8_t MIDIBOX_SYSEX_ID2 = 0x78;
+const uint8_t MIDIBOX_PEDAL_SYSEX_ID = 0x79;
 
 enum {
         PEDAL_MODE_IGNORE     = 0,
         PEDAL_MODE_NORMAL     = 1,
         PEDAL_MODE_NOTELENGTH = 2,
         PEDAL_MODE_TOGGLE_ACT = 3,
+        PEDAL_MODE_PUSH_ACT   = 4,
 };
 
 enum {
@@ -38,7 +41,15 @@ enum {
 };
 
 struct layer_state_reg {
-	uint8_t enabled;
+	union {
+		struct {
+			bool enabled: 1;
+			bool active: 1;
+			bool _init: 1; /* W/O */
+		};
+		uint8_t config;
+	};
+
 	uint8_t status;	/* R/O */
 	uint8_t init;	/* W/O */
 	uint8_t pgm;
@@ -66,6 +77,7 @@ struct global_state_reg {
 		struct {
 			bool enabled: 1;
 			bool debug_s2u_all: 1;
+			bool debug_s2u: 1;
 			bool debug_s2b_all: 1;
 			bool debug_s2b: 1;
 			bool debug_smsg_print: 1;

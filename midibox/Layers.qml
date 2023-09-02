@@ -25,7 +25,7 @@ Item {
 						Rectangle {
 							anchors.fill: parent
 							opacity: 0.5
-							color: midibox.layers[modelData].active ? "green" : "red"
+							color: midibox.layers[modelData].enabled ? (midibox.layers[modelData].active ? "green" : "blue") : "red"
 						}
 					}
 
@@ -71,11 +71,16 @@ Item {
 							text: "Reset"
 						}
 						Switch{
+							onToggled: layerx.current.enabled = checked
+							checked: layerx.current.enabled
+							text: "Enabled"
+						}
+
+						Switch{
 							onToggled: layerx.current.active = checked
 							checked: layerx.current.active
 							text: "Active"
 						}
-
 					}
 					GroupBox {
 						Layout.fillWidth: true
@@ -237,7 +242,7 @@ Item {
 						GridLayout {
 							Layout.fillWidth: true
 							//anchors.fill: parent
-							columns: 2
+							columns: 3
 							Label{text: qsTr("Pedal " + (modelData+1))}
 
 							ComboBox {
@@ -245,6 +250,14 @@ Item {
 								model: pedalCcModel
 								onActivated: layerx.current.pedals[modelData].cc = currentValue
 								currentIndex: indexOfValue(layerx.current.pedals[modelData].cc)
+								textRole: 'text'
+								valueRole: 'value'
+							}
+							ComboBox {
+								Layout.fillWidth: true
+								model: pedalModeModel
+								onActivated: layerx.current.pedals[modelData].mode = currentValue
+								currentIndex: indexOfValue(layerx.current.pedals[modelData].mode)
 								textRole: 'text'
 								valueRole: 'value'
 							}

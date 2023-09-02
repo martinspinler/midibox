@@ -1,23 +1,15 @@
-import signal
-import sys
 import time
 
-from PyQt5 import QtCore, QtGui, QtWidgets, QtQuickWidgets
+from PyQt5 import QtCore, QtGui
 
 from PyQt5.QtCore import QObject, pyqtSlot, pyqtSignal, pyqtProperty
-from PyQt5.QtGui import QGuiApplication
-from PyQt5.QtQml import QQmlApplicationEngine
-from PyQt5.QtWidgets import QApplication
 #from PyQt5.QtDeclarative import QDeclarativeItem
 
-from PyQt5.QtChart import QChartView, QSplineSeries
-from PyQt5.QtCore import QPoint, QRectF, QTimer
+from PyQt5.QtCore import QTimer
 #import PyQt5.QtChart
 
-import functools
-import collections
 
-from .controller.base import MidiBoxLayer, MidiBoxLayerProps, MidiBoxProps, MidiBoxPedalProps
+from .controller.base import MidiBoxLayerProps, MidiBoxProps, MidiBoxPedalProps
 
 
 class PropertyMeta(type(QtCore.QObject)):
@@ -117,9 +109,9 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
         self.box.bind(control_change=self.on_control_change)
 
         self._layers = []
-        for l in self.box.layers:
-            self._layers.append(QMidiboxLayer(l, self.box))
-            l.bind(control_change=self.on_layer_control_change)
+        for lr in self.box.layers:
+            self._layers.append(QMidiboxLayer(lr, self.box))
+            lr.bind(control_change=self.on_layer_control_change)
 
     @pyqtProperty(list, notify=layersChange)
     def layers(self): return self._layers
@@ -177,6 +169,17 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
             self.layers[1].program = 'bass'
             self.layers[0].active = True
             self.layers[1].active = True
+            self.layers[0].enabled = True
+            self.layers[1].enabled = True
+
+            self.layers[2].program = prg
+            self.layers[2].active = False
+            self.layers[2].enabled = True
+
+            self.layers[0].pedals[7].mode = 4 #'Push Active'
+            self.layers[1].pedals[7].mode = 4 #'Push Active'
+            self.layers[2].pedals[7].mode = 4 #'Push Active'
+
             self.transpositionExtra = True
             self.enable = True
 
@@ -236,5 +239,20 @@ def PedalCcModel(box):
         QtCore.Qt.UserRole: b"value",
     })
     [model.appendRow(PedalCc(cc, name)) for name, cc in box.pedal_cc.items()]
+
+    return model
+
+class PedalMode(QtGui.QStandardItem):
+    def __init__(self, pid, name):
+        super().__init__(name)
+        self.setData(pid, QtCore.Qt.UserRole)
+
+def PedalModeModel(box):
+    model = QtGui.QStandardItemModel()
+    model.setItemRoleNames({
+        QtCore.Qt.DisplayRole: b"text",
+        QtCore.Qt.UserRole: b"value",
+    })
+    [model.appendRow(PedalMode(cc, name)) for name, cc in box.pedal_mode.items()]
 
     return model
