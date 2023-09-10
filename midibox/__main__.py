@@ -21,6 +21,7 @@ from .widget import populate_context, initialize_webengine
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--simulator", help="Use simulator", action='store_true')
+    parser.add_argument("-d", "--debug", help="Debug Midibox", action='store_true')
     parser.add_argument("--disable-sandbox", help="Disable sandbox for QtWebEngine", action='store_true')
     return parser.parse_args()
 
@@ -45,7 +46,7 @@ def mymain(*args, **kwargs):
         raise
 
     #if reterm:
-    midibox_params = {'port_name': 'Midibox XIAO BLE'}
+    midibox_params = {'port_name': 'Midibox XIAO BLE', 'debug': kwargs["debug"]}
     if kwargs.get("simulator"):
         midibox_params["port_name"] = 'MidiboxSim'
         midibox_params["virtual"] = True

@@ -673,12 +673,13 @@ void midi_init()
 	gs.r.pedal_cc[0] = Sustain;
 	gs.r.pedal_cc[1] = SoftPedal;
 	gs.r.pedal_cc[2] = Sostenuto;
+#if 0
+	gs.r.pedal_cc[0] = GeneralPurposeController5;
+	gs.r.pedal_cc[1] = GeneralPurposeController6;
+	gs.r.pedal_cc[2] = GeneralPurposeController7;
+	gs.r.pedal_cc[3] = GeneralPurposeController8;
+#endif
 
-	gs.r.pedal_cc[0] = 0;
-	gs.r.pedal_cc[1] = 0;
-	gs.r.pedal_cc[2] = 0;
-
-	gs.r.pedal_cc[3] = 0;
 	gs.r.pedal_cc[4] = GeneralPurposeController1;
 	gs.r.pedal_cc[5] = GeneralPurposeController2;
 	gs.r.pedal_cc[6] = GeneralPurposeController3;

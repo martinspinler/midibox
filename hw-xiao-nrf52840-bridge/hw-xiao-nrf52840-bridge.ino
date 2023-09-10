@@ -107,7 +107,8 @@ void check_inputs()
 */
 void check_inputs()
 {
-	static const int AVERANGE = 8;
+#if 0
+	static const int AVERANGE = 16;
 	static const int ANALOG_PEDALS = 3;
 	static int i;
 	static int j;
@@ -119,6 +120,7 @@ void check_inputs()
 
 	uint16_t val;
 	uint16_t oval;
+	uint8_t mod;
 
 	//PT_BEGIN(pt);
 	if (ms + 2 < millis()) {
@@ -126,9 +128,14 @@ void check_inputs()
 
 		for (i = 0; i < ANALOG_PEDALS; i++) {
 			oval = analogRead(i);
-			val = oval >> 3;
-			pedal_value_avg[avg][i] = val;
-			if (avg++ > AVERANGE) {
+			#if 0
+			val = (oval >> 5;
+			val = val << 2;
+			val += 2;
+			#endif
+			val = (oval & 0x3C0) + 63;
+			pedal_value_avg[avg][i] = val >> 3;
+			if (++avg >= AVERANGE) {
 				avg = 0;
 			}
 
@@ -136,15 +143,31 @@ void check_inputs()
 			for (j = 0; j < AVERANGE; j++) {
 				val += pedal_value_avg[j][i];
 			}
-			val /= AVERANGE;
 
-			if (pedal_value_prev[i] != val) {
-				pedal_value_prev[i] = val;
-				midi_handle_pedal_input(i, val);
+			val /= AVERANGE;
+			if (1 || avg == 0) {
+				mod = 0;
+				if (pedal_value_prev[i] != val) {
+					if (val == 127 || val == 0) {
+						pedal_value_prev[i] = val;
+						mod = 1;
+					} else if (val > pedal_value_prev[i] + 3) {
+						pedal_value_prev[i] = val - 2;
+						mod = 1;
+					} else if (val + 3 < pedal_value_prev[i]) {
+						pedal_value_prev[i] = val + 2;
+						mod = 1;
+					}
+				}
+
+				if (mod) {
+		    		//Serial.print(String("I") + i + " " + val + "\n");
+					midi_handle_pedal_input(i, val);
+				}
 			}
 		}
 	}
-
+#endif
 	charlieplex(&pt_charlieplex);
 	//PT_END(pt);
 }
