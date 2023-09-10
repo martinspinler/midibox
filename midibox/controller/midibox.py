@@ -193,6 +193,8 @@ class Midibox(BaseMidiBox):
             print("not connected")
             return
 
+        orig_c = c.copy()
+
         c[0] = 1 if lr._enabled and not self._mute else 0
         c[0] |= 2 if lr._active else 0
 
@@ -210,7 +212,22 @@ class Midibox(BaseMidiBox):
             c[16+0+i] = lr.pedals[i]._cc
             c[16+8+i] = lr.pedals[i]._mode # Disable pedal temporarily
 
-        self._send_mbreq(self._CMD_WRITE_REQ, lr._index, 0, len(c), c)
+        change_first = None
+        change_last = None
+        for i in range(len(c)):
+            if c[i] != orig_c[i] and change_first is None:
+                change_first = i
+                break
+
+        for i in reversed(range(len(c))):
+            if c[i] != orig_c[i] and change_last is None:
+                change_last = i
+                break
+
+        if change_first is None: # or change_last is None: # Both must be None or both must be int value
+            return
+
+        self._send_mbreq(self._CMD_WRITE_REQ, lr._index, change_first, change_last - change_first + 1, c[change_first:change_last+1])
 
     def _read_layer_config(self, layer: MidiBoxLayer):
         lr = layer

@@ -307,7 +307,7 @@ void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 
 		lr_prev = ls[layer];
 
-		memcpy(&lr.r + offset, c, reqlen);
+		memcpy(((uint8_t*)(&lr.r)) + offset, c, reqlen);
 
 		reg2layer(lr);
 

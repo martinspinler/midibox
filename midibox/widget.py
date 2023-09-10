@@ -6,7 +6,7 @@ import PyQt5
 import PyQt5.QtWebEngine
 
 from PyQt5.QtQuickWidgets import QQuickWidget
-from PyQt5.QtCore import QUrl, QSize
+from PyQt5.QtCore import QUrl, QSize, QObject
 from PyQt5.QtQuickWidgets import *
 
 from .controller import Midibox
