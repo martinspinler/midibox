@@ -37,7 +37,7 @@ class Midibox(BaseMidiBox):
             lr._config = None
 
         self._cb_data = None
-        self._cb_data_waiting = False
+        self._cb_data_waiting = None
 
         if self._debug:
             self._callbacks.append(lambda msg: print("recv", mido.format_as_string(msg, False)))
@@ -45,7 +45,6 @@ class Midibox(BaseMidiBox):
         self._callbacks.append(self._rc_callback)
 
     def _wait_for_cb_data(self, timeout=0.9):
-        self._cb_data_waiting = True
         while not self._cb_data and timeout > 0:
             time.sleep(0.01)
             timeout -= 0.01
@@ -54,9 +53,7 @@ class Midibox(BaseMidiBox):
         if not ret:
             print("Error: no data received")
         self._cb_data = None
-        self._cb_data_waiting = False
         return ret
-
 
     def _disconnect(self):
         self._midi_thread_exit = True
@@ -162,6 +159,27 @@ class Midibox(BaseMidiBox):
         if self.portout:
             self.portout.send(msg)
 
+    def _read_regs(self, lr_index, firstreg, lastreg):
+        ret = []
+        MAXREQ = 16
+        while lastreg > firstreg:
+            self._cb_data = None
+            reqlen = min(lastreg - firstreg, MAXREQ)
+
+            c = None
+            retries = 5
+            while c is None and retries > 0:
+                retries -= 1
+                self._cb_data_waiting = (lr_index, firstreg, reqlen)
+                self._send_mbreq(self._CMD_READ_REQ, lr_index, firstreg, reqlen)
+                c = self._wait_for_cb_data()
+                if c is None:
+                    print("Retrying read reg")
+
+            ret += c
+            firstreg += reqlen
+        return ret
+
     def _write_config(self):
         c = self._config
         if c is None:
@@ -176,14 +194,13 @@ class Midibox(BaseMidiBox):
         self._send_mbreq(self._CMD_WRITE_REQ, self._LAYER_GLOBAL, 0, 3, c[0:3])
 
     def _read_config(self):
-        self._config = None
-        self._cb_data = None
-        while not self._config:
-            self._send_mbreq(self._CMD_READ_REQ, self._LAYER_GLOBAL, 0, 6+16)
-            self._config = self._wait_for_cb_data()
-            if not self._config:
+        cfg = None
+        while not cfg:
+            cfg = self._read_regs(self._LAYER_GLOBAL, 0, 6+16)
+            if not cfg:
                 print("!!!!! Repeating, not yet connected?")
 
+        self._config = cfg
         self._enable = True if self._config[0] & 1 else False
 
     def _write_layer_config(self, layer: MidiBoxLayer):
@@ -231,16 +248,7 @@ class Midibox(BaseMidiBox):
 
     def _read_layer_config(self, layer: MidiBoxLayer):
         lr = layer
-        lr._config = None
-        self._cb_data = None
-        self._send_mbreq(self._CMD_READ_REQ, lr._index, 0, 16)
-        c = self._wait_for_cb_data()
-
-        self._cb_data = None
-        self._send_mbreq(self._CMD_READ_REQ, lr._index, 16, 16)
-        c += self._wait_for_cb_data()
-
-        lr._config = c
+        lr._config = self._read_regs(lr._index, 0, 32)
         self._load_layer_config(lr)
 
     def _load_layer_config(self, layer: MidiBoxLayer):
@@ -282,14 +290,9 @@ class Midibox(BaseMidiBox):
             #assert offset == 0
             assert reqlen == len(msg.data) - 4
 
-            if self._cb_data_waiting:
+            if self._cb_data_waiting == (layer, offset, reqlen):
                 self._cb_data = data
-                #if cmd == self._CMD_READ_RES and layer == self._LAYER_GLOBAL:
-                #    #self._config = list(msg.data[4:])
-                #    self._cb_data = list(msg.data[4:])
-                #elif cmd == self._CMD_READ_RES and layer < 8:
-                #    #self.layers[layer]._config = list(msg.data[4:])
-                #    self._cb_data = list(msg.data[4:])
+                self._cb_data_waiting = None
             else:
                 if cmd == self._CMD_READ_RES and layer < 8:
                     lr = self.layers[layer]
