@@ -489,7 +489,7 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 	static unsigned char lchannel;
 
 	static unsigned char lmask;
-	static bool send, already_sent, note_in_bounds, lenabled;
+	static bool send, already_sent, note_in_bounds, lenabled, lactive;
 
 	static struct {
 		uint8_t pgm;
@@ -515,8 +515,9 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 		lmask = 1 << l;
 		lchannel = ((lr.channel_out_offset + l) & 0x0F) + 1;
 		lnote = (b1 + lr.transposition + lr.transposition_extra) & 0x7F;
-		lenabled = lr.r.enabled && ((lr.activate == 0 && lr.r.active == 1) || (lr.activate == 1 && lr.r.active == 0));
-//			(lr.channel_in_mask & (1 << (uint16_t) (channel-1)));
+		//lenabled = lr.r.enabled && ((lr.activate == 0 && lr.r.active == 1) || (lr.activate == 1 && lr.r.active == 0));
+		lenabled = lr.r.enabled;
+		lactive = (lr.activate == 0 && lr.r.active == 1) || (lr.activate == 1 && lr.r.active == 0);
 
 		note_in_bounds = (b1 + lr.transposition + lr.transposition_extra) == lnote ? 1 : 0;
 
@@ -584,7 +585,7 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 		msg_out.length = msg.length;
 
 		if (cmd == midi::NoteOn) {
-			if (note_in_bounds /*&& !layer_is_playing(lr, lnote)*/ && b1 >= lr.r.lo && b1 <= lr.r.hi) {
+			if (lactive && note_in_bounds /*&& !layer_is_playing(lr, lnote)*/ && b1 >= lr.r.lo && b1 <= lr.r.hi) {
 				/* FIXME: Repeat already playing same note for NOTE_MODE_HOLD */
 				layer_set_playing(lr, lnote, true, b1);
 				layer_handle_note_on_special(lr, lnote, b2);
