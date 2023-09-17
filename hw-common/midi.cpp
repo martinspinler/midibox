@@ -522,7 +522,7 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 		note_in_bounds = (b1 + lr.transposition + lr.transposition_extra) == lnote ? 1 : 0;
 
 		/* NoteOff must be passed even when midibox not enabled */
-		if (cmd == midi::NoteOff) {
+		if (cmd == midi::NoteOff || (cmd == midi::NoteOn && b2 == 0)) {
 			/* Original note (before any transposition */
 			if (true || lr.note_origin[b1] & 0x80) {
 				lnote = lr.note_origin[b1] & 0x7F;
@@ -593,7 +593,9 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 				vol = b2;
 				vol *= lr.r.volume;
 
-				MS1.sendNoteOn(lnote, vol / 100, lchannel);
+				/* TODO: Check me! */
+				MS1.sendNoteOn(lnote, vol / 127, lchannel);
+				//MS1.sendNoteOn(lnote, vol / 100, lchannel);
 			}
 #if 0
 		} else if (cmd == midi::ControlChange) {
@@ -703,7 +705,7 @@ void midi_init()
 		lr.r.lo = 0;
 		lr.r.hi = 127;
 
-		lr.r.volume = 100;
+		lr.r.volume = 127;
 		lr.r.mode = 0;
 
 		lr.transposition = 0;
