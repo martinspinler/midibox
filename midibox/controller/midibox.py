@@ -43,6 +43,7 @@ class Midibox(BaseMidiBox):
             self._callbacks.append(lambda msg: print("recv", mido.format_as_string(msg, False)))
 
         self._callbacks.append(self._rc_callback)
+        self._midi_thread = None
 
     def _wait_for_cb_data(self, timeout=0.9):
         while not self._cb_data and timeout > 0:
@@ -57,7 +58,8 @@ class Midibox(BaseMidiBox):
 
     def _disconnect(self):
         self._midi_thread_exit = True
-        self._midi_thread.join()
+        if self._midi_thread:
+            self._midi_thread.join()
 
     def _connect(self):
         self._open_port()
