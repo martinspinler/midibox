@@ -43,7 +43,8 @@ class Midibox(BaseMidiBox):
             self._callbacks.append(lambda msg: print("recv", mido.format_as_string(msg, False)))
 
         self._callbacks.append(self._rc_callback)
-        self._midi_thread = None
+        self._midi_thread_exit = False
+        self._midi_thread = Thread(target=self._connection_check)
 
     def _wait_for_cb_data(self, timeout=0.9):
         while not self._cb_data and timeout > 0:
@@ -97,8 +98,6 @@ class Midibox(BaseMidiBox):
 
         self.portin.callback = self.inputCallback
 
-        self._midi_thread_exit = False
-        self._midi_thread = Thread(target=self._connection_check)
         self._midi_thread.start()
 
     def _connection_check(self):
@@ -177,6 +176,8 @@ class Midibox(BaseMidiBox):
                 c = self._wait_for_cb_data()
                 if c is None:
                     print("Retrying read reg")
+            if c is None:
+                return None
 
             ret += c
             firstreg += reqlen
