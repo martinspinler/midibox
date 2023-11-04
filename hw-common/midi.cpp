@@ -15,6 +15,7 @@ struct midi_changes {
 	int gs_tempo : 1;
 	int program : 1;
 	int volume: 1;
+	int harmonic_bar_set : 1;
 	int all : 1;
 #if 0
 	int part: 1;
@@ -184,7 +185,7 @@ void midi_handle_pedal_input(uint8_t pedal, uint8_t val)
 
 void midi_update_layer(struct layer_state & lr, struct layer_state & lr_prev, struct midi_changes &changes)
 {
-	uint8_t i;
+	uint8_t i, j;
 	static uint8_t s[32];
 	uint8_t reslen = 0;
 
@@ -205,6 +206,24 @@ void midi_update_layer(struct layer_state & lr, struct layer_state & lr_prev, st
 
 	if (lr_prev.r.decay != lr.r.decay || changes.all)
 		MS1.sendControlChange(75, lr.r.decay, lr.channel);
+
+	if (changes.harmonic_bar_set || changes.all) {
+		i = roland_sysex_begin(s);
+		s[i+0] = 0x40;
+		s[i+1] = 0x40 | lr.part;
+		s[i+2] = 0x51;
+
+		s[i+3] = 0x00;
+		s[i+4] = lr.r.percussion;
+
+		for (j = 0; j < 9; j++) {
+			s[i+5+j] = lr.r.harmonic_bar[j];
+		}
+
+		reslen = roland_sysex_finish(s, 3+2+9);
+		MS1.sendSysEx(reslen, s, false);
+	}
+
 #endif
 	if (changes.volume || changes.all) {
 		i = roland_sysex_begin(s);
@@ -214,8 +233,6 @@ void midi_update_layer(struct layer_state & lr, struct layer_state & lr_prev, st
 		s[i+3] = lr.r.volume;
 		reslen = roland_sysex_finish(s, 3+1);
 		MS1.sendSysEx(reslen, s, false);
-
-		reslen = 0;
 	}
 }
 
@@ -321,6 +338,15 @@ void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 
 		if (lr_prev.r.volume != lr.r.volume)
 			changes.volume = 1;
+
+		if (lr_prev.r.percussion != lr.r.percussion)
+			changes.harmonic_bar_set = 1;
+
+		for (i = 0; i < 9; i++) {
+			if (lr_prev.r.harmonic_bar[i] != lr.r.harmonic_bar[i]) {
+				changes.harmonic_bar_set = 1;
+			}
+		}
 
 #if 0
 		if (lr_prev.part != lr.part) {
@@ -745,6 +771,11 @@ void midi_init()
 		for (i = 0; i < MIDIBOX_PEDALS; i++)
 			lr.r.pedal_mode[i] = PEDAL_MODE_NORMAL;
 		lr.r.pedal_mode[3] = PEDAL_MODE_IGNORE;
+
+		lr.r.percussion = 0;
+		for (i = 0; i < 9; i++) {
+			lr.r.harmonic_bar[i] = 0;
+		}
 
 		for (uint8_t j = 0; j < 128/8; j++) {
 			lr.note[j] = 0;

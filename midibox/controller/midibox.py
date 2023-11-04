@@ -229,8 +229,12 @@ class Midibox(BaseMidiBox):
             c[3:6] = [p.pc-1, p.msb, p.lsb]
 
         for i in range(len(lr.pedals)):
-            c[16+0+i] = lr.pedals[i]._cc
-            c[16+8+i] = lr.pedals[i]._mode # Disable pedal temporarily
+            c[16+i] = lr.pedals[i]._cc
+            c[24+i] = lr.pedals[i]._mode # Disable pedal temporarily
+
+        c[32] = lr._percussion
+        for i in range(9):
+            c[33+i] = getattr(lr, f'_harmonic_bar{i}')
 
         change_first = None
         change_last = None
@@ -251,7 +255,7 @@ class Midibox(BaseMidiBox):
 
     def _read_layer_config(self, layer: MidiBoxLayer):
         lr = layer
-        lr._config = self._read_regs(lr._index, 0, 32)
+        lr._config = self._read_regs(lr._index, 0, 42)
         self._load_layer_config(lr)
 
     def _load_layer_config(self, layer: MidiBoxLayer):
@@ -278,8 +282,12 @@ class Midibox(BaseMidiBox):
         lr._program = program
 
         for i in range(len(lr.pedals)):
-             lr.pedals[i]._cc = c[16+0+i]
-             lr.pedals[i]._mode = c[16+8+i]
+             lr.pedals[i]._cc = c[16+i]
+             lr.pedals[i]._mode = c[24+i]
+
+        lr._percussion = c[32]
+        for i in range(9):
+            setattr(lr, f'_harmonic_bar{i}', c[33+i])
 
     def _rc_callback(self, msg):
         if msg.type == 'sysex' and len(msg.data) > 2 and msg.data[0] == self._SYSEX_ID:

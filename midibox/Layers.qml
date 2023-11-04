@@ -42,7 +42,7 @@ Item {
 			Component.onCompleted: currentIndex = 0
 			Repeater {
 				Layout.fillWidth: true
-				model: ["Program", "Config", "Effects", "Pedals"]
+				model: ["Program", "Config", "Effects", "Pedals", "Harmonic"]
 
 				delegate: TabButton {
 					text: qsTr(modelData)
@@ -263,6 +263,95 @@ Item {
 							}
 						}
 					}
+				}
+			}
+			Item {
+				Layout.fillWidth: true
+				GridLayout {
+					anchors.fill: parent
+					columns: 2
+
+					Label{text: qsTr("Percussion: " + (layerx.current.percussion))}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
+						from: 0; to: 4; stepSize: 1
+						value: layerx.current.percussion
+						onMoved: layerx.current.percussion = Math.round(value)
+					}
+					Label{text: qsTr("Harmonic Bar 16': " + (layerx.current.harmonic_bar0))}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
+						from: 0; to: 15; stepSize: 1
+						value: layerx.current.harmonic_bar0
+						onMoved: layerx.current.harmonic_bar0 = Math.round(value)
+					}
+					Label{text: qsTr("Harmonic Bar 5+1/3': " + (layerx.current.harmonic_bar1))}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
+						from: 0; to: 15; stepSize: 1
+						value: layerx.current.harmonic_bar1
+						onMoved: layerx.current.harmonic_bar1 = Math.round(value)
+					}
+					Label{text: qsTr("Harmonic Bar 8': " + (layerx.current.harmonic_bar2))}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
+						from: 0; to: 15; stepSize: 1
+						value: layerx.current.harmonic_bar2
+						onMoved: layerx.current.harmonic_bar2 = Math.round(value)
+					}
+					Label{text: qsTr("Harmonic Bar 4': " + (layerx.current.harmonic_bar3))}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
+						from: 0; to: 15; stepSize: 1
+						value: layerx.current.harmonic_bar3
+						onMoved: layerx.current.harmonic_bar3 = Math.round(value)
+					}
+					Label{text: qsTr("Harmonic Bar 2+2/3': " + (layerx.current.harmonic_bar4))}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
+						from: 0; to: 15; stepSize: 1
+						value: layerx.current.harmonic_bar4
+						onMoved: layerx.current.harmonic_bar4 = Math.round(value)
+					}
+					Label{text: qsTr("Harmonic Bar 2': " + (layerx.current.harmonic_bar5))}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
+						from: 0; to: 15; stepSize: 1
+						value: layerx.current.harmonic_bar5
+						onMoved: layerx.current.harmonic_bar5 = Math.round(value)
+					}
+					Label{text: qsTr("Harmonic Bar 1+3/5': " + (layerx.current.harmonic_bar6))}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
+						from: 0; to: 15; stepSize: 1
+						value: layerx.current.harmonic_bar6
+						onMoved: layerx.current.harmonic_bar6 = Math.round(value)
+					}
+					Label{text: qsTr("Harmonic Bar 1+1/3': " + (layerx.current.harmonic_bar7))}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
+						from: 0; to: 15; stepSize: 1
+						value: layerx.current.harmonic_bar7
+						onMoved: layerx.current.harmonic_bar7 = Math.round(value)
+					}
+					Label{text: qsTr("Harmonic Bar 1': " + (layerx.current.harmonic_bar8))}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
+						from: 0; to: 15; stepSize: 1
+						value: layerx.current.harmonic_bar8
+						onMoved: layerx.current.harmonic_bar8 = Math.round(value)
+					}
+
 				}
 			}
 		}

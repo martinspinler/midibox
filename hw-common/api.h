@@ -70,6 +70,9 @@ struct layer_state_reg {
 
 	uint8_t pedal_cc[PEDALS];
 	uint8_t pedal_mode[PEDALS];
+
+	uint8_t percussion;
+	uint8_t harmonic_bar[9];
 };
 
 struct global_state_reg {

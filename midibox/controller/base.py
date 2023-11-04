@@ -92,12 +92,10 @@ MidiBoxLayerProps = [
     CheckedProp('program', '-unknown-',
         lambda s, v: v if v in s.programs else s.programs[s._program],
         lambda self, _: self._write_config()
-       #lambda s, v: s.setProgram(v)
     ),
     CheckedProp('volume', 100,
         lambda s, v: clamp(v, 0, 127),
         lambda self, _: self._write_config()
-       #lambda s, v: s._dev.setPartParam(s._part, 0x19, v) # CHECK + 1?
     ),
     #CheckedProp('init', False,
     #    lambda s, v: True if v else False,
@@ -119,6 +117,17 @@ MidiBoxLayerProps = [
         lambda s, v: clamp(v, -64, 63),
         lambda self, _: self._write_config()
     ),
+
+    CheckedProp('percussion', 100,
+        lambda s, v: s.percussions[clamp(v, 0, 5)][1],
+        lambda self, _: self._write_config()
+    ),
+    *[
+        CheckedProp(f'harmonic_bar{i}', 100,
+            lambda s, v: clamp(v, 0, 15),
+            lambda self, _: self._write_config()
+        ) for i in range(9)
+    ],
 ]
 
 efx = {
@@ -141,6 +150,13 @@ class MidiBoxLayer(Dispatcher):
         'marimba'       : MidiBoxProgram(13,  0, 64, [efx['rotary']], 'Mb', 'Marimba'),
         'fretlessbass'  : MidiBoxProgram(36,  0,  0, [efx['none']],   'FB', 'Fretlett Bass'),
     }
+    percussions = [
+        ('Off'           , 0x00),
+        ('4, Short'      , 0x01),
+        ('2+2/3, Short'  , 0x02),
+        ('4, Long'       , 0x41),
+        ('2+2/3, Long'   , 0x42),
+    ]
 
     def __init__(self, dev: "BaseMidiBox", index: int):
         self._index = index
