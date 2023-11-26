@@ -59,7 +59,7 @@ class Midibox(BaseMidiBox):
 
     def _disconnect(self):
         self._midi_thread_exit = True
-        if self._midi_thread:
+        if self._midi_thread.is_alive():
             self._midi_thread.join()
 
     def _connect(self):
