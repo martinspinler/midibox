@@ -118,12 +118,12 @@ MidiBoxLayerProps = [
         lambda self, _: self._write_config()
     ),
 
-    CheckedProp('percussion', 100,
+    CheckedProp('percussion', 0,
         lambda s, v: s.percussions[clamp(v, 0, 5)][1],
         lambda self, _: self._write_config()
     ),
     *[
-        CheckedProp(f'harmonic_bar{i}', 100,
+        CheckedProp(f'harmonic_bar{i}', 0,
             lambda s, v: clamp(v, 0, 15),
             lambda self, _: self._write_config()
         ) for i in range(9)
