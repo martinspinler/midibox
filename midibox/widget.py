@@ -9,7 +9,7 @@ from PyQt5.QtQuickWidgets import QQuickWidget
 from PyQt5.QtCore import QUrl, QSize, QObject
 from PyQt5.QtQuickWidgets import *
 
-from .controller import Midibox
+from .controller import BaseMidibox
 from .gui import QMidiBox, ProgramPresetModel, PedalCcModel, PedalModeModel, GraphUpdater
 
 import pathlib
@@ -21,7 +21,7 @@ def initialize_webengine():
     __webengine.initialize()
 
 
-def populate_context(ctx, box: Midibox):
+def populate_context(ctx, box: BaseMidibox):
     # Info: store all CP into namespace: setContextProperty doesnt't increment refcnt
     ns = SimpleNamespace()
 
@@ -44,13 +44,13 @@ def populate_context(ctx, box: Midibox):
     return ns
 
 class MidiboxQuickWidget(QQuickWidget):
-    def __init__(self, app, midibox_params={}, **kwargs):
+    def __init__(self, app, midibox, **kwargs):
         super().__init__()
 
         pathlib.Path(__file__).parent.resolve()
         #e.addImportPath(str(path.joinpath("midibox/style/")))
 
-        self.midibox = Midibox(**midibox_params)
+        self.midibox = midibox
         self.ctx = populate_context(self.rootContext(), self.midibox)
         self.qmidibox = self.ctx.qbox
 
