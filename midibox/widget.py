@@ -1,9 +1,15 @@
+import sys
+import signal
 import functools
 
 from types import SimpleNamespace
 
 import PyQt5
 import PyQt5.QtWebEngine
+
+from PyQt5.QtGui import QIcon, QFont
+from PyQt5.QtQml import QQmlApplicationEngine
+from PyQt5.QtWidgets import QApplication
 
 from PyQt5.QtQuickWidgets import QQuickWidget
 from PyQt5.QtCore import QUrl, QSize, QObject
@@ -74,3 +80,40 @@ class MidiboxQuickWidget(QQuickWidget):
     def sizeHint(self):
         return QSize(0, 720)
         return QSize(1280//1, 720//1)
+
+
+def create_gui(midibox, big_mode=False, disable_sandbox=False):
+    QIcon.setThemeName("Adwaita")
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+    if disable_sandbox:
+        os.environ["QTWEBENGINE_DISABLE_SANDBOX"] = str(1)
+    initialize_webengine()
+
+    app = QApplication(sys.argv)
+    if big_mode:
+        app.setFont(QFont("Helvetica", 36))
+
+    app.midibox = midibox
+    app.engine = w = QQmlApplicationEngine()
+    cwd = pathlib.Path(__file__).parent.resolve()
+    w.addImportPath(str(cwd.joinpath("style/")))
+
+    app.ctx = populate_context(w.rootContext(), app.midibox)
+
+    w.load(str(cwd.joinpath('midibox.qml')))
+    w.quit.connect(app.quit)
+    app.aboutToQuit.connect(w.deleteLater)
+
+    if len(w.rootObjects()) == 0:
+        sys.exit(1)
+    root = w.rootObjects()[0]
+    if big_mode:
+        root.setProperty("visibility", "FullScreen")
+        root.children()[1].setProperty("my_scale", 1)
+    else:
+        root.setProperty("width", 1280 // 1)
+        root.setProperty("height", 720 // 1)
+        root.children()[1].setProperty("my_scale", 1)
+
+    return app
