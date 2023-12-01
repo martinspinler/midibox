@@ -159,7 +159,7 @@ class MidiBoxLayer(Dispatcher):
         ('2+2/3, Long'   , 0x42),
     ]
 
-    def __init__(self, dev: "BaseMidiBox", index: int):
+    def __init__(self, dev: "BaseMidibox", index: int):
         self._index = index
         self._part = (index + 1) & 0xF if index != 9 else 0
         self._dev = dev
@@ -220,7 +220,7 @@ MidiBoxProps = [
 
 
 @mb_properties_init
-class BaseMidiBox(Dispatcher):
+class BaseMidibox(Dispatcher):
     _mb_properties = MidiBoxProps
     _events_ = ['control_change']
 
@@ -268,7 +268,7 @@ class BaseMidiBox(Dispatcher):
             self.emit('control_change', **kwargs)
 
     def emit_all(self):
-        for ctrl in BaseMidiBox._mb_properties:
+        for ctrl in BaseMidibox._mb_properties:
             kwargs = {ctrl.name: getattr(self, ctrl.name)}
             self.emit('control_change', **kwargs)
 

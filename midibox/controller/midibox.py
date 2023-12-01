@@ -2,11 +2,11 @@ import time
 import mido
 from typing import List, Optional
 
-from .base import BaseMidiBox, MidiBoxLayer
+from .base import BaseMidibox, MidiBoxLayer
 
 from threading import Thread
 
-class Midibox(BaseMidiBox):
+class Midibox(BaseMidibox):
     _SYSEX_ID = 0x77
     _LAYER_GLOBAL = 15
 
