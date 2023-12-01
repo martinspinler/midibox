@@ -752,7 +752,7 @@ void midi_init()
 		lr.r.active = 1; /* pedal mode == deactivate */
 		lr.activate = 0; /* This represents current state of the "activate" pedal */
 
-		//lr.part = l + 1;
+		lr.part = l + 1;
 		layer2reg(lr);
 
 		lr.r.pedal_cc[0] = Sustain;
