@@ -183,7 +183,7 @@ class Midibox(BaseMidiBox):
             firstreg += reqlen
         return ret
 
-    def _write_config(self):
+    def _write_config(self, name=None, value=None):
         c = self._config
         if c is None:
             print("not connected")
@@ -206,7 +206,7 @@ class Midibox(BaseMidiBox):
         self._config = cfg
         self._enable = True if self._config[0] & 1 else False
 
-    def _write_layer_config(self, layer: MidiBoxLayer):
+    def _write_layer_config(self, layer: MidiBoxLayer, name=None, value=None):
         lr = layer
         c = lr._config
         if c is None:

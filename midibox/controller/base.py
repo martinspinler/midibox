@@ -14,12 +14,13 @@ class MidiBoxProgram(NamedTuple):
 
 
 def propsetter(self, value, name, validator, callback):
+    _name = f'_{name}'
     value = validator(self, value)
-    if value == getattr(self, name):
+    if value == getattr(self, _name):
         return
-    setattr(self, name, value)
-    callback(self, value)
-    self.emit('control_change', **{name[1:]: value})
+    setattr(self, _name, value)
+    callback(self, name, value)
+    self.emit('control_change', **{name: value})
 
 
 class CheckedProp():
@@ -34,7 +35,7 @@ class CheckedProp():
         if setter:
             self.prop = property(
                 lambda s, name=self.name: getattr(s, f'_{name}'),
-                lambda s, val, name=self.name: propsetter(s, val, f'_{name}', setter, self.callback)
+                lambda s, val, name=self.name: propsetter(s, val, name, setter, self.callback)
             )
 
 def mb_properties_init(cls):
@@ -47,11 +48,11 @@ def mb_properties_init(cls):
 MidiBoxPedalProps = [
     CheckedProp('cc', 0,
         lambda s, v: clamp(v, 0, 127),
-        lambda self, v: self._layer._write_config()
+        lambda self, n, v: self._layer._write_config(n, v)
     ),
     CheckedProp('mode', 0,
         lambda s, v: clamp(v, 0, 127),
-        lambda self, v: self._layer._write_config()
+        lambda self, n, v: self._layer._write_config(n, v)
     ),
 ]
 
@@ -67,65 +68,65 @@ class MidiBoxPedal(Dispatcher):
 MidiBoxLayerProps = [
     CheckedProp('transposition', 0,
         lambda s, v: clamp(v, -64, 63),
-        lambda self, _: self._write_config()
+        lambda self, n, v: self._write_config(n, v)
     ),
     CheckedProp('transposition_extra', 0,
         lambda s, v: clamp(v, -64, 63),
-        lambda self, _: self._write_config()
+        lambda self, n, v: self._write_config(n, v)
     ),
     CheckedProp('enabled', False,
         lambda s, v: True if v else False,
-        lambda self, _: self._write_config()
+        lambda self, n, v: self._write_config(n, v)
     ),
     CheckedProp('active', True,
         lambda s, v: True if v else False,
-        lambda self, _: self._write_config()
+        lambda self, n, v: self._write_config(n, v)
     ),
     CheckedProp('rangel', 21,
         lambda s, v: clamp(v, 0, s._rangeu),
-        lambda self, _: self._write_config()
+        lambda self, n, v: self._write_config(n, v)
     ),
     CheckedProp('rangeu', 108,
         lambda s, v: clamp(v, s._rangel, v),
-        lambda self, _: self._write_config()
+        lambda self, n, v: self._write_config(n, v)
     ),
     CheckedProp('program', '-unknown-',
         lambda s, v: v if v in s.programs else s.programs[s._program],
-        lambda self, _: self._write_config()
+        lambda self, n, v: self._write_config(n, v)
     ),
     CheckedProp('volume', 100,
         lambda s, v: clamp(v, 0, 127),
-        lambda self, _: self._write_config()
+        lambda self, n, v: self._write_config(n, v)
     ),
     #CheckedProp('init', False,
     #    lambda s, v: True if v else False,
-    #    lambda self, _: self._write_config()
+    #    lambda self, n, v: self._write_config()
     #),
     CheckedProp('release', 0,
         lambda s, v: clamp(v, -64, 63),
-        lambda self, _: self._write_config()
+        lambda self, n, v: self._write_config(n, v)
     ),
     CheckedProp('attack', 0,
         lambda s, v: clamp(v, -64, 63),
-        lambda self, _: self._write_config()
+        lambda self, n, v: self._write_config(n, v)
     ),
     CheckedProp('cutoff', 0,
         lambda s, v: clamp(v, -64, 63),
-        lambda self, _: self._write_config()
+        lambda self, n, v: self._write_config(n, v)
     ),
     CheckedProp('decay', 0,
         lambda s, v: clamp(v, -64, 63),
-        lambda self, _: self._write_config()
+        lambda self, n, v: self._write_config(n, v)
     ),
 
     CheckedProp('percussion', 0,
         lambda s, v: s.percussions[clamp(v, 0, 5)][1],
-        lambda self, _: self._write_config()
+        lambda self, n, v: self._write_config(n, v)
     ),
     *[
         CheckedProp(f'harmonic_bar{i}', 0,
             lambda s, v: clamp(v, 0, 15),
-            lambda self, _: self._write_config()
+            lambda self, n, v: self._write_config(n, v)
         ) for i in range(9)
     ],
 ]
@@ -200,8 +201,8 @@ class MidiBoxLayer(Dispatcher):
         #hammond_bars[14] = {0x40, 0x41, 0x51, 0x00, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         self._dev.roland_sysex([0x40, 0x40 | (self._part), 0x51, 0x00, 0x01] + self._hb)
 
-    def _write_config(self):
-        self._dev._write_layer_config(self)
+    def _write_config(self, name=None, value=None):
+        self._dev._write_layer_config(self, name, value)
 
     def _read_layer_config(self):
         self._dev._read_layer_config(self)
@@ -209,11 +210,11 @@ class MidiBoxLayer(Dispatcher):
 MidiBoxProps = [
     CheckedProp('enable', False,
         lambda s, v: True if v else False,
-        lambda s, v: s.setEnable(v)
+        lambda s, n, v: s.setEnable(v)
     ),
     CheckedProp('mute', False,
         lambda s, v: True if v else False,
-        lambda s, v: s.setMute(v)
+        lambda s, n, v: s.setMute(v)
     ),
 ]
 
