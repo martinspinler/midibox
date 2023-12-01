@@ -73,11 +73,13 @@ class Midibox(BaseMidiBox):
                     if substr in i:
                         return i
                 raise Exception(f'Midibox port {substr} not found in: ' + ", ".join(strings))
-            in_name = findSubstr(mido.get_input_names(), self._port_name)
-            out_name = findSubstr(mido.get_output_names(), self._port_name)
+            self._input_port_name = findSubstr(mido.get_input_names(), self._port_name)
+            self._output_port_name = findSubstr(mido.get_output_names(), self._port_name)
         else:
-            in_name = out_name = self._port_name
+            self._input_port_name = self._output_port_name = self._port_name
 
+        in_name = str(self._input_port_name)
+        out_name = str(self._output_port_name)
         if self._virtual:
             in_name += "_input"
             out_name += "_output"
@@ -89,8 +91,8 @@ class Midibox(BaseMidiBox):
         #self.portout = self.ioport.output
 
         print(f"RolandMidibox: using {self._port_name} ({self._client_name})")
-        self.portout = mido.open_output(out_name, client_name=self._client_name, virtual=self._virtual, api=api)
-        self.portin  = mido.open_input(in_name, client_name=self._client_name, virtual=self._virtual, api=api)
+        self.portout = mido.open_output(self._output_port_name, client_name=self._client_name, virtual=self._virtual, api=api)
+        self.portin  = mido.open_input(self._input_port_name, client_name=self._client_name, virtual=self._virtual, api=api)
 
         # Let the patch to connect
         if self._virtual:
