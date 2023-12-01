@@ -48,11 +48,11 @@ def mb_properties_init(cls):
 MidiBoxPedalProps = [
     CheckedProp('cc', 0,
         lambda s, v: clamp(v, 0, 127),
-        lambda self, n, v: self._layer._write_config(n, v)
+        lambda self, n, v: self._layer._write_config(f"pedal{self._index}.{n}", v)
     ),
     CheckedProp('mode', 0,
         lambda s, v: clamp(v, 0, 127),
-        lambda self, n, v: self._layer._write_config(n, v)
+        lambda self, n, v: self._layer._write_config(f"pedal{self._index}.{n}", v)
     ),
 ]
 
@@ -63,6 +63,7 @@ class MidiBoxPedal(Dispatcher):
 
     def __init__(self, layer, index):
         self._layer = layer
+        self._index = index
 
 
 MidiBoxLayerProps = [
@@ -164,7 +165,6 @@ class MidiBoxLayer(Dispatcher):
         self._part = (index + 1) & 0xF if index != 9 else 0
         self._dev = dev
         self._mode = 0
-        self._initialize = False
 
         pedal_cc = ['Sustain', 'Hold', 'Expression'] + [0] + ['GPC1', 'GPC2', 'GPC3', 'GPC4']
         self._pedal_cc = [self._dev.pedal_cc[x] if isinstance(x, str) else x for x in pedal_cc]
@@ -210,11 +210,11 @@ class MidiBoxLayer(Dispatcher):
 MidiBoxProps = [
     CheckedProp('enable', False,
         lambda s, v: True if v else False,
-        lambda s, n, v: s.setEnable(v)
+        lambda s, n, v: s._write_config(n, v)
     ),
     CheckedProp('mute', False,
         lambda s, v: True if v else False,
-        lambda s, n, v: s.setMute(v)
+        lambda s, n, v: s._write_config(n, v)
     ),
 ]
 
@@ -250,7 +250,6 @@ class BaseMidibox(Dispatcher):
     layers: List[MidiBoxLayer]
 
     def __init__(self):
-        self._initialize = False
         self.layers = [MidiBoxLayer(self, i) for i in range(8)]
         self._callbacks = []
 
@@ -322,27 +321,11 @@ class BaseMidibox(Dispatcher):
                     #print(eff_type, msg.data)
 
     def initialize(self):
-        self._initialize = True
-        self._write_config()
-
-        for i, lr in enumerate(self.layers):
-            lr._initialize = True
-            self._write_layer_config(lr)
+        self._initialize()
 
     def requestKey(self, target, index, prop):
         self.mute = True
         self._requestKey = (target, index, prop)
-
-    def setEnable(self, v: bool):
-        self._write_config()
-        for i, lr in enumerate(self.layers):
-            lr._write_config()
-            #self.setPartParam(lr._part, 3, i)
-        #self.cc(0, 122, 127 if self._enable else 0)
-
-    def setMute(self, v: bool):
-        for lr in self.layers:
-            lr._write_config()
 
     def allSoundsOff(self):
         for i, lr in enumerate(self.layers):

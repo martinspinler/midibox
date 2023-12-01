@@ -32,9 +32,11 @@ class Midibox(BaseMidibox):
 
         super().__init__()
 
+        self._do_init = False
         self._config = None
         for lr in self.layers:
             lr._config = None
+            lr._do_init = False
 
         self._cb_data = None
         self._cb_data_waiting = None
@@ -185,6 +187,13 @@ class Midibox(BaseMidibox):
             firstreg += reqlen
         return ret
 
+    def _initialize(self):
+        self._do_init = True
+        self._write_config()
+        for i, lr in enumerate(self.layers):
+            lr._do_init = True
+            self._write_layer_config(lr)
+
     def _write_config(self, name=None, value=None):
         c = self._config
         if c is None:
@@ -192,9 +201,9 @@ class Midibox(BaseMidibox):
             return
 
         c[0] = (self._config[0] | 1) if self._enable else (self._config[0] & ~1)
-        c[2] = 1 if self._initialize else 0
+        c[2] = 1 if self._do_init else 0
         #c[3] = self._selected_layer
-        self._initialize = False
+        self._do_init = False
         #c[4:6] = [120, 0] # tempo
         self._send_mbreq(self._CMD_WRITE_REQ, self._LAYER_GLOBAL, 0, 3, c[0:3])
 
@@ -220,8 +229,8 @@ class Midibox(BaseMidibox):
         c[0] = 1 if lr._enabled and not self._mute else 0
         c[0] |= 2 if lr._active else 0
 
-        c[2] = 1 if lr._initialize else 0
-        lr._initialize = False
+        c[2] = 1 if lr._do_init else 0
+        lr._do_init = False
         c[6:9] = [lr._rangel, lr._rangeu, lr._volume]
         c[10:12] = [lr._transposition + 64, lr._transposition_extra + 64]
         c[12:16] = [lr._release + 64, lr._attack + 64, lr._cutoff + 64, lr._decay + 64]
