@@ -7,10 +7,15 @@ import pathlib
 import argparse
 
 from .controller import Midibox
+from .osc.client import OscMidibox
+from .osc.client_handler import MidiboxOSCClientHandler
+from .osc.server import SharedTCPServer, zc_register_osc_tcp
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument("-O", "--osc-server", help="Enable OSC server", action='store_true')
+    parser.add_argument("-o", "--osc-client", help="Use OSC client as device")
     parser.add_argument("-s", "--simulator", help="Use simulator as device", action='store_true')
     parser.add_argument("-p", "--port", help="Specify device port")
     parser.add_argument("-G", "--no-gui", help="Do not run GUI", action='store_false', dest='gui')
@@ -33,7 +38,10 @@ def create_midibox_instance(args):
         midibox_params["virtual"] = True
         midibox_params["find"] = True
 
-    midibox = Midibox(**midibox_params)
+    if args.osc_client:
+        midibox = OscMidibox(args.osc_client)
+    else:
+        midibox = Midibox(**midibox_params)
 
     return midibox
 
@@ -43,6 +51,11 @@ def main():
 
     midibox = create_midibox_instance(args)
     midibox.connect()
+
+    if args.osc_server:
+        MidiboxOSCClientHandler.mb = midibox
+        osc_srv = SharedTCPServer(MidiboxOSCClientHandler)
+        zc_svcs = zc_register_osc_tcp()
 
     if args.gui:
         import qasync
@@ -62,6 +75,11 @@ def main():
                 time.sleep(0.1)
         except KeyboardInterrupt:
             pass
+
+    if args.osc_server:
+        for zc, si in zc_svcs:
+            zc.close()
+        osc_srv.shutdown()
 
     midibox.disconnect()
 
