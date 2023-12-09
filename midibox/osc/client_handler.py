@@ -21,6 +21,10 @@ class MidiboxOSCClientHandler(DispatchedOSCRequestHandler):
     def init_dispatcher(self):
         self.map("/init", lambda addr: self.init())
 
+        # Player section
+        self.map("/player/play", lambda addr, x: self.play())
+        self.map("/player/seek", lambda addr, x: self.seek(x))
+
         # Midibox section
         self.mb.bind(control_change=self.on_main_control_change)
         for item in MidiBoxProps:
@@ -108,3 +112,12 @@ class MidiboxOSCClientHandler(DispatchedOSCRequestHandler):
         pedal, prop = args
         if hasattr(pedal, prop):
             setattr(pedal, prop, value)
+
+    def seek(self, x):
+        self.mp.seek(x * self.mp._midifile.length)
+
+    def play(self):
+        if self.mp.is_paused():
+            self.mp.play()
+        else:
+            self.mp.pause()

@@ -5,12 +5,21 @@ import time
 import socket
 import pathlib
 import argparse
+from pathlib import Path
 
 from .controller import Midibox
 from .osc.client import OscMidibox
 from .osc.client_handler import MidiboxOSCClientHandler
 from .osc.server import SharedTCPServer, zc_register_osc_tcp
 
+from midibox.midiplayer import MidiPlayer
+
+
+midi_path = Path.home()
+midi_path /= "cloud"
+midi_path /= "data"
+midi_path = f"{str(midi_path)}/bands/Perfect Time/midi/"
+midi_file = f"{midi_path}Days of Wine and Roses.mid"
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -53,6 +62,10 @@ def main():
     midibox.connect()
 
     if args.osc_server:
+        mp = MidiPlayer(midibox._output_port_name)
+        mp.init()
+        mp.load(midi_file)
+        MidiboxOSCClientHandler.mp = mp
         MidiboxOSCClientHandler.mb = midibox
         osc_srv = SharedTCPServer(MidiboxOSCClientHandler)
         zc_svcs = zc_register_osc_tcp()
@@ -80,6 +93,8 @@ def main():
         for zc, si in zc_svcs:
             zc.close()
         osc_srv.shutdown()
+
+        mp.destroy()
 
     midibox.disconnect()
 
