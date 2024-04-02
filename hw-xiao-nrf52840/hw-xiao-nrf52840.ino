@@ -150,6 +150,7 @@ void setup()
 	bledis.begin();
 
 	midi_init();
+	smidi_init();
 
 	ble_start_adv();
 }
@@ -158,4 +159,8 @@ void loop()
 {
 	midi_loop();
 	check_inputs();
+}
+
+void midi_piano_connect()
+{
 }

@@ -11,18 +11,21 @@
 #include <MIDI.h>
 #include <Arduino.h>
 
+#if 0
 struct MySettings : public midi::DefaultSettings {
 	static const long BaudRate = 31250;
 };
 
+typedef midi::SerialMIDI<HardwareSerial, struct MySetting> HardwareSerialMIDIFast;
+typedef midi::MidiInterface<HardwareSerialMIDIFast> MidiInterfaceHwserialFast;
+#endif
 
 typedef midi::SerialMIDI<HardwareSerial> HardwareSerialMIDI;
-typedef midi::SerialMIDI<HardwareSerial, struct MySetting> HardwareSerialMIDIFast;
-
 typedef midi::MidiInterface<HardwareSerialMIDI> MidiInterfaceHwserial;
-typedef midi::MidiInterface<HardwareSerialMIDIFast> MidiInterfaceHwserialFast;
 
-#define MIDIBOX_HAVE_UART2
+extern MidiInterfaceHwserial MU;
+extern MidiInterfaceHwserial MS1;
+
 
 #define thread_midi_msg_send_to_control control_handle_midi_msg
 

@@ -1,26 +1,12 @@
 #ifndef __MIDI_H__
 #define __MIDI_H__
 
-#ifdef ARDUINO_Seeed_XIAO_nRF52840
-#define MIDIBOX_HAVE_BT
-#else
-#endif
-
 #include <MIDI.h>
 
 #ifdef ARDUINO
 #include "midibox-compat.h"
 #else
 #include <midibox-compat.h>
-#endif
-
-#ifdef MIDIBOX_HAVE_BT
-extern MidiInterfaceUsb MU;
-extern MidiInterfaceHwserial MS1;
-extern MidiInterfaceBle MB;
-#else
-extern MidiInterfaceHwserial MS1;
-extern MidiInterfaceHwserial MS2;
 #endif
 
 #include "api.h"

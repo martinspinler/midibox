@@ -18,7 +18,7 @@ VirtualSerialMidi vSerial_USB(Serial_USB);
 VirtualSerialMidi vSerial_BLE(Serial_BLE);
 
 MidiInterfaceHwserial MS1(vSerial_HW1);
-MidiInterfaceUsb MS2(vSerial_USB);
+MidiInterfaceUsb MU(vSerial_USB);
 MidiInterfaceBle MB(vSerial_BLE);
 
 StdoutSerial Serial;
@@ -42,6 +42,8 @@ int main(int argc, char **argv)
 	(void)argv; /*Unused*/
 
 	midi_init();
+	smidi_init();
+
 	Serial.begin(115200);
 
 	while(1) {

@@ -18,8 +18,8 @@ using namespace midi;
 SerialMIDI<HardwareSerial> Serial1_midi(Serial1);
 SerialMIDI<HardwareSerial/*, MySettings*/> Serial2_midi(Serial2);
 
+MidiInterfaceHwserial MU(Serial2_midi);
 MidiInterfaceHwserial MS1(Serial1_midi);
-MidiInterfaceHwserial MS2(Serial2_midi);
 
 
 void setup()

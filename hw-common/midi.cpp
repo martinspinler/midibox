@@ -26,7 +26,7 @@ struct midi_changes {
 void midi_loop()
 {
 	MS1.read();
-	MS2.read();
+	MU.read();
 }
 
 void midi_change_tempo(unsigned long t)
@@ -138,9 +138,7 @@ void midi_handle_pedal_input(uint8_t pedal, uint8_t val)
 		return;
 
 	if (gs.r.pedal_mode[pedal] == PEDAL_MODE_NORMAL) {
-#ifdef MIDIBOX_HAVE_UART2
-		MS2.sendControlChange(gs.r.pedal_cc[pedal], val, 1);
-#endif
+		MU.sendControlChange(gs.r.pedal_cc[pedal], val, 1);
 #ifdef MIDIBOX_HAVE_BT
 		MB.sendControlChange(gs.r.pedal_cc[pedal], val, 1);
 #endif
@@ -239,12 +237,9 @@ void midi_update_layer(struct layer_state & lr, struct layer_state & lr_prev, st
 
 void control_handle_midi_msg(int origin, const Message<128> & msg)
 {
-#ifdef MIDIBOX_HAVE_UART2
 	if (gs.r.debug_s2u_all || ((origin || gs.r.debug_s2u)&& (msg.type == 0xF0 || msg.type == 0xf7))) {
-
-		MS2.send(msg);
+		MU.send(msg);
 	}
-#endif
 
 #ifdef MIDIBOX_HAVE_BT
 	if (gs.r.debug_s2b_all || ((origin || gs.r.debug_s2b) && (msg.type == 0xF0 || msg.type == 0xf7))) {
@@ -402,7 +397,6 @@ void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 	}
 }
 
-#ifdef MIDIBOX_HAVE_UART2
 void handleUsbMidiMessage(const Message<128> & msg)
 {
 	int i;
@@ -432,7 +426,6 @@ void handleUsbMidiMessage(const Message<128> & msg)
 		}
 	}
 }
-#endif
 
 #ifdef MIDIBOX_HAVE_BT
 void handleBleMidiMessage(const Message<128> & msg)
@@ -823,11 +816,9 @@ void midi_init()
 
 void smidi_init()
 {
-#ifdef MIDIBOX_HAVE_UART2
-	MS2.begin(MIDI_CHANNEL_OMNI);
-	MS2.turnThruOff();
-	MS2.setHandleMessage(handleUsbMidiMessage);
-#endif
+	MU.begin(MIDI_CHANNEL_OMNI);
+	MU.turnThruOff();
+	MU.setHandleMessage(handleUsbMidiMessage);
 
 #ifdef MIDIBOX_HAVE_BT
 	MB.begin(MIDI_CHANNEL_OMNI);

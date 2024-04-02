@@ -36,6 +36,18 @@ unsigned long micros()
         return o;
 }
 
+unsigned long millis()
+{
+        long o;
+        struct timespec ts;
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        o = ts.tv_nsec / 1000;
+        o += ts.tv_sec * 1000000;
+
+		o /= 1000;
+        return o;
+}
+
 int main(int argc, char **argv)
 {
 	(void)argc; /*Unused*/

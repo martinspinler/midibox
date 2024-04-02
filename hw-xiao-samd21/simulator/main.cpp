@@ -11,15 +11,12 @@ const std::string rtmidi_client_name = "MidiboxSimulator";
 
 VirtualMidiSerial Serial_HW1(rtmidi_client_name, "Piano");
 VirtualMidiSerial Serial_USB(rtmidi_client_name, "Control");
-VirtualMidiSerial Serial_BLE(rtmidi_client_name, "Ble");
 
 VirtualSerialMidi vSerial_HW1(Serial_HW1);
 VirtualSerialMidi vSerial_USB(Serial_USB);
-VirtualSerialMidi vSerial_BLE(Serial_BLE);
 
 MidiInterfaceHwserial MS1(vSerial_HW1);
-MidiInterfaceUsb MS2(vSerial_USB);
-//MidiInterfaceBle MB(vSerial_BLE);
+MidiInterfaceUsb MU(vSerial_USB);
 
 StdoutSerial Serial;
 
