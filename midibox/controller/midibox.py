@@ -225,6 +225,8 @@ class Midibox(BaseMidibox):
             return
 
         orig_c = c.copy()
+        # Clear W/O flags
+        orig_c[2] = 0
 
         c[0] = 1 if lr._enabled and not self._mute else 0
         c[0] |= 2 if lr._active else 0
