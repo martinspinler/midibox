@@ -26,6 +26,7 @@ public:
 
 class VirtualMidiSerial: public VirtualSerial
 {
+	int m_verbosity;
 	RtMidiIn  m_midiin;
 	RtMidiOut m_midiout;
 
@@ -34,8 +35,8 @@ class VirtualMidiSerial: public VirtualSerial
 	std::vector<uint8_t> m_input_message;
 	std::vector<uint8_t> m_output_message;
 public:
-	VirtualMidiSerial(std::string client_name, std::string port_name) :
-		m_midiin(RtMidi::UNSPECIFIED, client_name), m_midiout(RtMidi::UNSPECIFIED, client_name), m_port_name(port_name) {}
+	VirtualMidiSerial(std::string client_name, std::string port_name, int verbosity = 0) :
+		m_midiin(RtMidi::UNSPECIFIED, client_name), m_midiout(RtMidi::UNSPECIFIED, client_name), m_port_name(port_name), m_verbosity(verbosity) {}
 	virtual ~VirtualMidiSerial() {};
 
 	void begin(int speed);

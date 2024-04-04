@@ -38,6 +38,17 @@ int VirtualMidiSerial::read()
 
 size_t VirtualMidiSerial::write(uint8_t byte)
 {
+	static const char *msgs[8] = {
+	    "NoteOff",
+	    "NoteOn",
+	    "AfterTouchPoly",
+	    "ControlChange",
+	    "ProgramChange",
+	    "AfterTouchChannel",
+	    "PitchBend",
+	    "SystemExclusive",
+	};
+
 	int req_size;
 	uint8_t cmd;
 
@@ -63,6 +74,20 @@ size_t VirtualMidiSerial::write(uint8_t byte)
 	}
 
 	if (m_output_message.size() >= req_size) {
+		if (m_verbosity) {
+			cmd >>= 4;
+			cmd -= 8;
+
+			std::cerr << m_port_name << " ";
+
+			if (msgs[cmd])
+				std::cerr << msgs[cmd] << " ";
+
+			for (int i = 0; i < req_size; i++) {
+				fprintf(stderr, " %02x", m_output_message[i]);
+			}
+			std::cerr << std::endl;
+		}
 		m_midiout.sendMessage(&m_output_message);
 		m_output_message.clear();
 	}
