@@ -152,7 +152,9 @@ void setup()
 	midi_init();
 	smidi_init();
 
+#ifdef MIDIBOX_ENABLE_BLE
 	ble_start_adv();
+#endif
 }
 
 void loop()
