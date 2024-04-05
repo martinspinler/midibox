@@ -2,6 +2,7 @@
 #include "midi.h"
 
 #define MIDI_TC_INTERNAL
+#define USE_ROLAND_VOLUME_SYSEX
 
 using namespace midi;
 
@@ -616,12 +617,13 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 				layer_set_playing(lr, lnote, true, b1);
 				layer_handle_note_on_special(lr, lnote, b2);
 
+#ifndef USE_ROLAND_VOLUME_SYSEX
+				MS1.sendNoteOn(lnote, b2, lchannel);
+#else
 				vol = b2;
 				vol *= lr.r.volume;
-
-				/* TODO: Check me! */
 				MS1.sendNoteOn(lnote, vol / 127, lchannel);
-				//MS1.sendNoteOn(lnote, vol / 100, lchannel);
+#endif
 			}
 #if 0
 		} else if (cmd == midi::ControlChange) {
