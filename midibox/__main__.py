@@ -34,8 +34,7 @@ def create_midibox_instance(args):
         midibox_params["port_name"] = args.port
 
     if args.simulator:
-        midibox_params["port_name"] = 'MidiboxSimulator'
-        midibox_params["virtual"] = True
+        midibox_params["port_name"] = 'MidiboxSimulator:Control'
         midibox_params["find"] = True
 
     if args.osc_client:
