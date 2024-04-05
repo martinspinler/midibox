@@ -195,7 +195,7 @@ void midi_update_layer(struct layer_state & lr, struct layer_state & lr_prev, st
 		MS1.sendControlChange(BankSelectLSB, lr.r.bs_lsb, lr.channel);
 		MS1.sendProgramChange(lr.r.pgm, lr.channel);
 	}
-#if 1
+
 	if (lr_prev.r.release != lr.r.release || changes.all)
 		MS1.sendControlChange(72, lr.r.release, lr.channel);
 
@@ -208,7 +208,8 @@ void midi_update_layer(struct layer_state & lr, struct layer_state & lr_prev, st
 	if (lr_prev.r.decay != lr.r.decay || changes.all)
 		MS1.sendControlChange(75, lr.r.decay, lr.channel);
 
-	if (changes.harmonic_bar_set || changes.all) {
+	if ((changes.harmonic_bar_set || changes.program || changes.all) &&
+			(lr.r.pgm == 17 && lr.r.bs == 32 && lr.r.bs_lsb == 68)) {
 		i = roland_sysex_begin(s);
 		s[i+0] = 0x40;
 		s[i+1] = 0x40 | lr.part;
@@ -225,7 +226,6 @@ void midi_update_layer(struct layer_state & lr, struct layer_state & lr_prev, st
 		MS1.sendSysEx(reslen, s, false);
 	}
 
-#endif
 	if (changes.volume || changes.all) {
 		i = roland_sysex_begin(s);
 		s[i+0] = 0x40;
