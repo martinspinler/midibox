@@ -18,8 +18,8 @@ MidiInterfaceBle MB(Ble_midi);
 
 static struct pt pt_charlieplex;
 
-const int CPP_FIRST = 3;
-const int CPP_LAST  = 5;
+const int CPP_FIRST = 8;
+const int CPP_LAST  = 10;
 
 static int charlieplex(struct pt *pt)
 {
@@ -68,7 +68,7 @@ static int charlieplex(struct pt *pt)
 
 void check_inputs()
 {
-	static const int ANALOG_PEDALS = 3;
+	static const int ANALOG_PEDALS = 0;
 	int i;
 	static unsigned long ms = 0;
 	static uint16_t pedal_value_prev[ANALOG_PEDALS];
