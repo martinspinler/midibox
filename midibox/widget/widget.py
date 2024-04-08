@@ -15,7 +15,7 @@ from PyQt5.QtQuickWidgets import QQuickWidget
 from PyQt5.QtCore import QUrl, QSize, QObject
 from PyQt5.QtQuickWidgets import *
 
-from .controller import BaseMidibox
+from ..controller import BaseMidibox
 from .gui import QMidiBox, ProgramPresetModel, PedalCcModel, PedalModeModel, GraphUpdater
 
 import pathlib

@@ -9,7 +9,7 @@ from PyQt5.QtCore import QTimer
 #import PyQt5.QtChart
 
 
-from .controller.base import MidiBoxLayerProps, MidiBoxProps, MidiBoxPedalProps
+from ..controller.base import MidiBoxLayerProps, MidiBoxProps, MidiBoxPedalProps
 
 
 class PropertyMeta(type(QtCore.QObject)):
