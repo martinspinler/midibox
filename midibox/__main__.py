@@ -2,6 +2,7 @@
 import os
 import sys
 import time
+import yaml
 import socket
 import pathlib
 import argparse
@@ -19,6 +20,7 @@ def parse_args():
     parser.add_argument("-p", "--port", help="Specify device port")
     parser.add_argument("-G", "--no-gui", help="Do not run GUI", action='store_false', dest='gui')
     parser.add_argument("-d", "--debug", help="Debug Midibox", action='store_true')
+    parser.add_argument("-c", "--config", help="Configuration YAML", default=None)
     parser.add_argument("--disable-sandbox", help="Disable sandbox for QtWebEngine", action='store_true')
     #parser.add_argument("--disable-sandbox", help="Disable sandbox for QtWebEngine", action='store_true')
     return parser.parse_args()
@@ -55,7 +57,12 @@ def main():
         import qasync
         import asyncio
         from .widget import create_gui
-        app = create_gui(midibox, disable_sandbox=args.disable_sandbox)
+        config = {}
+        if args.config:
+            with open(args.config, 'r') as file:
+                config = yaml.safe_load(file)
+
+        app = create_gui(midibox, disable_sandbox=args.disable_sandbox, config=config)
 
         loop = qasync.QEventLoop(app)
         asyncio.set_event_loop(loop)

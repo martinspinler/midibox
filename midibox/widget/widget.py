@@ -1,6 +1,7 @@
 import sys
 import signal
 import functools
+import pathlib
 
 from types import SimpleNamespace
 
@@ -16,9 +17,8 @@ from PyQt5.QtCore import QUrl, QSize, QObject
 from PyQt5.QtQuickWidgets import *
 
 from ..controller import BaseMidibox
+from ..config import presets_from_config
 from .gui import QMidiBox, ProgramPresetModel, PedalCcModel, PedalModeModel, GraphUpdater
-
-import pathlib
 
 
 def initialize_webengine():
@@ -26,6 +26,10 @@ def initialize_webengine():
     __webengine = PyQt5.QtWebEngine.QtWebEngine
     __webengine.initialize()
 
+
+def init_context(ctx, ro, config):
+    presets = presets_from_config(config)
+    ctx.qbox.init(ro, config, presets)
 
 def populate_context(ctx, box: BaseMidibox):
     # Info: store all CP into namespace: setContextProperty doesnt't increment refcnt
@@ -63,9 +67,10 @@ class MidiboxQuickWidget(QQuickWidget):
         self.setResizeMode(self.SizeRootObjectToView)
 
         self.setSource(QUrl.fromLocalFile(str(pathlib.Path(__file__).parent/"StandaloneWidget.qml")))
+        ro = self.rootObject()
+        init_context(self.ctx, ro, kwargs.get('config', {}))
 
         if kwargs.get("playlist_url"):
-            ro = self.rootObject()
             wv = ro.findChild(QObject, "playlistWebView")
             wv.setProperty("url", kwargs.get("playlist_url"))
 
@@ -82,7 +87,7 @@ class MidiboxQuickWidget(QQuickWidget):
         return QSize(1280//1, 720//1)
 
 
-def create_gui(midibox, big_mode=False, disable_sandbox=False):
+def create_gui(midibox, big_mode=False, disable_sandbox=False, config=None):
     QIcon.setThemeName("Adwaita")
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
@@ -108,6 +113,8 @@ def create_gui(midibox, big_mode=False, disable_sandbox=False):
     if len(w.rootObjects()) == 0:
         sys.exit(1)
     root = w.rootObjects()[0]
+    init_context(app.ctx, root, config)
+
     if big_mode:
         root.setProperty("visibility", "FullScreen")
         root.children()[1].setProperty("my_scale", 1)

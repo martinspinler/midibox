@@ -1,0 +1,70 @@
+presets:
+ - label: Disable
+   name: disable
+   global:
+     enabled: False
+
+ - label: Reset
+   name: reset
+   global:
+     enabled: True
+     transpositionExtra: False
+   layers:
+   - program: piano
+     enabled: True
+     active: True
+     rangel: 0
+     rangeu: 127
+     transposition: 0
+     pedals:
+     - mode: none
+     - mode: none
+     - mode: none
+     - mode: none
+     - mode: none
+     - mode: none
+     - mode: none
+     - mode: push_active
+
+   - copy: {layer: 0}
+     enabled: False
+   - copy: {layer: 1}
+   - copy: {layer: 1}
+   - copy: {layer: 1}
+   - copy: {layer: 1}
+   - copy: {layer: 1}
+   - copy: {layer: 1}
+
+ - label: Piano
+   name: piano
+   layers:
+   - program: piano
+
+ - label: Piano + bass
+   name: p_b
+   global:
+     transpositionExtra: True
+   layers:
+   - program: piano
+     enabled: True
+     active: True
+     rangel: 60
+     #rangel: 56
+     rangeu: 127
+   - program: bass
+     enabled: True
+     active: True
+     rangel: 0
+     rangeu: 59
+     #rangeu: 55
+   - program: piano
+     enabled: True
+     active: False
+     rangel: 0
+     rangeu: 127
+
+ - label: Fretless bass
+   name: fretless_bass
+   layers:
+   - layer: 1
+     program: fretlessbass

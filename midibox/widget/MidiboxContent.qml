@@ -67,10 +67,16 @@ Pane {
 			}
 
 			ColumnLayout{
+				objectName: "presets"
 				//columns: 2
-				Button {text:"Pno (+1ova) / Bs"; onClicked: midibox.loadPreset(0)}
+				Button {text:"P1"; onClicked: midibox.loadPreset(0)}
 				Button {text:"P2"; onClicked: midibox.loadPreset(1)}
 				Button {text:"P3"; onClicked: midibox.loadPreset(2)}
+				Button {text:"P4"; onClicked: midibox.loadPreset(3)}
+				Button {text:"P5"; onClicked: midibox.loadPreset(4)}
+				Button {text:"P6"; onClicked: midibox.loadPreset(5)}
+				Button {text:"P7"; onClicked: midibox.loadPreset(6)}
+				Button {text:"P8"; onClicked: midibox.loadPreset(7)}
 			}
 
 			WebEngineView {

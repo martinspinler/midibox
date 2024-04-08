@@ -119,6 +119,17 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
             self._layers.append(QMidiboxLayer(lr, self.box))
             lr.bind(control_change=self.on_layer_control_change)
 
+        self._presets = {}
+
+    def init(self, ro, config, presets):
+        presets_btns = ro.findChild(QObject, "presets")
+        presets_list = list(presets.values())
+        self._presets = {k: v for k, v in enumerate(presets_list)}
+        for i, child in enumerate(presets_btns.children()):
+            if len(presets_list) > i:
+                preset = presets_list[i]
+                child.setProperty("text", preset.label)
+
     @pyqtProperty(list, notify=layersChange)
     def layers(self): return self._layers
 
@@ -162,33 +173,43 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
 
     @pyqtSlot(int)
     def loadPreset(self, p):
-        if p in [0, 1, 2, 3]:
-            prgs = {0: 'piano', 1: 'epiano', 2: 'marimba', 3: 'vibraphone'}
-            prg = prgs[p]
+        if p in self._presets:
+            preset = self._presets[p]
+            config = {}
+            try:
+                preset.get_config(config)
+            except RecursionError:
+                print("Cycle in configuration!!!")
+                return
 
-            self.layers[0].rangeu = 127
-            self.layers[0].rangel = 56
-            self.layers[1].rangeu = 55
-            self.layers[1].rangel = 0
-            self.layers[0].rangeu = 127
-            self.layers[0].program = prg
-            self.layers[1].program = 'bass'
-            self.layers[0].active = True
-            self.layers[1].active = True
-            self.layers[0].enabled = True
-            self.layers[1].enabled = True
+            print(config)
 
-            self.layers[2].program = prg
-            self.layers[2].active = False
-            self.layers[2].enabled = True
+            for layer_index, layer_config in config.get("layers", {}).items():
+                layer = self.layers[layer_index]
+                for k, v in layer_config.items():
+                    if k == 'pedals':
+                        for pi, pedal_config in v.items():
+                            pedal = layer.pedals[pi]
+                            for pk, pv in pedal_config.items():
+                                if hasattr(pedal, pk):
+                                    if pk == "mode":
+                                        pv = {
+                                            'none': 0,
+                                            'normal': 1,
+                                            'note_length': 2,
+                                            'toggle_active': 3,
+                                            'push_active': 4,
+                                        }[pv]
+                                    setattr(pedal, pk, pv)
+                    else:
+                        if hasattr(layer, k):
+                            setattr(layer, k, v)
 
-            self.layers[0].pedals[7].mode = 4 #'Push Active'
-            self.layers[1].pedals[7].mode = 4 #'Push Active'
-            self.layers[2].pedals[7].mode = 4 #'Push Active'
-
-            self.transpositionExtra = True
-            self.enable = True
-
+            for k, v in config.get("global", {}).items():
+                if k not in ['enabled', 'transpositionExtra']:
+                    continue
+                if hasattr(self, k):
+                    setattr(self, k, v)
 
 
 class GraphUpdater(QObject):
