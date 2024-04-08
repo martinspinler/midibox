@@ -90,15 +90,15 @@ class OscClient(threading.Thread):
 
 
 class OscMidibox(BaseMidibox):
-    def __init__(self, addr=("midibox", 4302)):
+    def __init__(self, url=None, addr="localhost", port=4302):
         super().__init__()
 
-        if type(addr) == str:
-            addr = urllib.parse.urlsplit(f"//{addr}")
+        if url:
+            addr = urllib.parse.urlsplit(f"//{url}")
             port = addr.port if addr.port else 4302
             addr = addr.hostname, port
         print(f"Using OSC MidiBox client: {addr}")
-        self.client = OscClient(self, addr)
+        self.client = OscClient(self, (addr, port))
 
     def _connect(self):
         self.client.start()

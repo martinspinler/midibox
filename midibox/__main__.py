@@ -6,8 +6,7 @@ import socket
 import pathlib
 import argparse
 
-from .controller import Midibox
-from .osc.client import OscMidibox
+from . import backends
 from .osc.client_handler import MidiboxOSCClientHandler
 from .osc.server import SharedTCPServer, zc_register_osc_tcp
 
@@ -26,23 +25,19 @@ def parse_args():
 
 
 def create_midibox_instance(args):
-    midibox_params = {
-        'port_name': 'XIAO nRF52840',
+    mb_params = {
         'debug': args.debug,
     }
-    if args.port:
-        midibox_params["port_name"] = args.port
-
-    if args.simulator:
-        midibox_params["port_name"] = 'MidiboxSimulator:Control'
-        midibox_params["find"] = True
 
     if args.osc_client:
-        midibox = OscMidibox(args.osc_client)
+        mb_backend = 'osc'
+        mb_params['url'] = args.osc_client
     else:
-        midibox = Midibox(**midibox_params)
+        mb_backend = 'simulator' if args.simulator else backends.default_backend
 
-    return midibox
+    if args.port:
+        mb_params["port_name"] = args.port
+    return backends.create_midibox_from_config(mb_backend)
 
 
 def main():
