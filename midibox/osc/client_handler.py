@@ -66,7 +66,21 @@ class MidiboxOSCClientHandler(DispatchedOSCRequestHandler):
         if msg.type == 'clock':
             return
 
-        self.send_message("/midibox/midi", bytes(msg.bytes()))
+        ba = msg.bytes()
+
+        if False and msg.type != 'sysex':
+            if len(ba) == 3:
+                data = tuple([0, *ba])
+            elif len(ba) == 2:
+                data = tuple([0, *ba, 0])
+            elif len(ba) == 1:
+                data = tuple([0, *ba, 0, 0])
+            else:
+                data = bytes(ba)
+        else:
+            data = bytes(ba)
+
+        self.send_message("/midibox/midi", data)
 
     def on_midi(self, addr, param):
         midi = list(param)
