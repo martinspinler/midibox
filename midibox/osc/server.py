@@ -55,7 +55,7 @@ class ThreadedTCPOSCRequestHandler(socketserver.BaseRequestHandler):
         values: List
         if value is None:
             values = []
-        elif not isinstance(value, Iterable) or isinstance(value, (str, bytes)):
+        elif isinstance(value, tuple) or not isinstance(value, Iterable) or isinstance(value, (str, bytes)):
             values = [value]
         else:
             values = value
