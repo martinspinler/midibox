@@ -212,47 +212,31 @@ class GraphUpdater(QObject):
             #i = int(time.time())
             self._deque_count += 1
 
-
-class ProgramPreset(QtGui.QStandardItem):
-    def __init__(self, pid, name):
+class NameDataItem(QtGui.QStandardItem):
+    def __init__(self, iid, name):
         super().__init__(name)
-        self.setData(pid, QtCore.Qt.UserRole)
+        self.setData(iid, QtCore.Qt.UserRole)
 
-def ProgramPresetModel(box):
+def NameDataItemModel(items, urname=b'value'):
     model = QtGui.QStandardItemModel()
     model.setItemRoleNames({
         QtCore.Qt.DisplayRole: b"text",
-        QtCore.Qt.UserRole: b"pid",
+        QtCore.Qt.UserRole: urname,
     })
-    [model.appendRow(ProgramPreset(k, v.name)) for k, v in box.layers[0].programs.items()]
+    for i in items:
+        model.appendRow(i)
     return model
 
-class PedalCc(QtGui.QStandardItem):
-    def __init__(self, pid, name):
-        super().__init__(name)
-        self.setData(pid, QtCore.Qt.UserRole)
+class ProgramPreset(NameDataItem):
+    def __init__(self, iid, name):
+        super().__init__(iid, name)
+class PedalCc(NameDataItem):
+    def __init__(self, iid, name):
+        super().__init__(iid, name)
+class PedalMode(NameDataItem):
+    def __init__(self, iid, name):
+        super().__init__(iid, name)
 
-def PedalCcModel(box):
-    model = QtGui.QStandardItemModel()
-    model.setItemRoleNames({
-        QtCore.Qt.DisplayRole: b"text",
-        QtCore.Qt.UserRole: b"value",
-    })
-    [model.appendRow(PedalCc(cc, name)) for name, cc in box.pedal_cc.items()]
-
-    return model
-
-class PedalMode(QtGui.QStandardItem):
-    def __init__(self, pid, name):
-        super().__init__(name)
-        self.setData(pid, QtCore.Qt.UserRole)
-
-def PedalModeModel(box):
-    model = QtGui.QStandardItemModel()
-    model.setItemRoleNames({
-        QtCore.Qt.DisplayRole: b"text",
-        QtCore.Qt.UserRole: b"value",
-    })
-    [model.appendRow(PedalMode(cc, name)) for name, cc in box.pedal_mode.items()]
-
-    return model
+def ProgramPresetModel(box): return NameDataItemModel([ProgramPreset(k, v.name) for k, v in box.layers[0].programs.items()])
+def PedalCcModel(box): return NameDataItemModel([PedalCc(v, k) for k, v in box.pedal_cc.items()])
+def PedalModeModel(box): return NameDataItemModel([PedalMode(v, k) for k, v in box.pedal_mode.items()])

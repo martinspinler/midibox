@@ -94,8 +94,8 @@ Item {
 							}
 							delegate: Button {
 								checkable: true
-								checked: layerx.current.program == model.pid
-								onClicked: layerx.current.program = model.pid
+								checked: layerx.current.program == model.value
+								onClicked: layerx.current.program = model.value
 								width: parent.width
 								text: model.text
 								background: Rectangle {
