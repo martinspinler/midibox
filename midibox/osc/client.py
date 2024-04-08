@@ -1,4 +1,5 @@
 import time
+import re
 import threading
 import mido
 from pythonosc import osc_packet
@@ -100,6 +101,8 @@ class OscMidibox(BaseMidibox):
         print(f"Using OSC MidiBox client: {addr}")
         self.client = OscClient(self, (addr, port))
 
+        self._pedal_regex = r"pedal(\d+)\.(\w+)"
+
     def _connect(self):
         self.client.start()
 
@@ -122,22 +125,34 @@ class OscMidibox(BaseMidibox):
                 cb(msg)
             return
 
-        if len(addr) > 1 and addr[0] == "layers":
-            if len(addr) == 3:
-                index = int(addr[1])
-                prop = addr[2]
-                lr = self.layers[index]
-                if hasattr(lr, f"_{prop}"):
-                    setattr(lr, f"_{prop}", params[0])
-                    kwargs = {prop: getattr(lr, prop)}
-                    lr.emit('control_change', **kwargs)
-
-        if len(addr) == 1:
+        if len(addr) >= 1:
             prop = addr[0]
-            if hasattr(self, f"_{prop}"):
-                setattr(self, f"_{prop}", params[0])
-                kwargs = {prop: getattr(self, prop)}
-                self.emit('control_change', **kwargs)
+            addr = addr[1:]
+            if len(addr) == 0:
+                if hasattr(self, f"_{prop}"):
+                    setattr(self, f"_{prop}", params[0])
+                    kwargs = {prop: getattr(self, prop)}
+                    self.emit('control_change', **kwargs)
+            elif prop == "layers" and len(addr) >= 2:
+                lr = self.layers[int(addr[0])]
+                prop = addr[1]
+                addr = addr[2:]
+                if len(addr) == 0:
+                    if hasattr(lr, f"_{prop}"):
+                        setattr(lr, f"_{prop}", params[0])
+                        kwargs = {prop: getattr(lr, prop)}
+                        lr.emit('control_change', **kwargs)
+                    else:
+                        match_res = re.fullmatch(self._pedal_regex, prop)
+                        grps = match_res.groups()
+                        if grps:
+                            index = int(grps[0])
+                            prop = grps[1]
+                            pedal = lr.pedals[index]
+                            if hasattr(pedal, prop):
+                                kwargs = {prop: getattr(pedal, prop)}
+                                setattr(pedal, f"_{prop}", params[0])
+                                pedal.emit('control_change', **kwargs)
 
     def _initialize(self):
         self.client.send_message(f"/midibox/initialize", None)
@@ -149,7 +164,7 @@ class OscMidibox(BaseMidibox):
         if name:
             self.client.send_message(f"/midibox/{name}", value)
         else:
-            print("NEEEE")
+            print("osc.client._write_config unknown:", name)
 
     def _write_layer_config(self, l, name=None, value=None):
         if name:

@@ -263,8 +263,8 @@ class BaseMidibox(Dispatcher):
         self.emit_all()
 
     def emit_control(self, name):
-            kwargs = {name: getattr(self, name)}
-            self.emit('control_change', **kwargs)
+        kwargs = {name: getattr(self, name)}
+        self.emit('control_change', **kwargs)
 
     def emit_all(self):
         for ctrl in BaseMidibox._mb_properties:
