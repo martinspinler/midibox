@@ -60,6 +60,12 @@ class QMidiboxPedal(QObject, metaclass=PropertyMeta):
     def __init__(self, p, handler):
         super().__init__()
         self._proxy = p
+        self._proxy.bind(control_change=self.on_control_change)
+
+    def on_control_change(self, *args, **kwargs):
+        for name, value in kwargs.items():
+            if hasattr(self, signal_attribute_name(name)):
+                getattr(self, signal_attribute_name(name)).emit(value)
 
 
 class QMidiboxLayer(QObject, metaclass=PropertyMeta):
@@ -70,11 +76,11 @@ class QMidiboxLayer(QObject, metaclass=PropertyMeta):
 
     def __init__(self, layer, handler):
         super().__init__()
-        self._proxy = self._cl = layer
-        self._cl.bind(control_change=self.on_control_change)
+        self._proxy = layer
+        self._proxy.bind(control_change=self.on_control_change)
 
         self._pedals = []
-        for p in self._cl.pedals:
+        for p in self._proxy.pedals:
             self._pedals.append(QMidiboxPedal(p, handler))
 
     @pyqtSlot()
@@ -94,7 +100,7 @@ class QMidiboxLayer(QObject, metaclass=PropertyMeta):
 
     @pyqtProperty(str, notify=programChange)
     def shortName(self):
-        return self._cl.programs[self._cl.program].short if self._cl.program in self._cl.programs else '?'
+        return self._proxy.programs[self._proxy.program].short if self._proxy.program in self._proxy.programs else '?'
 
 class QMidiBox(QObject, metaclass=PropertyMeta):
     _prop_meta_dict = MidiBoxProps
