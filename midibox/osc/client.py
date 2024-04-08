@@ -91,15 +91,18 @@ class OscClient(threading.Thread):
 
 
 class OscMidibox(BaseMidibox):
-    def __init__(self, url=None, addr="localhost", port=4302):
+    def __init__(self, url=None, addr="localhost", port=4302, debug=False):
         super().__init__()
 
         if url:
             addr = urllib.parse.urlsplit(f"//{url}")
             port = addr.port if addr.port else 4302
-            addr = addr.hostname, port
-        print(f"Using OSC MidiBox client: {addr}")
-        self.client = OscClient(self, (addr, port))
+            connection = addr.hostname, port
+        else:
+            connection = (addr, port)
+
+        print(f"Using OSC MidiBox client: {connection}")
+        self.client = OscClient(self, connection)
 
         self._pedal_regex = r"pedal(\d+)\.(\w+)"
 

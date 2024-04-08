@@ -37,7 +37,7 @@ def create_midibox_instance(args):
 
     if args.port:
         mb_params["port_name"] = args.port
-    return backends.create_midibox_from_config(mb_backend)
+    return backends.create_midibox_from_config(mb_backend, **mb_params)
 
 
 def main():
