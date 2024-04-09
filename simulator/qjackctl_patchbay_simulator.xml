@@ -1,0 +1,71 @@
+<!DOCTYPE patchbay>
+<patchbay name="qjackctl_patchbay_simulator" version="0.9.13">
+ <output-sockets>
+  <socket client="Roland\ FP\ Series" exclusive="off" name="RolandFP" type="alsa-midi">
+   <plug>Roland\ FP\ Series\ MIDI\ 1</plug>
+  </socket>
+  <socket client="VMPK\ Output" exclusive="off" name="VMPK\ Output 1" type="alsa-midi">
+   <plug>out</plug>
+  </socket>
+  <socket client="RtMidiOut\ Client" exclusive="off" name="MidiboxController" type="alsa-midi">
+   <plug>MidiboxSimulator\:Control_input.*</plug>
+   <plug>MidiboxSimulator\:Control_input\ 130\:0</plug>
+  </socket>
+  <socket client="MidiboxSimulator" exclusive="off" name="MidiboxSimulator-Piano" type="alsa-midi">
+   <plug>Piano_output</plug>
+  </socket>
+  <socket client="MidiboxSimulator" exclusive="off" name="MidiboxSimulator-Control" type="alsa-midi">
+   <plug>Control_output</plug>
+  </socket>
+  <socket client="MidiboxBridgeSimulator" exclusive="off" name="MidiboxBridgeSimulator-Control" type="alsa-midi">
+   <plug>Control_output</plug>
+  </socket>
+  <socket client="MidiboxBridgeSimulator" exclusive="off" name="MidiboxBridgeSimulator-USB" type="alsa-midi">
+   <plug>USB_output</plug>
+  </socket>
+ </output-sockets>
+ <input-sockets>
+  <socket client="Roland\ FP\ Series" exclusive="off" name="RolandFP" type="alsa-midi">
+   <plug>Roland\ FP\ Series\ MIDI\ 1</plug>
+  </socket>
+  <socket client="RtMidiIn\ Client" exclusive="off" name="MidiboxGuiAsSim" type="alsa-midi">
+   <plug>MidiboxSimulator\:Piano_output.*</plug>
+  </socket>
+  <socket client="MidiboxSimulator" exclusive="off" name="MidiboxSimulator-Piano" type="alsa-midi">
+   <plug>Piano_input</plug>
+  </socket>
+  <socket client="MidiboxSimulator" exclusive="off" name="MidiboxSimulator-Control" type="alsa-midi">
+   <plug>Control_input</plug>
+  </socket>
+  <socket client="RtMidiIn\ Client" exclusive="off" name="MidiboxController" type="alsa-midi">
+   <plug>MidiboxSimulator\:Control_output\ 131\:0</plug>
+   <plug>MidiboxSimulator\:Control_output.*</plug>
+  </socket>
+  <socket client="MidiboxBridgeSimulator" exclusive="off" name="MidiboxBridgeSimulator-Control" type="alsa-midi">
+   <plug>Control_input</plug>
+  </socket>
+  <socket client="MidiboxBridgeSimulator" exclusive="off" name="MidiboxBridgeSimulator-USB" type="alsa-midi">
+   <plug>USB_input</plug>
+  </socket>
+  <socket client="aseqdump" exclusive="off" name="aseqdump" type="alsa-midi">
+   <plug>aseqdump</plug>
+  </socket>
+  <socket client="Client*" exclusive="off" name="Virtual RawMIDI" type="alsa-midi">
+   <plug>Virtual\ RawMIDI</plug>
+  </socket>
+ </input-sockets>
+ <slots/>
+ <cables>
+  <cable input="MidiboxSimulator-Piano" output="RolandFP" type="alsa-midi"/>
+  <cable input="MidiboxSimulator-Piano" output="VMPK\ Output 1" type="alsa-midi"/>
+  <cable input="MidiboxBridgeSimulator-USB" output="MidiboxController" type="alsa-midi"/>
+  <cable input="MidiboxSimulator-Control" output="MidiboxController" type="alsa-midi"/>
+  <cable input="aseqdump" output="MidiboxSimulator-Piano" type="alsa-midi"/>
+  <cable input="RolandFP" output="MidiboxSimulator-Piano" type="alsa-midi"/>
+  <cable input="MidiboxBridgeSimulator-Control" output="MidiboxSimulator-Control" type="alsa-midi"/>
+  <cable input="MidiboxController" output="MidiboxSimulator-Control" type="alsa-midi"/>
+  <cable input="MidiboxSimulator-Control" output="MidiboxBridgeSimulator-Control" type="alsa-midi"/>
+  <cable input="MidiboxGuiAsSim" output="MidiboxBridgeSimulator-USB" type="alsa-midi"/>
+ </cables>
+</patchbay>
+
