@@ -9,6 +9,7 @@ Pane {
 	scale: my_scale
 	width: parent.width / my_scale
 	height: parent.height / my_scale
+	transformOrigin: Item.TopLeft
 
 	Layout.fillHeight: true
 

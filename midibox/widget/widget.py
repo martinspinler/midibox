@@ -28,6 +28,8 @@ def initialize_webengine():
 
 
 def init_context(ctx, ro, config):
+    ro.children()[1].setProperty("my_scale", config.get("gui", {}).get("scale", 1))
+
     presets = presets_from_config(config)
     ctx.qbox.init(ro, config, presets)
 
@@ -68,7 +70,8 @@ class MidiboxQuickWidget(QQuickWidget):
 
         self.setSource(QUrl.fromLocalFile(str(pathlib.Path(__file__).parent/"StandaloneWidget.qml")))
         ro = self.rootObject()
-        init_context(self.ctx, ro, kwargs.get('config', {}))
+        config = kwargs.get('config', {})
+        init_context(self.ctx, ro, config)
 
         if kwargs.get("playlist_url"):
             wv = ro.findChild(QObject, "playlistWebView")
@@ -117,10 +120,8 @@ def create_gui(midibox, big_mode=False, disable_sandbox=False, config=None):
 
     if big_mode:
         root.setProperty("visibility", "FullScreen")
-        root.children()[1].setProperty("my_scale", 1)
     else:
         root.setProperty("width", 1280 // 1)
         root.setProperty("height", 720 // 1)
-        root.children()[1].setProperty("my_scale", 1)
 
     return app
