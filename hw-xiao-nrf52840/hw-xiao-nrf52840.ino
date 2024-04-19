@@ -71,12 +71,13 @@ void check_inputs()
 	static const int ANALOG_PEDALS = 3;
 	int i;
 	static unsigned long ms = 0;
-	static uint16_t pedal_value_prev[ANALOG_PEDALS];
+	static uint16_t pedal_value_prev[ANALOG_PEDALS] = {0};
+	static unsigned long pedal_value_prev_time[ANALOG_PEDALS] = {0};
 
 	uint16_t val;
 	uint16_t oval;
 
-	if (ms + 10 < millis()) {
+	if (ms + 5 < millis()) {
 		ms = millis();
 
 		for (i = 0; i < ANALOG_PEDALS; i++) {
@@ -95,10 +96,10 @@ void check_inputs()
 
 			val = (val + 3) & 0x7C;
 #endif
-
-			if (pedal_value_prev[i] != val) {
+			if (pedal_value_prev[i] != val && pedal_value_prev_time[i] + 60 < ms) {
 				pedal_value_prev[i] = val;
 				midi_handle_pedal_input(i, val);
+				pedal_value_prev_time[i] = ms;
 			}
 		}
 	}
