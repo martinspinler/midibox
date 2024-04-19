@@ -764,7 +764,7 @@ void midi_init()
 		lr.r.pedal_cc[7] = GeneralPurposeController4;
 
 		for (i = 0; i < MIDIBOX_PEDALS; i++)
-			lr.r.pedal_mode[i] = PEDAL_MODE_NORMAL;
+			lr.r.pedal_mode[i] = PEDAL_MODE_IGNORE;
 		lr.r.pedal_mode[3] = PEDAL_MODE_IGNORE;
 
 		lr.r.percussion = 0;
