@@ -68,7 +68,7 @@ static int charlieplex(struct pt *pt)
 
 void check_inputs()
 {
-	static const int ANALOG_PEDALS = 0;
+	static const int ANALOG_PEDALS = 3;
 	int i;
 	static unsigned long ms = 0;
 	static uint16_t pedal_value_prev[ANALOG_PEDALS];
@@ -80,6 +80,11 @@ void check_inputs()
 		ms = millis();
 
 		for (i = 0; i < ANALOG_PEDALS; i++) {
+#if 1
+			val = digitalRead(i);
+			val = val == 0 ? 0x00: 0x7F;
+			//val = val == 0 ? 0x7F: 0x00;
+#else
 			oval = analogRead(i);
 			val = oval;
 			val <<= 5;
@@ -89,6 +94,7 @@ void check_inputs()
 			val &= 0x7F;
 
 			val = (val + 3) & 0x7C;
+#endif
 
 			if (pedal_value_prev[i] != val) {
 				pedal_value_prev[i] = val;
