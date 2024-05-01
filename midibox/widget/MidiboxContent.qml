@@ -67,9 +67,10 @@ Pane {
 			Layers {
 			}
 
-			ColumnLayout{
+			GridLayout{
 				objectName: "presets"
-				//columns: 2
+				rows: 6
+				flow: GridLayout.TopToBottom
 				Button {text:"P1"; onClicked: midibox.loadPreset(0)}
 				Button {text:"P2"; onClicked: midibox.loadPreset(1)}
 				Button {text:"P3"; onClicked: midibox.loadPreset(2)}
@@ -78,6 +79,10 @@ Pane {
 				Button {text:"P6"; onClicked: midibox.loadPreset(5)}
 				Button {text:"P7"; onClicked: midibox.loadPreset(6)}
 				Button {text:"P8"; onClicked: midibox.loadPreset(7)}
+				Button {text:"P9"; onClicked: midibox.loadPreset(8)}
+				Button {text:"P10"; onClicked: midibox.loadPreset(9)}
+				Button {text:"P11"; onClicked: midibox.loadPreset(10)}
+				Button {text:"P12"; onClicked: midibox.loadPreset(11)}
 			}
 
 			WebEngineView {
