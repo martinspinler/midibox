@@ -3,6 +3,8 @@ name = "midibox"
 version = "1.0.0"
 dependencies = [
 	"mido",
+	"netifaces",
+	"python-dispatch",
 	"python-osc",
 ]
 
@@ -16,3 +18,7 @@ midibox = "midibox.__main__:main"
 
 [tool.setuptools]
 packages = ["midibox"]
+
+[[tool.mypy.overrides]]
+module = "pydispatch,mido,schema,qasync,schema,netifaces,PyQt5.QtWebEngine"
+ignore_missing_imports = true

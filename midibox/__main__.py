@@ -1,10 +1,6 @@
 #!/usr/bin/python
-import os
-import sys
 import time
 import yaml
-import socket
-import pathlib
 import argparse
 
 from . import backends

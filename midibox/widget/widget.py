@@ -1,3 +1,4 @@
+import os
 import sys
 import signal
 import functools
@@ -14,7 +15,6 @@ from PyQt5.QtWidgets import QApplication
 
 from PyQt5.QtQuickWidgets import QQuickWidget
 from PyQt5.QtCore import QUrl, QSize, QObject
-from PyQt5.QtQuickWidgets import *
 
 from ..controller import BaseMidibox
 from ..config import presets_from_config

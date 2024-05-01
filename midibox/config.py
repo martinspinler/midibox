@@ -5,7 +5,7 @@ from .controller.base import MidiBoxLayerProps, MidiBoxProps, MidiBoxPedalProps
 def validate_config(config, props):
     try:
         from schema import Schema, SchemaError, Optional, Or
-    except:
+    except ModuleNotFoundError:
         print("module schema not found, config not validated!")
         return
 
@@ -86,7 +86,7 @@ class PedalPreset():
             elif copy is None:
                 base = [{}]
             else:
-                raise NotImplemented()
+                raise NotImplementedError()
 
             for copy in base:
                 preset = presets.get(copy.get("preset"), self.layer.preset)
@@ -122,7 +122,7 @@ class LayerPreset():
                     pedal = PedalPreset(self, p, index)
                     index = pedal.index
                     assert 0 <= index <= 8
-                    assert self._pedals.get(index) == None
+                    assert self._pedals.get(index) is None
                     self._pedals[index] = pedal
                     index += 1
 
@@ -143,7 +143,7 @@ class LayerPreset():
             elif copy is None:
                 base = [{}]
             else:
-                raise NotImplemented()
+                raise NotImplementedError()
 
             for copy in base:
                 preset = presets.get(copy.get("preset"), self.preset)
@@ -194,11 +194,11 @@ class Preset():
         for k, v in cfg.items():
             if k == 'layers':
                 index = 0
-                for l in v:
-                    layer = LayerPreset(self, l, index)
+                for lr in v:
+                    layer = LayerPreset(self, lr, index)
                     index = layer.index
                     assert 0 <= index <= 8
-                    assert self._layers.get(index) == None
+                    assert self._layers.get(index) is None
                     self._layers[index] = layer
                     index += 1
 
@@ -217,7 +217,7 @@ class Preset():
             elif isinstance(copy, str):
                 base = [copy]
             else:
-                raise NotImplemented()
+                raise NotImplementedError()
 
             for copy in base:
                 self._base.append(presets.get(copy))

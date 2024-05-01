@@ -5,12 +5,12 @@ import mido
 from pythonosc import osc_packet
 from pythonosc.osc_message_builder import OscMessageBuilder
 
-from typing import List, Tuple, Union, Any, Iterable
+from typing import Union, Iterable
 import socket
 
 import urllib.parse
 
-from ..controller.base import BaseMidibox, MidiBoxProps
+from ..controller.base import BaseMidibox
 
 
 class OscClient(threading.Thread):
@@ -31,7 +31,7 @@ class OscClient(threading.Thread):
             try:
                 self.s.shutdown(socket.SHUT_RDWR)
                 self.s.close()
-            except:
+            except OSError:
                 pass
         self.join()
 
@@ -46,7 +46,10 @@ class OscClient(threading.Thread):
             values = [value]
         else:
             values = value
-        for val in values: builder.add_arg(val)
+
+        for val in values:
+            builder.add_arg(val)
+
         msg = builder.build()
         try:
             self.s.sendall(msg.size.to_bytes(length=4, byteorder='little') + msg._dgram)
@@ -65,7 +68,7 @@ class OscClient(threading.Thread):
         return data if len(data) == size else None
 
     def run(self):
-        while self.s == None and self.alive.is_set():
+        while self.s is None and self.alive.is_set():
             try:
                 self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.s.connect(self.addr)
@@ -158,10 +161,10 @@ class OscMidibox(BaseMidibox):
                                 pedal.emit('control_change', **kwargs)
 
     def _initialize(self):
-        self.client.send_message(f"/midibox/initialize", None)
+        self.client.send_message("/midibox/initialize", None)
 
     def _write(self, midi):
-        self.client.send_message(f"/midibox/midi", bytes(midi))
+        self.client.send_message("/midibox/midi", bytes(midi))
 
     def _write_config(self, name=None, value=None):
         if name:
@@ -169,9 +172,9 @@ class OscMidibox(BaseMidibox):
         else:
             print("osc.client._write_config unknown:", name)
 
-    def _write_layer_config(self, l, name=None, value=None):
+    def _write_layer_config(self, lr, name=None, value=None):
         if name:
-            self.client.send_message(f"/midibox/layers/{l._index}/{name}", value)
+            self.client.send_message(f"/midibox/layers/{lr._index}/{name}", value)
         else:
             # Initial config: should be fixed in BaseMidibox
             print("Write layer config name empty!")

@@ -1,10 +1,4 @@
-import sys
-import time
-import socket
-import socketserver
-import threading
 
-import mido
 
 from ..controller.base import MidiBoxLayerProps, MidiBoxProps, MidiBoxPedalProps
 from .server import DispatchedOSCRequestHandler
@@ -41,29 +35,29 @@ class MidiboxOSCClientHandler(DispatchedOSCRequestHandler):
         self.lrs = []
         self._chp = []
 
-        for l in self.mb.layers:
+        for lr in self.mb.layers:
             for item in MidiBoxLayerProps:
-                self.map("/midibox/layers/%d/%s" % (l._index, item.name), self.layer_control_change, l, item.name)
-            self._chp.append(ControlChangeHandlerProxy(l, self.on_layer_control_change))
-            for pedal in l.pedals:
+                self.map("/midibox/layers/%d/%s" % (lr._index, item.name), self.layer_control_change, lr, item.name)
+            self._chp.append(ControlChangeHandlerProxy(lr, self.on_layer_control_change))
+            for pedal in lr.pedals:
                 for item in MidiBoxPedalProps:
-                    self.map("/midibox/layers/%d/pedal%d.%s" % (l._index, pedal._index, item.name), self.layer_pedal_control_change, pedal, item.name)
+                    self.map("/midibox/layers/%d/pedal%d.%s" % (lr._index, pedal._index, item.name), self.layer_pedal_control_change, pedal, item.name)
                 self._chp.append(ControlChangeHandlerProxy(pedal, self.on_layer_pedal_control_change))
 
     def init(self):
         for item in MidiBoxProps:
             self.send_message("/midibox/%s" % (item.name), getattr(self.mb, item.name))
 
-        for l in self.mb.layers:
-            index = l._index
+        for lr in self.mb.layers:
+            index = lr._index
             for item in MidiBoxLayerProps:
                 prop = item.name
-                self.send_message("/midibox/layers/%d/%s" % (l._index, prop), getattr(self.mb.layers[index], prop))
+                self.send_message("/midibox/layers/%d/%s" % (lr._index, prop), getattr(self.mb.layers[index], prop))
 
-            for pedal in l.pedals:
+            for pedal in lr.pedals:
                 for item in MidiBoxPedalProps:
                     prop = item.name
-                    self.send_message("/midibox/layers/%d/pedal%d.%s" % (l._index, pedal._index, prop), getattr(pedal, prop))
+                    self.send_message("/midibox/layers/%d/pedal%d.%s" % (lr._index, pedal._index, prop), getattr(pedal, prop))
 
     def finish(self):
         self.mb._callbacks.remove(self.mb_midi_callback)

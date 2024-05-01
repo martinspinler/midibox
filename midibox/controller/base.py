@@ -1,5 +1,5 @@
 from pydispatch import Dispatcher
-from typing import NamedTuple, TypedDict, Any, List, Literal
+from typing import NamedTuple, List
 
 def clamp(val: int, lower: int, upper: int):
     return lower if val < lower else upper if val > upper else val
@@ -297,28 +297,26 @@ class BaseMidibox(Dispatcher):
                 self.mute = False
 
         if msg.type == 'sysex':
-            try:
-                if msg.data[0:4] == (65, 16, 66, 18):
-                    self.input_callback_roland_sysex(msg)
-            except:
-                pass
+            data = msg.data
+            if len(data) >= 4 and data[0:4] == (65, 16, 66, 18):
+                self.input_callback_roland_sysex(data)
 
-    def input_callback_roland_sysex(self, msg):
-        if msg.data[4] == 0x40:
-            msg.data[5] & 0x0F
-            bank = msg.data[5] & 0xF0
-            addr = msg.data[6]
+    def input_callback_roland_sysex(self, data):
+        if len(data) > 6 and data[4] == 0x40:
+            data[5] & 0x0F
+            bank = data[5] & 0xF0
+            addr = data[6]
 
             if bank == 0x00:
                 "System Parameters"
             if bank >= 0x10:
                 "Part Parameters"
-                if bank == 0x40 and addr == 0x23:
+                if len(data) > 8 and bank == 0x40 and addr == 0x23:
                     "Effect"
-                    eff_type = (msg.data[7] << 8) | msg.data[8]
+                    eff_type = (data[7] << 8) | data[8]
                     if eff_type == 0x0125:
                         "Tremolo"
-                    #print(eff_type, msg.data)
+                    #print(eff_type, data)
 
     def initialize(self):
         self._initialize()

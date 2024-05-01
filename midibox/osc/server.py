@@ -1,20 +1,17 @@
 #!/usr/bin/python3
 
-import sys
-import time
 import socket
 import socketserver
 import threading
 
-import mido
 import netifaces
 
-from typing import List, Tuple, Union, Any, Iterable
+from typing import Union, Iterable, List
 
 from pythonosc import osc_packet
 from pythonosc.osc_message_builder import OscMessageBuilder
 
-from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf
+from zeroconf import ServiceInfo, Zeroconf
 
 
 class ThreadedTCPOSCRequestHandler(socketserver.BaseRequestHandler):
@@ -55,19 +52,18 @@ class ThreadedTCPOSCRequestHandler(socketserver.BaseRequestHandler):
 
     def send_message(self, address: str, value: Union[int, float, bytes, str, bool, tuple, list]) -> None:
         builder = OscMessageBuilder(address=address)
+        values: List
         if value is None:
             values = []
         elif not isinstance(value, Iterable) or isinstance(value, (str, bytes)):
             values = [value]
         else:
             values = value
+
         for val in values:
             builder.add_arg(val)
         msg = builder.build()
-        try:
-            self.request.sendall(msg.size.to_bytes(length=4, byteorder='little') + msg._dgram)
-        except:
-            pass
+        self.request.sendall(msg.size.to_bytes(length=4, byteorder='little') + msg._dgram)
 
 
 class DispatchedOSCRequestHandler(ThreadedTCPOSCRequestHandler):
@@ -106,7 +102,7 @@ class SharedTCPServer():
         for c in self.server.clients:
             try:
                 c.request.shutdown(socket.SHUT_RDWR)
-            except:
+            except OSError:
                 pass
             finally:
                 c.request.close()
@@ -139,17 +135,3 @@ def zc_register_osc_tcp(port=4302, oscname="MidiboxOSC"):
         print("Zeroconf register %s on IP %s" % (zc_name, ip))
         zc_svcs.append((zc, si))
     return zc_svcs
-
-
-if __name__ == "__main__":
-    osc_srv = MidiboxOSCTCPServer(None)
-    zc_svcs = zc_register_osc_tcp()
-    try:
-        while True:
-            time.sleep(0.1)
-    except KeyboardInterrupt:
-        rc.shutdown()
-        for zc, si in zc_svcs:
-            zc_svcs.close()
-        raise
-

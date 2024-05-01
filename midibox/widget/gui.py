@@ -2,7 +2,8 @@ import time
 
 from PyQt5 import QtCore, QtGui
 
-from PyQt5.QtCore import QObject, pyqtSlot, pyqtSignal, pyqtProperty
+from PyQt5.QtCore import QObject, pyqtSlot, pyqtSignal
+from PyQt5.QtCore import pyqtProperty # type: ignore
 #from PyQt5.QtDeclarative import QDeclarativeItem
 
 from PyQt5.QtCore import QTimer
