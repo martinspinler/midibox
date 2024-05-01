@@ -1,6 +1,15 @@
 [project]
 name = "midibox"
 version = "1.0.0"
+dependencies = [
+	"mido",
+	"python-osc",
+]
+
+[project.optional-dependencies]
+gui = [
+	"PyQt5",
+]
 
 [project.scripts]
 midibox = "midibox.__main__:main"
