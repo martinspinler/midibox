@@ -259,6 +259,9 @@ def presets_from_config(config):
     validate_config(config, props)
 
     # Sanitize input config
+    for i, p in enumerate(config.get('presets', [])):
+        if p.get("name", None) is None:
+            p['name'] = f"__preset_{i}"
     presets = {p["name"]: Preset(p, props) for p in config.get('presets', [])}
 
     for p in presets.values():

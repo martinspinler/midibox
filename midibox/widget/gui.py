@@ -182,7 +182,6 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
                 print("Cycle in configuration!!!")
                 return
 
-            print(config)
 
             for layer_index, layer_config in config.get("layers", {}).items():
                 layer = self.layers[layer_index]
