@@ -63,7 +63,10 @@ class ThreadedTCPOSCRequestHandler(socketserver.BaseRequestHandler):
         for val in values:
             builder.add_arg(val)
         msg = builder.build()
-        self.request.sendall(msg.size.to_bytes(length=4, byteorder='little') + msg._dgram)
+        try:
+            self.request.sendall(msg.size.to_bytes(length=4, byteorder='little') + msg._dgram)
+        except Exception:
+            pass
 
 
 class DispatchedOSCRequestHandler(ThreadedTCPOSCRequestHandler):
