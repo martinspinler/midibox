@@ -53,7 +53,7 @@ class OscClient(threading.Thread):
         msg = builder.build()
         try:
             self.s.sendall(msg.size.to_bytes(length=4, byteorder='little') + msg._dgram)
-        except:
+        except Exception:
             pass
             raise
 
@@ -61,13 +61,19 @@ class OscClient(threading.Thread):
         data = b''
         while self.alive.is_set() and len(data) != size:
             try:
-                data += self.s.recv(size - len(data))
+                ret = self.s.recv(size - len(data))
+                if len(ret) == 0:
+                    return None
+                data += ret
             except socket.timeout:
+                pass
+            except ConnectionError:
                 pass
 
         return data if len(data) == size else None
 
-    def run(self):
+    def connect(self):
+        self.s = None
         while self.s is None and self.alive.is_set():
             try:
                 self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -75,19 +81,22 @@ class OscClient(threading.Thread):
             except OSError:
                 self.s = None
                 time.sleep(0.1)
-
         if self.s:
             print("OSC client connected")
 
+    def run(self):
+        self.connect()
         while self.alive.is_set():
             data = self.recv_size(4)
             if data is None:
-                continue # break
+                self.connect()
+                continue
             size = int.from_bytes(data, byteorder='little')
 
             data = self.recv_size(size)
             if data is None:
-                continue # break
+                self.connect()
+                continue
 
             for m in osc_packet.OscPacket(data).messages:
                 self.handle_msg(m)
