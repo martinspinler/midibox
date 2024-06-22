@@ -35,7 +35,7 @@ class ThreadedTCPOSCRequestHandler(socketserver.BaseRequestHandler):
             if sz is None:
                 break
 
-            data = self._recv(int.from_bytes(sz, byteorder='little'))
+            data = self._recv(int.from_bytes(sz, byteorder='big'))
             if data is None:
                 break
 
@@ -64,7 +64,7 @@ class ThreadedTCPOSCRequestHandler(socketserver.BaseRequestHandler):
             builder.add_arg(val)
         msg = builder.build()
         try:
-            self.request.sendall(msg.size.to_bytes(length=4, byteorder='little') + msg._dgram)
+            self.request.sendall(msg.size.to_bytes(length=4, byteorder='big') + msg._dgram)
         except Exception:
             pass
 

@@ -52,7 +52,7 @@ class OscClient(threading.Thread):
 
         msg = builder.build()
         try:
-            self.s.sendall(msg.size.to_bytes(length=4, byteorder='little') + msg._dgram)
+            self.s.sendall(msg.size.to_bytes(length=4, byteorder='big') + msg._dgram)
         except Exception:
             pass
             raise
@@ -91,7 +91,7 @@ class OscClient(threading.Thread):
             if data is None:
                 self.connect()
                 continue
-            size = int.from_bytes(data, byteorder='little')
+            size = int.from_bytes(data, byteorder='big')
 
             data = self.recv_size(size)
             if data is None:
