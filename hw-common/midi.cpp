@@ -808,6 +808,11 @@ void midi_init()
 	ls[0].r.pedal_cc[0] = Sustain;
 	ls[0].r.pedal_cc[1] = SoftPedal;
 	ls[0].r.pedal_cc[2] = Sostenuto;
+/*
+	ls[0].r.pedal_mode[0] = PEDAL_MODE_NORMAL;
+	ls[0].r.pedal_mode[1] = PEDAL_MODE_NORMAL;
+	ls[0].r.pedal_mode[2] = PEDAL_MODE_NORMAL;
+*/
 #endif
 
 	layer2reg(ls[0]);
