@@ -5,10 +5,23 @@
 
 #include "io.h"
 
+unsigned long micros();
+
 typedef midi::SerialMIDI<VirtualMidiSerial> VirtualSerialMidi;
 
+struct HwMidiSettings : public midi::DefaultSettings
+{
+	static const bool UseReceiverActiveSensing = true;
+	static const bool UseSenderActiveSensing = true;
+	static const unsigned SenderActiveSensingPeriodicity = 250;
+};
+struct SimulatorPlatform: public midi::DefaultPlatform
+{
+	static unsigned long now() {return micros() / 1000;}
+};
+
 typedef midi::MidiInterface<VirtualSerialMidi> MidiInterfaceUsb;
-typedef midi::MidiInterface<VirtualSerialMidi> MidiInterfaceHwserial;
+typedef midi::MidiInterface<VirtualSerialMidi, HwMidiSettings, SimulatorPlatform> MidiInterfaceHwserial;
 typedef midi::MidiInterface<VirtualSerialMidi> MidiInterfaceBle;
 
 class StdoutSerial;
