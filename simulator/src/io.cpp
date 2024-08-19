@@ -76,7 +76,11 @@ static void print_msg(std::vector<uint8_t> &m_output_message, std::string name, 
 
 	cmd = m_output_message.front();
 
-	if (verbosity < 2 && (cmd == midi::Clock || cmd == ActiveSensing))
+	//if (verbosity < 2 && (cmd == midi::Clock || cmd == ActiveSensing))
+	if ((cmd == midi::Clock || cmd == ActiveSensing))
+		return;
+
+	if (verbosity < 1)
 		return;
 
 	if (cmd < 0xF0) {
@@ -99,8 +103,8 @@ static void print_msg(std::vector<uint8_t> &m_output_message, std::string name, 
 
 void VirtualMidiSerial::begin(int speed)
 {
-	const int read_time = 0;
-	const int read_sense = 0;
+	const int read_time = 1;
+	const int read_sense = 1;
 
 	m_midiin.openVirtualPort(m_port_name + "_input");
 	m_midiin.ignoreTypes(false, read_time ? false : true, read_sense ? false : true);
@@ -116,6 +120,13 @@ int VirtualMidiSerial::available()
 	}
 
 	m_midiin.getMessage(&m_input_message);
+	if (m_as> 10) {
+		if (m_input_message.empty()) {
+
+			m_input_message.push_back(0xfe);
+			m_as-= 3;
+		}
+	}
 	print_msg(m_input_message, m_port_name + " IN  ", m_verbosity);
 	return m_input_message.size();
 }
@@ -144,6 +155,10 @@ size_t VirtualMidiSerial::write(uint8_t byte)
 		print_msg(m_output_message, m_port_name + " OUT ", m_verbosity);
 
 		m_midiout.sendMessage(&m_output_message);
+
+		if (m_output_message.front() == 0xfe)
+			m_as++;
+
 		m_output_message.clear();
 	}
 	return 1;
