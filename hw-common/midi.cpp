@@ -768,10 +768,6 @@ void midi_init()
 		lr.part = l + 1;
 		layer2reg(lr);
 
-		lr.r.pedal_cc[0] = Sustain;
-		lr.r.pedal_cc[1] = SoftPedal;
-		lr.r.pedal_cc[2] = Sostenuto;
-
 		lr.r.pedal_cc[0] = 0;
 		lr.r.pedal_cc[1] = 0;
 		lr.r.pedal_cc[2] = 0;
@@ -783,7 +779,6 @@ void midi_init()
 
 		for (i = 0; i < MIDIBOX_PEDALS; i++)
 			lr.r.pedal_mode[i] = PEDAL_MODE_IGNORE;
-		lr.r.pedal_mode[3] = PEDAL_MODE_IGNORE;
 
 		lr.r.percussion = 0;
 		for (i = 0; i < 9; i++) {
@@ -809,6 +804,10 @@ void midi_init()
 #else
 	ls[0].transposition_extra = 0;
 	ls[0].r.enabled = 1;
+
+	ls[0].r.pedal_cc[0] = Sustain;
+	ls[0].r.pedal_cc[1] = SoftPedal;
+	ls[0].r.pedal_cc[2] = Sostenuto;
 #endif
 
 	layer2reg(ls[0]);
