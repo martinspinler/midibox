@@ -81,25 +81,31 @@ void check_inputs()
 		ms = millis();
 
 		for (i = 0; i < ANALOG_PEDALS; i++) {
-#if 1
-			val = digitalRead(i);
-			val = val == 0 ? 0x00: 0x7F;
-			//val = val == 0 ? 0x7F: 0x00;
-#else
-			oval = analogRead(i);
-			val = oval;
-			val <<= 5;
-			val += 15;
-			val >>= 8;
+			if (gs.r.pedal_analog[i] == 0) {
+				val = digitalRead(i);
+				val = val == 0 ? 0x00: 0x7F;
+				//val = val == 0 ? 0x7F: 0x00;
+			} else {
+				oval = analogRead(i);
+				val = oval;
+				val <<= 5;
+				val += 15;
+				val >>= 8;
 
-			val &= 0x7F;
+				val &= 0x7F;
 
-			val = (val + 3) & 0x7C;
-#endif
-			if (pedal_value_prev[i] != val && pedal_value_prev_time[i] + 60 < ms) {
-				pedal_value_prev[i] = val;
-				midi_handle_pedal_input(i, val);
-				pedal_value_prev_time[i] = ms;
+				val = (val + 3) & 0x7C;
+			}
+
+			if (pedal_value_prev[i] != val) {
+				if (gs.r.pedal_analog[i] == 0 || pedal_value_prev_time[i] + 60 < ms) {
+					if (gs.r.pedal_analog[i])
+						Serial.println(String("Pedal: ") + i + " oval: " + oval + " val:" + val);
+
+					pedal_value_prev[i] = val;
+					midi_handle_pedal_input(i, val);
+					pedal_value_prev_time[i] = ms;
+				}
 			}
 		}
 	}
