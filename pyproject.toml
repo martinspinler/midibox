@@ -6,11 +6,13 @@ dependencies = [
 	"netifaces",
 	"python-dispatch",
 	"python-osc",
+	"python-rtmidi",
 ]
 
 [project.optional-dependencies]
 gui = [
 	"PyQt5",
+	"qasync",
 ]
 
 [project.scripts]
