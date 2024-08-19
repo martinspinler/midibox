@@ -7,26 +7,28 @@ from .base import BaseMidibox, MidiBoxLayer
 from threading import Thread
 
 
+READ_TIMEOUT = 1.0
+
+
 class PortNotFoundError(Exception):
     pass
 
-READ_TIMEOUT = 1.0
 
 class Midibox(BaseMidibox):
     _SYSEX_ID = 0x77
     _LAYER_GLOBAL = 15
 
-    _CMD_INFO      = 0
-    _CMD_UPDATE    = 1
-    _CMD_READ_REQ  = 2
-    _CMD_READ_RES  = 3
-    _CMD_WRITE_REQ = 4
-    _CMD_WRITE_ACK = 5
-    _CMD_WRITE_NAK = 6
+    _CMD_INFO      = 0 # noqa
+    _CMD_UPDATE    = 1 # noqa
+    _CMD_READ_REQ  = 2 # noqa
+    _CMD_READ_RES  = 3 # noqa
+    _CMD_WRITE_REQ = 4 # noqa
+    _CMD_WRITE_ACK = 5 # noqa
+    _CMD_WRITE_NAK = 6 # noqa
 
     _config: Optional[List[int]]
 
-    def __init__(self, port_name: str="XIAO nRF52840", client_name=None, virtual=False, find=True, debug=False):
+    def __init__(self, port_name: str = "XIAO nRF52840", client_name=None, virtual=False, find=True, debug=False):
         self._port_name = port_name
         self._client_name = client_name
         self._virtual = virtual
@@ -54,7 +56,7 @@ class Midibox(BaseMidibox):
         self._midi_thread_exit = False
         self._midi_thread = Thread(target=self._connection_check)
 
-    def _wait_for_cb_data(self, timeout: float=READ_TIMEOUT):
+    def _wait_for_cb_data(self, timeout: float = READ_TIMEOUT):
         while not self._cb_data and timeout > 0:
             time.sleep(0.01)
             timeout -= 0.01
@@ -101,7 +103,7 @@ class Midibox(BaseMidibox):
 
         print(f"RolandMidibox: using {self._port_name} ({self._client_name})")
         self.portout = mido.open_output(self._output_port_name, client_name=self._client_name, virtual=self._virtual, api=api)
-        self.portin  = mido.open_input(self._input_port_name, client_name=self._client_name, virtual=self._virtual, api=api)
+        self.portin = mido.open_input(self._input_port_name, client_name=self._client_name, virtual=self._virtual, api=api)
 
         # Let the patch to connect
         if self._virtual:
@@ -147,7 +149,7 @@ class Midibox(BaseMidibox):
         self._midi_last_activity = time.time()
         super().inputCallback(msg)
 
-    def _init_configuration(self, retries: Optional[int]=None, timeout: float=READ_TIMEOUT):
+    def _init_configuration(self, retries: Optional[int] = None, timeout: float = READ_TIMEOUT):
         self._read_config(retries, timeout)
 
         # INFO: all debug, not enable
@@ -159,7 +161,7 @@ class Midibox(BaseMidibox):
     def _write_sysex(self, msg):
         self._write([0xF0] + msg + [0xF7])
 
-    def _send_mbreq(self, cmd: int, layer: int, offset: int, reqlen: int, msg = []):
+    def _send_mbreq(self, cmd: int, layer: int, offset: int, reqlen: int, msg=[]):
         c = ((cmd & 0x07) << 4) | (layer & 0x0F)
         assert c < 0xF0
         if msg:
@@ -176,7 +178,7 @@ class Midibox(BaseMidibox):
         else:
             print("write failed, portout is None:", mido.format_as_string(msg, False))
 
-    def _read_regs(self, lr_index, firstreg, lastreg, retries: Optional[int]=None, timeout: float=READ_TIMEOUT) -> List[int]:
+    def _read_regs(self, lr_index, firstreg, lastreg, retries: Optional[int] = None, timeout: float = READ_TIMEOUT) -> List[int]:
         ret: List[int] = []
         MAXREQ = 16
         while lastreg > firstreg:
@@ -220,8 +222,8 @@ class Midibox(BaseMidibox):
         #c[4:6] = [120, 0] # tempo
         self._send_mbreq(self._CMD_WRITE_REQ, self._LAYER_GLOBAL, 0, 3, c[0:3])
 
-    def _read_config(self, retries: Optional[int]=None, timeout: float=READ_TIMEOUT):
-        self._config = self._read_regs(self._LAYER_GLOBAL, 0, 6+16, retries, timeout)
+    def _read_config(self, retries: Optional[int] = None, timeout: float = READ_TIMEOUT):
+        self._config = self._read_regs(self._LAYER_GLOBAL, 0, 6 + 16, retries, timeout)
         self._enable = True if self._config[0] & 1 else False
 
     def _write_layer_config(self, layer: MidiBoxLayer, name=None, value=None):
@@ -246,15 +248,15 @@ class Midibox(BaseMidibox):
 
         if lr._program in lr.programs:
             p = layer.programs[layer._program]
-            c[3:6] = [p.pc-1, p.msb, p.lsb]
+            c[3:6] = [p.pc - 1, p.msb, p.lsb]
 
         for i in range(len(lr.pedals)):
-            c[16+i] = lr.pedals[i]._cc
-            c[24+i] = lr.pedals[i]._mode # Disable pedal temporarily
+            c[16 + i] = lr.pedals[i]._cc
+            c[24 + i] = lr.pedals[i]._mode # Disable pedal temporarily
 
         c[32] = lr._percussion
         for i in range(9):
-            c[33+i] = getattr(lr, f'_harmonic_bar{i}')
+            c[33 + i] = getattr(lr, f'_harmonic_bar{i}')
 
         change_first = None
         change_last = None
@@ -271,9 +273,9 @@ class Midibox(BaseMidibox):
         if change_first is None or change_last is None: # Both must be None or both must be int value
             return
 
-        self._send_mbreq(self._CMD_WRITE_REQ, lr._index, change_first, change_last - change_first + 1, c[change_first:change_last+1])
+        self._send_mbreq(self._CMD_WRITE_REQ, lr._index, change_first, change_last - change_first + 1, c[change_first:change_last + 1])
 
-    def _read_layer_config(self, layer: MidiBoxLayer, retries: Optional[int]=None, timeout: float=READ_TIMEOUT):
+    def _read_layer_config(self, layer: MidiBoxLayer, retries: Optional[int] = None, timeout: float = READ_TIMEOUT):
         lr = layer
         lr._config = self._read_regs(lr._index, 0, 42, retries, timeout)
         self._load_layer_config(lr)
@@ -302,12 +304,12 @@ class Midibox(BaseMidibox):
         lr._program = program
 
         for i in range(len(lr.pedals)):
-             lr.pedals[i]._cc = c[16+i]
-             lr.pedals[i]._mode = c[24+i]
+            lr.pedals[i]._cc = c[16 + i]
+            lr.pedals[i]._mode = c[24 + i]
 
         lr._percussion = c[32]
         for i in range(9):
-            setattr(lr, f'_harmonic_bar{i}', c[33+i])
+            setattr(lr, f'_harmonic_bar{i}', c[33 + i])
 
     def _rc_callback(self, msg):
         if msg.type == 'sysex' and len(msg.data) > 2 and msg.data[0] == self._SYSEX_ID:

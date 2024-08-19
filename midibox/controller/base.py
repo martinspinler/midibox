@@ -1,8 +1,10 @@
 from pydispatch import Dispatcher
 from typing import NamedTuple, List
 
+
 def clamp(val: int, lower: int, upper: int):
     return lower if val < lower else upper if val > upper else val
+
 
 class MidiBoxProgram(NamedTuple):
     pc: int
@@ -38,6 +40,7 @@ class CheckedProp():
                 lambda s, val, name=self.name: propsetter(s, val, name, setter, self.callback)
             )
 
+
 def mb_properties_init(cls):
     for item in cls._mb_properties:
         setattr(cls, f"_{item.name}", item.init_value)
@@ -45,16 +48,20 @@ def mb_properties_init(cls):
             setattr(cls, item.name, item.prop)
     return cls
 
+
 MidiBoxPedalProps = [
-    CheckedProp('cc', 0,
+    CheckedProp(
+        'cc', 0,
         lambda s, v: clamp(v, 0, 127),
         lambda self, n, v: self._layer._write_config(f"pedal{self._index}.{n}", v)
     ),
-    CheckedProp('mode', 0,
+    CheckedProp(
+        'mode', 0,
         lambda s, v: clamp(v, 0, 127),
         lambda self, n, v: self._layer._write_config(f"pedal{self._index}.{n}", v)
     ),
 ]
+
 
 @mb_properties_init
 class MidiBoxPedal(Dispatcher):
@@ -67,65 +74,80 @@ class MidiBoxPedal(Dispatcher):
 
 
 MidiBoxLayerProps = [
-    CheckedProp('transposition', 0,
+    CheckedProp(
+        'transposition', 0,
         lambda s, v: clamp(v, -64, 63),
         lambda self, n, v: self._write_config(n, v)
     ),
-    CheckedProp('transposition_extra', 0,
+    CheckedProp(
+        'transposition_extra', 0,
         lambda s, v: clamp(v, -64, 63),
         lambda self, n, v: self._write_config(n, v)
     ),
-    CheckedProp('enabled', False,
+    CheckedProp(
+        'enabled', False,
         lambda s, v: True if v else False,
         lambda self, n, v: self._write_config(n, v)
     ),
-    CheckedProp('active', True,
+    CheckedProp(
+        'active', True,
         lambda s, v: True if v else False,
         lambda self, n, v: self._write_config(n, v)
     ),
-    CheckedProp('rangel', 21,
+    CheckedProp(
+        'rangel', 21,
         lambda s, v: clamp(v, 0, s._rangeu),
         lambda self, n, v: self._write_config(n, v)
     ),
-    CheckedProp('rangeu', 108,
+    CheckedProp(
+        'rangeu', 108,
         lambda s, v: clamp(v, s._rangel, v),
         lambda self, n, v: self._write_config(n, v)
     ),
-    CheckedProp('program', '-unknown-',
+    CheckedProp(
+        'program', '-unknown-',
         lambda s, v: v if v in s.programs else s.programs[s._program],
         lambda self, n, v: self._write_config(n, v)
     ),
-    CheckedProp('volume', 100,
+    CheckedProp(
+        'volume', 100,
         lambda s, v: clamp(v, 0, 127),
         lambda self, n, v: self._write_config(n, v)
     ),
-    #CheckedProp('init', False,
+    #CheckedProp(
+    #    'init', False,
     #    lambda s, v: True if v else False,
     #    lambda self, n, v: self._write_config()
     #),
-    CheckedProp('release', 0,
+    CheckedProp(
+        'release', 0,
         lambda s, v: clamp(v, -64, 63),
         lambda self, n, v: self._write_config(n, v)
     ),
-    CheckedProp('attack', 0,
+    CheckedProp(
+        'attack', 0,
         lambda s, v: clamp(v, -64, 63),
         lambda self, n, v: self._write_config(n, v)
     ),
-    CheckedProp('cutoff', 0,
+    CheckedProp(
+        'cutoff', 0,
         lambda s, v: clamp(v, -64, 63),
         lambda self, n, v: self._write_config(n, v)
     ),
-    CheckedProp('decay', 0,
+    CheckedProp(
+        'decay', 0,
         lambda s, v: clamp(v, -64, 63),
         lambda self, n, v: self._write_config(n, v)
     ),
 
-    CheckedProp('percussion', 0,
+    CheckedProp(
+        'percussion', 0,
         lambda s, v: s.percussions[clamp(v, 0, 5)][1],
         lambda self, n, v: self._write_config(n, v)
     ),
     *[
-        CheckedProp(f'harmonic_bar{i}', 0,
+        CheckedProp(
+            f'harmonic_bar{i}', 0,
             lambda s, v: clamp(v, 0, 15),
             lambda self, n, v: self._write_config(n, v)
         ) for i in range(9)
@@ -133,31 +155,32 @@ MidiBoxLayerProps = [
 ]
 
 efx = {
-    'none':   [0x40, 0x40, 0x23, 0x00, 0x00, 0x00, 0x00, 0x08, 0x04],
+    'none'  : [0x40, 0x40, 0x23, 0x00, 0x00, 0x00, 0x00, 0x08, 0x04], # noqa
     'dumper': [0x40, 0x40, 0x23, 0x00, 0x40, 0x32, 0x40, 0x32, 0x00],
     'rotary': [0x40, 0x40, 0x23, 0x01, 0x22, 0x00, 0x40, 0x00, 0x7F],
     'epiano': [0x40, 0x40, 0x23, 0x01, 0x42, 0x00, 0x40, 0x37, 0x02],
 }
 
+
 @mb_properties_init
 class MidiBoxLayer(Dispatcher):
     _mb_properties = MidiBoxLayerProps
     _events_ = ['control_change']
-    programs = {          #PC MSB LSB
-        'piano'         : MidiBoxProgram( 1,  0, 68, [efx['dumper']], 'Pn', 'Piano'),
-        'epiano'        : MidiBoxProgram( 5,  0, 67, [efx['epiano']], 'eP', 'E-Piano'),
-        'bass'          : MidiBoxProgram(33,  0, 71, [efx['none']],   'Bs', 'Bass'),
-        'hammond'       : MidiBoxProgram(17, 32, 68, [efx['rotary']], 'Hm', 'Hammond'),
-        'vibraphone'    : MidiBoxProgram(12,  0,  0, [efx['rotary']], 'Vp', 'Vibraphone'),
-        'marimba'       : MidiBoxProgram(13,  0, 64, [efx['rotary']], 'Mb', 'Marimba'),
-        'fretlessbass'  : MidiBoxProgram(36,  0,  0, [efx['none']],   'FB', 'Fretlett Bass'),
+    programs = {  #                      PC MSB LSB
+        'piano'         : MidiBoxProgram( 1,  0, 68, [efx['dumper']], 'Pn', 'Piano'), # noqa
+        'epiano'        : MidiBoxProgram( 5,  0, 67, [efx['epiano']], 'eP', 'E-Piano'), # noqa
+        'bass'          : MidiBoxProgram(33,  0, 71, [efx['none']],   'Bs', 'Bass'), # noqa
+        'hammond'       : MidiBoxProgram(17, 32, 68, [efx['rotary']], 'Hm', 'Hammond'), # noqa
+        'vibraphone'    : MidiBoxProgram(12,  0,  0, [efx['rotary']], 'Vp', 'Vibraphone'), # noqa
+        'marimba'       : MidiBoxProgram(13,  0, 64, [efx['rotary']], 'Mb', 'Marimba'), # noqa
+        'fretlessbass'  : MidiBoxProgram(36,  0,  0, [efx['none']],   'FB', 'Fretlett Bass'), # noqa
     }
     percussions = [
-        ('Off'           , 0x00),
-        ('4, Short'      , 0x01),
-        ('2+2/3, Short'  , 0x02),
-        ('4, Long'       , 0x41),
-        ('2+2/3, Long'   , 0x42),
+        ('Off'           , 0x00), # noqa
+        ('4, Short'      , 0x01), # noqa
+        ('2+2/3, Short'  , 0x02), # noqa
+        ('4, Long'       , 0x41), # noqa
+        ('2+2/3, Long'   , 0x42), # noqa
     ]
 
     def __init__(self, dev: "BaseMidibox", index: int):
@@ -188,7 +211,7 @@ class MidiBoxLayer(Dispatcher):
 
         self._dev.cc((self._index) & 0xF, 0, p.msb)
         self._dev.cc((self._index) & 0xF, 32, p.lsb)
-        self._dev.pc((self._index) & 0xF, p.pc-1)
+        self._dev.pc((self._index) & 0xF, p.pc - 1)
 
         # Check?
         for sysex in p.sysex:
@@ -196,7 +219,7 @@ class MidiBoxLayer(Dispatcher):
             self._dev.roland_sysex(sysex)
 
     def hb(self, path, index, value):
-        val = int(value*16) & 0xF
+        val = int(value * 16) & 0xF
         self._hb[index[0]] = val
         #hammond_bars[14] = {0x40, 0x41, 0x51, 0x00, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         self._dev.roland_sysex([0x40, 0x40 | (self._part), 0x51, 0x00, 0x01] + self._hb)
@@ -207,12 +230,15 @@ class MidiBoxLayer(Dispatcher):
     def _read_layer_config(self):
         self._dev._read_layer_config(self)
 
+
 MidiBoxProps = [
-    CheckedProp('enable', False,
+    CheckedProp(
+        'enable', False,
         lambda s, v: True if v else False,
         lambda s, n, v: s._write_config(n, v)
     ),
-    CheckedProp('mute', False,
+    CheckedProp(
+        'mute', False,
         lambda s, v: True if v else False,
         lambda s, n, v: s._write_config(n, v)
     ),
@@ -329,10 +355,17 @@ class BaseMidibox(Dispatcher):
         for i, lr in enumerate(self.layers):
             self.cc(i, 120, 0)
 
-    def note_on(self, channel, note, vel):  self._write([0x90 | (channel & 0xF), note & 0x7F, vel & 0x7F])
-    def note_off(self, channel, note, vel): self._write([0x80 | (channel & 0xF), note & 0x7F, vel & 0x7F])
-    def cc(self, channel, cc, val):         self._write([0xB0 | (channel & 0xF), cc   & 0x7F, val & 0x7F])
-    def pc(self, channel, pgm):             self._write([0xC0 | (channel & 0xF), pgm  & 0x7F])
+    def note_on(self, channel, note, vel):
+        self._write([0x90 | (channel & 0xF), note & 0x7F, vel & 0x7F])
+
+    def note_off(self, channel, note, vel):
+        self._write([0x80 | (channel & 0xF), note & 0x7F, vel & 0x7F])
+
+    def cc(self, channel, cc, val):
+        self._write([0xB0 | (channel & 0xF), cc & 0x7F, val & 0x7F])
+
+    def pc(self, channel, pgm):
+        self._write([0xC0 | (channel & 0xF), pgm & 0x7F])
 
     def roland_sysex(self, data):
         self._write_sysex([0x41, 0x10, 0x42, 0x12] + data + [(128 - sum(data)) & 0x7F])

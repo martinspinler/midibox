@@ -33,6 +33,7 @@ def init_context(ctx, ro, config):
     presets = presets_from_config(config)
     ctx.qbox.init(ro, config, presets)
 
+
 def populate_context(ctx, box: BaseMidibox):
     # Info: store all CP into namespace: setContextProperty doesnt't increment refcnt
     ns = SimpleNamespace()
@@ -55,6 +56,7 @@ def populate_context(ctx, box: BaseMidibox):
 
     return ns
 
+
 class MidiboxQuickWidget(QQuickWidget):
     def __init__(self, app, midibox, **kwargs):
         super().__init__()
@@ -68,7 +70,7 @@ class MidiboxQuickWidget(QQuickWidget):
 
         self.setResizeMode(self.SizeRootObjectToView)
 
-        self.setSource(QUrl.fromLocalFile(str(pathlib.Path(__file__).parent/"StandaloneWidget.qml")))
+        self.setSource(QUrl.fromLocalFile(str(pathlib.Path(__file__).parent / "StandaloneWidget.qml")))
         ro = self.rootObject()
         config = kwargs.get('config', {})
         init_context(self.ctx, ro, config)
@@ -83,11 +85,11 @@ class MidiboxQuickWidget(QQuickWidget):
 
     def minimumSizeHint(self):
         return QSize(0, 720)#1280//2, 720//2)
-        return QSize(1280//2, 720//2)
+        return QSize(1280 // 2, 720 // 2)
 
     def sizeHint(self):
         return QSize(0, 720)
-        return QSize(1280//1, 720//1)
+        return QSize(1280 // 1, 720 // 1)
 
 
 def create_gui(midibox, big_mode=False, disable_sandbox=False, config=None):

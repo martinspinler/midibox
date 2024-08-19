@@ -132,7 +132,7 @@ def zc_register_osc_tcp(port=4302, oscname="MidiboxOSC"):
     # Workaround to publish all IP addresses
     for ifname, ip in getIPv4Addresses().items():
         zc_name = f"{oscname}_{ifname}.{zc_service}"
-        si = ServiceInfo(zc_service, zc_name, port, addresses = [ip])
+        si = ServiceInfo(zc_service, zc_name, port, addresses=[ip])
         zc = Zeroconf([ip])
         zc.register_service(si)
         print("Zeroconf register %s on IP %s" % (zc_name, ip))

@@ -1,6 +1,7 @@
 from ..controller.base import MidiBoxLayerProps, MidiBoxProps, MidiBoxPedalProps
 from .server import DispatchedOSCRequestHandler
 
+
 class ControlChangeHandlerProxy():
     def __init__(self, p, handler):
         self._p = p

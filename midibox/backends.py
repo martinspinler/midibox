@@ -4,17 +4,22 @@ from .osc.client import OscMidibox
 default_backend = "mido"
 
 backends = {
-    'osc': (OscMidibox, {}),
-    'mido': (Midibox, {
-            #'client_name': 'MidiboxController',
-        }
+    'osc': (
+        OscMidibox, {
+        },
     ),
-    'simulator': (Midibox, {
+    'mido': (
+        Midibox, {
+        },
+    ),
+    'simulator': (
+        Midibox, {
             'port_name': 'MidiboxSimulator:Control',
             'find': True,
-        }
+        },
     ),
 }
+
 
 def create_midibox_from_config(backend="mido", **kwargs):
     mb_class, mb_params = backends[backend]

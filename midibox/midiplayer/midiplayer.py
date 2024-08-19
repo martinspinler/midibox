@@ -132,7 +132,6 @@ class Midiplayer():
                 global_time = self._global_time
                 midifile_length = self._midifile.length
 
-
             #for n, vel in self._playing_notes.items():
             #    note, channel = n
             #    self._output.send(mido.Message('note_on', channel=channel, note=note, velocity=vel))

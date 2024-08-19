@@ -39,6 +39,7 @@ class Property:
         self.initial_value = initial_value
         self.name = name
 
+
 class PropertyImpl(QtCore.pyqtProperty):
     def __init__(self, initial_value, name='', type_=None, notify=None):
         super().__init__(type_, self.getter, self.setter, notify=notify)
@@ -52,8 +53,10 @@ class PropertyImpl(QtCore.pyqtProperty):
         setattr(inst._proxy, self.name, value)
         getattr(inst, signal_attribute_name(self.name)).emit(value)
 
+
 def signal_attribute_name(property_name):
     return f'_{property_name}_prop_signal_'
+
 
 class QMidiboxPedal(QObject, metaclass=PropertyMeta):
     _prop_meta_dict = MidiBoxPedalProps
@@ -89,7 +92,8 @@ class QMidiboxLayer(QObject, metaclass=PropertyMeta):
         self._proxy.reset()
 
     @pyqtProperty(list, notify=pedalsChange)
-    def pedals(self): return self._pedals
+    def pedals(self):
+        return self._pedals
 
     def on_control_change(self, *args, **kwargs):
         for name, value in kwargs.items():
@@ -102,6 +106,7 @@ class QMidiboxLayer(QObject, metaclass=PropertyMeta):
     @pyqtProperty(str, notify=programChange)
     def shortName(self):
         return self._proxy.programs[self._proxy.program].short if self._proxy.program in self._proxy.programs else '?'
+
 
 class QMidiBox(QObject, metaclass=PropertyMeta):
     _prop_meta_dict = MidiBoxProps
@@ -132,13 +137,16 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
                 child.setProperty("text", preset.label)
 
     @pyqtProperty(list, notify=layersChange)
-    def layers(self): return self._layers
+    def layers(self):
+        return self._layers
 
     @pyqtProperty(bool, notify=transpositionExtraChange)
-    def transpositionExtra(self): return self.box.layers[0].transposition_extra == -12
+    def transpositionExtra(self):
+        return self.box.layers[0].transposition_extra == -12
 
     @transpositionExtra.setter
-    def transpositionExtra(self, v): self.box.layers[0].transposition_extra = -12 if v else 0
+    def transpositionExtra(self, v):
+        self.box.layers[0].transposition_extra = -12 if v else 0
 
     def on_control_change(self, *args, **kwargs):
         for name, value in kwargs.items():
@@ -183,7 +191,6 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
                 print("Cycle in configuration!!!")
                 return
 
-
             for layer_index, layer_config in config.get("layers", {}).items():
                 layer = self.layers[layer_index]
                 for k, v in layer_config.items():
@@ -214,6 +221,7 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
 
 class GraphUpdater(QObject):
     foo = pyqtSignal(int, int)
+
     def __init__(self, box):
         super().__init__()
         #self._deque = collections.deque([0] * 360)
@@ -239,10 +247,12 @@ class GraphUpdater(QObject):
             #i = int(time.time())
             self._deque_count += 1
 
+
 class NameDataItem(QtGui.QStandardItem):
     def __init__(self, iid, name):
         super().__init__(name)
         self.setData(iid, QtCore.Qt.UserRole)
+
 
 def NameDataItemModel(items, urname=b'value'):
     model = QtGui.QStandardItemModel()
@@ -254,16 +264,29 @@ def NameDataItemModel(items, urname=b'value'):
         model.appendRow(i)
     return model
 
+
 class ProgramPreset(NameDataItem):
     def __init__(self, iid, name):
         super().__init__(iid, name)
+
+
 class PedalCc(NameDataItem):
     def __init__(self, iid, name):
         super().__init__(iid, name)
+
+
 class PedalMode(NameDataItem):
     def __init__(self, iid, name):
         super().__init__(iid, name)
 
-def ProgramPresetModel(box): return NameDataItemModel([ProgramPreset(k, v.name) for k, v in box.layers[0].programs.items()])
-def PedalCcModel(box): return NameDataItemModel([PedalCc(v, k) for k, v in box.pedal_cc.items()])
-def PedalModeModel(box): return NameDataItemModel([PedalMode(v, k) for k, v in box.pedal_mode.items()])
+
+def ProgramPresetModel(box):
+    return NameDataItemModel([ProgramPreset(k, v.name) for k, v in box.layers[0].programs.items()])
+
+
+def PedalCcModel(box):
+    return NameDataItemModel([PedalCc(v, k) for k, v in box.pedal_cc.items()])
+
+
+def PedalModeModel(box):
+    return NameDataItemModel([PedalMode(v, k) for k, v in box.pedal_mode.items()])

@@ -4,8 +4,9 @@ import asyncio
 import aiohttp
 import ssl
 
+
 class PlaylistClient():
-    def __init__(self, widget, addr, secure = False, prefix = ''):
+    def __init__(self, widget, addr, secure=False, prefix=''):
         self._prefix = prefix
         self.addr = addr
         #self.w = widget
@@ -44,7 +45,7 @@ class PlaylistClient():
             if msg.type == aiohttp.WSMsgType.TEXT:
                 text = msg.data
                 if text.startswith("client:"):
-                    _,req, jdata = text.split(":", 2)
+                    _, req, jdata = text.split(":", 2)
                     data = json.JSONDecoder().decode(jdata)
                     if msgid is None or req == msgid:
                         return req, data
@@ -106,13 +107,13 @@ class PlaylistClient():
     def playlist_item_move(self, si, pos):
         self.send_msg('move', {'id': si, 'playlistId': self.currentPlaylistId, 'pos': pos})
 
-    def playlist_item_set(self, id = None, off = None):
+    def playlist_item_set(self, id=None, off=None):
         self.send_msg('play', {'id': id, 'playlistId': self.currentPlaylistId, 'off': off})
 
-    def send_msg(self, msg, data = {}):
+    def send_msg(self, msg, data={}):
         self._queue.put_nowait(f'{msg}:' + json.JSONEncoder().encode(data))
 
-    async def send_msg_async(self, msg: str, data = {}):
+    async def send_msg_async(self, msg: str, data={}):
         await self.ws.send_str(f"client:{msg}:" + json.JSONEncoder().encode(data))
 
     async def get_messages(self):
@@ -136,7 +137,6 @@ class PlaylistClient():
         await self.send_msg_async("get-songlist")
         _, data = await self._receive_msg('songlist')
         j = data
-        j = {int(k):v for k,v in j.items()}
-        [j[k].update({'id':k}) for k in j.keys()]
+        j = {int(k): v for k, v in j.items()}
+        [j[k].update({'id': k}) for k in j.keys()]
         return j
-

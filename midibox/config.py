@@ -61,6 +61,7 @@ def validate_config(config, props):
         #raise se
         print(se)
 
+
 class PedalPreset():
     def __str__(self):
         return f"Pedal {self.layer} {self.index}"
@@ -139,7 +140,7 @@ class LayerPreset():
             if isinstance(copy, list):
                 base = copy
             elif isinstance(copy, dict):
-                base = [copy] 
+                base = [copy]
             elif copy is None:
                 base = [{}]
             else:
@@ -178,7 +179,6 @@ class LayerPreset():
         elif self._base:
             return self._base.get_pedal(index)
         raise Exception(f"No futher base to get pedal in {self}:{index}")
-
 
 
 class Preset():
@@ -267,7 +267,7 @@ def presets_from_config(config):
     for p in presets.values():
         p.update_refs(presets)
 
-    if False:#: and (presets := config.get('presets')):
+    if False: #: and (presets := config.get('presets')):
         for p, preset in []: #enumerate(presets):
             #presets = {preset.name: Preset(preset)}
             li = 0

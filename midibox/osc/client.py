@@ -135,7 +135,7 @@ class OscMidibox(BaseMidibox):
 
         if addr == ["midi"]:
             lmsg = list(params[0])
-            msg  = mido.Message.from_bytes(lmsg)
+            msg = mido.Message.from_bytes(lmsg)
             for cb in self._callbacks:
                 cb(msg)
             return

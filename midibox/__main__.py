@@ -2,7 +2,6 @@
 import time
 import yaml
 import argparse
-from pathlib import Path
 
 from . import backends
 from .osc.client_handler import MidiboxOSCClientHandler
@@ -40,8 +39,10 @@ def create_midibox_instance(args):
         mb_params["port_name"] = args.port
     return backends.create_midibox_from_config(mb_backend, **mb_params)
 
+
 class MainOSCClientHandler(MidiboxOSCClientHandler, MidiplayerOSCClientHandler):
     pass
+
 
 def main():
     args = parse_args()
@@ -93,6 +94,7 @@ def main():
         mp.destroy()
 
     midibox.disconnect()
+
 
 if __name__ == "__main__":
     main()
