@@ -105,4 +105,6 @@ struct global_state_reg {
 
 	uint8_t pedal_cc[PEDALS];
 	uint8_t pedal_mode[PEDALS];
+
+	uint8_t pedal_analog[PEDALS];
 };

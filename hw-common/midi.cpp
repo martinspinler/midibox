@@ -725,8 +725,10 @@ void midi_init()
 	gs.r.pedal_cc[6] = GeneralPurposeController3;
 	gs.r.pedal_cc[7] = GeneralPurposeController4;
 
-	for (i = 0; i < MIDIBOX_PEDALS; i++)
+	for (i = 0; i < MIDIBOX_PEDALS; i++) {
 		gs.r.pedal_mode[i] = PEDAL_MODE_NORMAL;
+		gs.r.pedal_analog[i] = 0;
+	}
 	gs.r.pedal_mode[3] = PEDAL_MODE_IGNORE;
 
 	for (uint8_t l = 0; l < LAYERS; l++) {
