@@ -312,7 +312,7 @@ void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 		if (offset + reqlen > sizeof(gs.r))
 			return;
 
-		memcpy(s, &gs.r + offset, reqlen);
+		memcpy(s, ((uint8_t*)(&gs.r)) + offset, reqlen);
 		reslen = reqlen;
 		rescmd = MIDIBOX_CMD_READ_RES;
 	} else if (cmd == MIDIBOX_CMD_WRITE_REQ && layer < LAYERS) {
