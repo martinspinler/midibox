@@ -224,6 +224,14 @@ Item {
 						value: layerx.current.decay
 						onMoved: layerx.current.decay = Math.round(value)
 					}
+					Label{text: qsTr("Portamento time: " + (layerx.current.portamento_time))}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
+						from: 0; to: 127; stepSize: 1
+						value: layerx.current.portamento_time
+						onMoved: layerx.current.portamento_time = Math.round(value)
+					}
 				}
 
 			}
@@ -351,7 +359,6 @@ Item {
 						value: layerx.current.harmonic_bar8
 						onMoved: layerx.current.harmonic_bar8 = Math.round(value)
 					}
-
 				}
 			}
 		}

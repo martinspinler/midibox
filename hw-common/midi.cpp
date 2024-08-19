@@ -206,6 +206,9 @@ void midi_update_layer(struct layer_state & lr, struct layer_state & lr_prev, st
 	if (lr_prev.r.decay != lr.r.decay || changes.all)
 		MS1.sendControlChange(75, lr.r.decay, lr.channel);
 
+	if (lr_prev.r.portamento_time != lr.r.portamento_time || changes.all)
+		MS1.sendControlChange(5, lr.r.portamento_time, lr.channel);
+
 	if ((changes.harmonic_bar_set || changes.program || changes.all) &&
 			(lr.r.pgm == 17 && lr.r.bs == 32 && lr.r.bs_lsb == 68)) {
 		i = roland_sysex_begin(s);
@@ -771,6 +774,8 @@ void midi_init()
 		for (i = 0; i < 9; i++) {
 			lr.r.harmonic_bar[i] = 0;
 		}
+
+		lr.r.portamento_time = 0;
 
 		for (uint8_t j = 0; j < 128/8; j++) {
 			lr.note[j] = 0;

@@ -152,6 +152,11 @@ MidiBoxLayerProps = [
             lambda self, n, v: self._write_config(n, v)
         ) for i in range(9)
     ],
+    CheckedProp(
+        'portamento_time', 0,
+        lambda s, v: clamp(v, 0, 127),
+        lambda self, n, v: self._write_config(n, v)
+    ),
 ]
 
 efx = {

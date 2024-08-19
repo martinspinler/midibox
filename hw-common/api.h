@@ -74,6 +74,7 @@ struct layer_state_reg {
 
 	uint8_t percussion;
 	uint8_t harmonic_bar[9];
+	uint8_t portamento_time;
 };
 
 struct global_state_reg {

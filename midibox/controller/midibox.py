@@ -258,6 +258,8 @@ class Midibox(BaseMidibox):
         for i in range(9):
             c[33 + i] = getattr(lr, f'_harmonic_bar{i}')
 
+        c[42] = lr._portamento_time
+
         change_first = None
         change_last = None
         for i in range(len(c)):
@@ -277,7 +279,7 @@ class Midibox(BaseMidibox):
 
     def _read_layer_config(self, layer: MidiBoxLayer, retries: Optional[int] = None, timeout: float = READ_TIMEOUT):
         lr = layer
-        lr._config = self._read_regs(lr._index, 0, 42, retries, timeout)
+        lr._config = self._read_regs(lr._index, 0, 43, retries, timeout)
         self._load_layer_config(lr)
 
     def _load_layer_config(self, layer: MidiBoxLayer):
@@ -310,6 +312,8 @@ class Midibox(BaseMidibox):
         lr._percussion = c[32]
         for i in range(9):
             setattr(lr, f'_harmonic_bar{i}', c[33 + i])
+
+        lr._portamento_time = c[42]
 
     def _rc_callback(self, msg):
         if msg.type == 'sysex' and len(msg.data) > 2 and msg.data[0] == self._SYSEX_ID:
