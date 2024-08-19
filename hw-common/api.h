@@ -41,6 +41,10 @@ enum {
 	/* INFO: WRITE_ACK can containts data with slightly modified/clamped values */
 };
 
+enum {
+	GS_STATUS_INITED = 1,
+};
+
 struct layer_state_reg {
 	union {
 		struct {

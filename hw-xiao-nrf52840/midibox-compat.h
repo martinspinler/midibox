@@ -9,12 +9,19 @@
 #include <Adafruit_TinyUSB.h>
 #include <bluefruit.h>
 
+struct HwMidiSettings : public midi::DefaultSettings
+{
+	static const bool UseReceiverActiveSensing = true;
+	static const bool UseSenderActiveSensing = true;
+	static const unsigned SenderActiveSensingPeriodicity = 250;
+};
+
 typedef midi::SerialMIDI<Adafruit_USBD_MIDI> USBSerialMIDI;
 typedef midi::SerialMIDI<HardwareSerial> HardwareSerialMIDI;
 typedef midi::SerialMIDI<BLEMidi> BleMIDI;
 
 typedef midi::MidiInterface<USBSerialMIDI> MidiInterfaceUsb;
-typedef midi::MidiInterface<HardwareSerialMIDI> MidiInterfaceHwserial;
+typedef midi::MidiInterface<HardwareSerialMIDI, HwMidiSettings> MidiInterfaceHwserial;
 typedef midi::MidiInterface<BleMIDI> MidiInterfaceBle;
 
 extern MidiInterfaceUsb MU;

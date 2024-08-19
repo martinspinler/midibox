@@ -520,6 +520,11 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 		uint8_t bsl;
 	} tc;
 
+
+	if ((gs.r.status & GS_STATUS_INITED) == 0) {
+		midi_send_init();
+	}
+
 	if (msg.type == ActiveSensing || msg.type == Clock)
 		return;
 
@@ -682,9 +687,17 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 	}
 }
 
+void handleS1Error(int8_t e)
+{
+	if (e & (1 << ErrorActiveSensingTimeout) && (gs.r.status & GS_STATUS_INITED)) {
+		gs.r.status &= ~GS_STATUS_INITED;
+		midi_inform_lr_change(MIDIBOX_LAYER_ID_GLOBAL, 1, 1);
+	}
+}
+
 void midi_init()
 {
-	int i;
+	uint8_t i;
 
 	gs.r.config = 0;
 	gs.r.status = 0;
@@ -804,19 +817,10 @@ void midi_init()
 	MS1.begin(MIDI_CHANNEL_OMNI);
 	MS1.turnThruOff();
 	MS1.setHandleMessage(handleS1MidiMessage);
+	MS1.setHandleError(handleS1Error);
 
 	midi_piano_connect();
-
-	/* Initialize default values */
-	sendMidiLocalCTL(!gs.r.enabled);
-
-	for (i = 0; i < LAYERS; i++) {
-		struct layer_state & lr = ls[i];
-		struct midi_changes changes;
-
-		changes.all = 1;
-		midi_update_layer(lr, lr, changes);
-	}
+	//midi_send_init();
 }
 
 void smidi_init()
@@ -832,6 +836,24 @@ void smidi_init()
 #endif
 }
 
+void midi_send_init()
+{
+	uint8_t i;
+
+	/* Initialize default values */
+	sendMidiLocalCTL(!gs.r.enabled);
+
+	for (i = 0; i < LAYERS; i++) {
+		struct layer_state & lr = ls[i];
+		struct midi_changes changes;
+
+		changes.all = 1;
+		midi_update_layer(lr, lr, changes);
+	}
+
+	gs.r.status |= GS_STATUS_INITED;
+	midi_inform_lr_change(MIDIBOX_LAYER_ID_GLOBAL, 1, 1);
+}
 
 #if 0
 void midi_handle_tc()

@@ -70,6 +70,7 @@ extern struct global_state gs;
 
 void smidi_init();
 void midi_init();
+void midi_send_init();
 void midi_loop();
 void midi_handle_config();
 void midi_handle_instrument_cmd(uint8_t cmd);
