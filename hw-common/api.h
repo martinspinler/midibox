@@ -8,6 +8,7 @@ const uint8_t MIDIBOX_PEDALS = PEDALS;
 const uint8_t MIDIBOX_SYSEX_ID1 = 0x77;
 const uint8_t MIDIBOX_SYSEX_ID2 = 0x78;
 const uint8_t MIDIBOX_PEDAL_SYSEX_ID = 0x79;
+const uint8_t MIDIBOX_LAYER_ID_GLOBAL = 15;
 
 enum {
         PEDAL_MODE_IGNORE     = 0,

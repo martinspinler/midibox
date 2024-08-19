@@ -279,7 +279,7 @@ void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 	len -= 4;
 	c += 4;
 
-	if (cmd == MIDIBOX_CMD_WRITE_REQ && layer == 15) {
+	if (cmd == MIDIBOX_CMD_WRITE_REQ && layer == MIDIBOX_LAYER_ID_GLOBAL) {
 		if (reqlen != len || offset + reqlen > sizeof(gs.r))
 			return;
 
@@ -305,7 +305,7 @@ void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 		if (changes.gs_tempo)
 			midi_change_tempo(gs.tempo);
 
-	} else if (cmd == MIDIBOX_CMD_READ_REQ && layer == 15) {
+	} else if (cmd == MIDIBOX_CMD_READ_REQ && layer == MIDIBOX_LAYER_ID_GLOBAL) {
 		if (offset + reqlen > sizeof(gs.r))
 			return;
 
