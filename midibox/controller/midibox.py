@@ -158,6 +158,26 @@ class Midibox(BaseMidibox):
         for lr in self.layers:
             self._read_layer_config(lr, retries, timeout)
 
+        # My config
+        c = self._config
+        for i in range(8):
+            c[6+16 + 0+i] = 0x00
+            c[6+16 + 8+i] = 0x7f
+
+        c[6+16 + 0+0] = 0x20
+        c[6+16 + 8+0] = 0x50
+
+        c[6+16 + 0+1] = 0x20
+        c[6+16 + 8+1] = 0x50
+
+        c[6+16 + 0+2] = 0x09
+        c[6+16 + 8+2] = 0x38
+
+        #for i in range(8):
+        #    c[6+16 + 0+i] = 0x09
+        #    c[6+16 + 8+i] = 0x38
+        self._write_config()
+
     def _write_sysex(self, msg):
         self._write([0xF0] + msg + [0xF7])
 
@@ -221,11 +241,10 @@ class Midibox(BaseMidibox):
         self._do_init = False
         #c[4:6] = [120, 0] # tempo
 
-        c[6+16 + 2] = 1  # test pedal analog
-        self._send_mbreq(self._CMD_WRITE_REQ, self._LAYER_GLOBAL, 0, 3, c[0:6+16+8])
+        self._send_mbreq(self._CMD_WRITE_REQ, self._LAYER_GLOBAL, 0, 6 + 16 + 16, c[0:6+16+16])
 
     def _read_config(self, retries: Optional[int] = None, timeout: float = READ_TIMEOUT):
-        self._config = self._read_regs(self._LAYER_GLOBAL, 0, 6 + 16 + 8, retries, timeout)
+        self._config = self._read_regs(self._LAYER_GLOBAL, 0, 6 + 16 + 16, retries, timeout)
         self._enable = True if self._config[0] & 1 else False
 
     def _write_layer_config(self, layer: MidiBoxLayer, name=None, value=None):
