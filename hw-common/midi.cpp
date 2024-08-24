@@ -152,6 +152,10 @@ void midi_handle_pedal_input(uint8_t pedal, uint8_t val)
 		pm = lr.r.pedal_mode[pedal];
 		if (pm == PEDAL_MODE_NORMAL) {
 			MS1.sendControlChange(cc, val, i + 1);
+			if (cc == PortamentoTime) {
+				lr.r.portamento_time = val;
+				midi_inform_lr_change(i, 42, 1);
+			}
 		} else if (pm == PEDAL_MODE_TOGGLE_ACT) {
 			if (val == 0x7F) {
 				#ifdef MIDIBOX_LOCAL_ACTIVE
@@ -727,7 +731,8 @@ void midi_init()
 
 	for (i = 0; i < MIDIBOX_PEDALS; i++) {
 		gs.r.pedal_mode[i] = PEDAL_MODE_NORMAL;
-		gs.r.pedal_analog[i] = 0;
+		gs.r.pedal_min[i] = 0x00;
+		gs.r.pedal_max[i] = 0x7f;
 	}
 	gs.r.pedal_mode[3] = PEDAL_MODE_IGNORE;
 

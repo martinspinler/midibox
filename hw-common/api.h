@@ -46,6 +46,7 @@ enum {
 };
 
 struct layer_state_reg {
+	/* offset 0 */
 	union {
 		struct {
 			bool enabled: 1;
@@ -63,6 +64,7 @@ struct layer_state_reg {
 	uint8_t lo; /* Lower range */
 	uint8_t hi; /* Upper range */
 
+	/* offset 8 */
 	uint8_t volume;
 	uint8_t mode;
 	uint8_t transposition;
@@ -73,11 +75,14 @@ struct layer_state_reg {
 	uint8_t decay;
 //	uint8_t _unusedp0[6];
 
+	/* offset 16 */
 	uint8_t pedal_cc[PEDALS];
 	uint8_t pedal_mode[PEDALS];
 
+	/* offset 32 */
 	uint8_t percussion;
 	uint8_t harmonic_bar[9];
+	/* offset 42 */
 	uint8_t portamento_time;
 };
 
@@ -106,5 +111,6 @@ struct global_state_reg {
 	uint8_t pedal_cc[PEDALS];
 	uint8_t pedal_mode[PEDALS];
 
-	uint8_t pedal_analog[PEDALS];
+	uint8_t pedal_min[PEDALS];
+	uint8_t pedal_max[PEDALS];
 };
