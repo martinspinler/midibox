@@ -179,6 +179,7 @@ class MidiBoxLayer(Dispatcher):
         'vibraphone'    : MidiBoxProgram(12,  0,  0, [efx['rotary']], 'Vp', 'Vibraphone'), # noqa
         'marimba'       : MidiBoxProgram(13,  0, 64, [efx['rotary']], 'Mb', 'Marimba'), # noqa
         'fretlessbass'  : MidiBoxProgram(36,  0,  0, [efx['none']],   'FB', 'Fretlett Bass'), # noqa
+        'bass_cymbal'   : MidiBoxProgram(33,  0, 66, [efx['none']],   'Bc', 'Bass + Cymbal'), # noqa
     }
     percussions = [
         ('Off'           , 0x00), # noqa
