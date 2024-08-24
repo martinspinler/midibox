@@ -220,10 +220,12 @@ class Midibox(BaseMidibox):
         #c[3] = self._selected_layer
         self._do_init = False
         #c[4:6] = [120, 0] # tempo
-        self._send_mbreq(self._CMD_WRITE_REQ, self._LAYER_GLOBAL, 0, 3, c[0:3])
+
+        c[6+16 + 2] = 1  # test pedal analog
+        self._send_mbreq(self._CMD_WRITE_REQ, self._LAYER_GLOBAL, 0, 3, c[0:6+16+8])
 
     def _read_config(self, retries: Optional[int] = None, timeout: float = READ_TIMEOUT):
-        self._config = self._read_regs(self._LAYER_GLOBAL, 0, 6 + 16, retries, timeout)
+        self._config = self._read_regs(self._LAYER_GLOBAL, 0, 6 + 16 + 8, retries, timeout)
         self._enable = True if self._config[0] & 1 else False
 
     def _write_layer_config(self, layer: MidiBoxLayer, name=None, value=None):
