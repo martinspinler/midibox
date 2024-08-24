@@ -69,22 +69,29 @@ static int charlieplex(struct pt *pt)
 void check_inputs()
 {
 	static const int ANALOG_PEDALS = 3;
-	int i;
+	int i, j;
 	static unsigned long ms = 0;
-	static uint16_t pedal_value_prev[ANALOG_PEDALS] = {0};
 	static unsigned long pedal_value_prev_time[ANALOG_PEDALS] = {0};
+	static uint8_t pedal_value_prev[ANALOG_PEDALS] = {0};
+	static uint16_t pedal_value_avg[ANALOG_PEDALS][8] = {0};
 
+	uint16_t send;
 	uint16_t val;
 	uint16_t oval;
+	uint16_t avg, vmin, vmax;
 
 	if (ms + 5 < millis()) {
 		ms = millis();
 
 		for (i = 0; i < ANALOG_PEDALS; i++) {
+			send = 0;
 			if (gs.r.pedal_analog[i] == 0) {
 				val = digitalRead(i);
 				val = val == 0 ? 0x00: 0x7F;
 				//val = val == 0 ? 0x7F: 0x00;
+				if (pedal_value_prev[i] != val) {
+					send = 1;
+				}
 			} else {
 				oval = analogRead(i);
 				val = oval;
@@ -95,17 +102,34 @@ void check_inputs()
 				val &= 0x7F;
 
 				val = (val + 3) & 0x7C;
+
+				avg = val;
+				vmin = 0x7f;
+				vmax = 0x00;
+
+				for (j = 8; j > 1; j--) {
+					pedal_value_avg[i][j-1] = pedal_value_avg[i][j-2];
+					avg += pedal_value_avg[i][j-1];
+
+					if (vmin > pedal_value_avg[i][j-1])
+						vmin = pedal_value_avg[i][j-1];
+					if (vmax < pedal_value_avg[i][j-1])
+						vmax = pedal_value_avg[i][j-1];
+				}
+				avg >>= 3;
+
+				if ((val < vmin || val > vmax) && pedal_value_prev_time[i] + 20 < ms) {
+					send = 1;
+				}
 			}
 
-			if (pedal_value_prev[i] != val) {
-				if (gs.r.pedal_analog[i] == 0 || pedal_value_prev_time[i] + 60 < ms) {
-					if (gs.r.pedal_analog[i])
-						Serial.println(String("Pedal: ") + i + " oval: " + oval + " val:" + val);
+			if (send) {
+				pedal_value_prev[i] = val;
+				if (gs.r.pedal_analog[i])
+					Serial.println(String("Pedal: ") + i + " oval: " + oval + " val:" + val + "vmin: " + vmin + " vmax: " + vmax);
 
-					pedal_value_prev[i] = val;
-					midi_handle_pedal_input(i, val);
-					pedal_value_prev_time[i] = ms;
-				}
+				midi_handle_pedal_input(i, val);
+				pedal_value_prev_time[i] = ms;
 			}
 		}
 	}
