@@ -178,6 +178,7 @@ class MidiBoxLayer(Dispatcher):
         'hammond'       : MidiBoxProgram(17, 32, 68, [efx['rotary']], 'Hm', 'Hammond'), # noqa
         'vibraphone'    : MidiBoxProgram(12,  0,  0, [efx['rotary']], 'Vp', 'Vibraphone'), # noqa
         'marimba'       : MidiBoxProgram(13,  0, 64, [efx['rotary']], 'Mb', 'Marimba'), # noqa
+        'mallet_isle'   : MidiBoxProgram(115, 0, 64, [efx['rotary']], 'Mi', 'Mallet Isle'), # noqa
         'fretlessbass'  : MidiBoxProgram(36,  0,  0, [efx['none']],   'FB', 'Fretlett Bass'), # noqa
         'bass_cymbal'   : MidiBoxProgram(33,  0, 66, [efx['none']],   'Bc', 'Bass + Cymbal'), # noqa
     }
