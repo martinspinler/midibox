@@ -6,7 +6,7 @@ import threading
 
 import netifaces
 
-from typing import Union, Iterable, List
+from typing import Union, Iterable, List, Callable, Any, Optional
 
 from pythonosc import osc_packet
 from pythonosc.osc_message_builder import OscMessageBuilder
@@ -15,12 +15,12 @@ from zeroconf import ServiceInfo, Zeroconf
 
 
 class ThreadedTCPOSCRequestHandler(socketserver.BaseRequestHandler):
-    def setup(self):
+    def setup(self) -> None:
         super().setup()
         print("OSC TCP client connected", self.client_address)
         self.server.clients.append(self)
 
-    def _recv(self, size):
+    def _recv(self, size: int) -> Optional[bytes]:
         data = b''
         while len(data) != size:
             recv = self.request.recv(size - len(data))
@@ -29,7 +29,7 @@ class ThreadedTCPOSCRequestHandler(socketserver.BaseRequestHandler):
             data += recv
         return data
 
-    def handle(self):
+    def handle(self) -> None:
         while True:
             sz = self._recv(4)
             if sz is None:
@@ -42,12 +42,12 @@ class ThreadedTCPOSCRequestHandler(socketserver.BaseRequestHandler):
             for m in osc_packet.OscPacket(data).messages:
                 self.handle_message(m.message.address, m.message.params)
 
-    def finish(self):
+    def finish(self) -> None:
         print("OSC TCP client disconnected", self.client_address)
         self.server.clients.remove(self)
         super().finish()
 
-    def handle_message(self, address, params):
+    def handle_message(self, address: str, params) -> None:
         pass
 
     def send_message(self, address: str, value: Union[int, float, bytes, str, bool, tuple, list]) -> None:
@@ -70,10 +70,11 @@ class ThreadedTCPOSCRequestHandler(socketserver.BaseRequestHandler):
 
 
 class DispatchedOSCRequestHandler(ThreadedTCPOSCRequestHandler):
-    def map(self, path, callback, *args):
+    # TODO: Fix Any, see callback below
+    def map(self, path: str, callback: Callable[[str, Any], None], *args):
         self._dispatcher_maps[path] = (callback, args)
 
-    def setup(self):
+    def setup(self) -> None:
         super().setup()
         self._dispatcher_maps = {}
 
@@ -92,7 +93,7 @@ class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
 
 class SharedTCPServer():
-    def __init__(self, RequestHandler, port=4302, addr="0.0.0.0"):
+    def __init__(self, RequestHandler: DispatchedOSCRequestHandler, port: int = 4302, addr: str = "0.0.0.0") -> None:
         self.clients = []
 
         self.server = ThreadedTCPServer((addr, port), RequestHandler)
@@ -101,7 +102,7 @@ class SharedTCPServer():
         self.server_thread.daemon = True
         self.server_thread.start()
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         for c in self.server.clients:
             try:
                 c.request.shutdown(socket.SHUT_RDWR)
@@ -113,7 +114,7 @@ class SharedTCPServer():
         self.server_thread.join()
 
 
-def getIPv4Addresses():
+def getIPv4Addresses() -> dict[str, str]:
     ret = {}
     for i in netifaces.interfaces():
         if i == 'lo':
@@ -125,7 +126,7 @@ def getIPv4Addresses():
     return ret
 
 
-def zc_register_osc_tcp(port=4302, oscname="MidiboxOSC"):
+def zc_register_osc_tcp(port: int = 4302, oscname: str = "MidiboxOSC") -> list[tuple[Zeroconf, ServiceInfo]]:
     zc_service = "_osc._tcp.local."
     zc_name = oscname + "." + zc_service
     zc_svcs = []

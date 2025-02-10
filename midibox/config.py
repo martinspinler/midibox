@@ -2,7 +2,7 @@ from types import SimpleNamespace
 from .controller.base import MidiBoxLayerProps, MidiBoxProps, MidiBoxPedalProps
 
 
-def validate_config(config, props):
+def validate_config(config: dict) -> None:
     try:
         from schema import Schema, SchemaError, Optional, Or
     except ModuleNotFoundError:
@@ -63,17 +63,17 @@ def validate_config(config, props):
 
 
 class PedalPreset():
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Pedal {self.layer} {self.index}"
 
-    def __init__(self, layer, cfg, index):
+    def __init__(self, layer: "LayerPreset", cfg, index: int) -> None:
         self._cfg = cfg
         self.index = cfg.get("pedal", index)
         self.layer = layer
         self._base = []
         self._presets = None
 
-    def update_refs(self, presets):
+    def update_refs(self, presets) -> None:
         if self._presets is not None:
             return
         self._presets = presets
@@ -98,7 +98,7 @@ class PedalPreset():
                 assert pi >= 0
                 self._base.append(layer.get_pedal(pi))
 
-    def get_config(self, config):
+    def get_config(self, config) -> None:
         for base in self._base:
             base.get_config(config)
 
@@ -108,7 +108,7 @@ class PedalPreset():
 
 
 class LayerPreset():
-    def __init__(self, preset, cfg, index):
+    def __init__(self, preset, cfg, index) -> None:
         self._cfg = cfg
         self.index = cfg.get("layer", index)
         self.preset = preset
@@ -127,10 +127,10 @@ class LayerPreset():
                     self._pedals[index] = pedal
                     index += 1
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Layer {self.preset.name} {self.index}"
 
-    def update_refs(self, presets):
+    def update_refs(self, presets) -> None:
         if self._presets is not None:
             return
         self._presets = presets
@@ -157,7 +157,7 @@ class LayerPreset():
         for pedal in self._pedals.values():
             pedal.update_refs(presets)
 
-    def get_config(self, config):
+    def get_config(self, config) -> None:
         if config.get('pedals') is None:
             config['pedals'] = {}
 
@@ -182,7 +182,7 @@ class LayerPreset():
 
 
 class Preset():
-    def __init__(self, cfg, props):
+    def __init__(self, cfg: dict, props) -> None:
         self._cfg = cfg
         self.name = cfg.get("name")
         self.label = cfg.get("label")
@@ -202,7 +202,7 @@ class Preset():
                     self._layers[index] = layer
                     index += 1
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Preset {self.name}"
 
     def update_refs(self, presets):
@@ -249,14 +249,14 @@ class Preset():
             layer.get_config(config['layers'][layer.index])
 
 
-def presets_from_config(config):
+def presets_from_config(config: dict):
     props = SimpleNamespace(
         glob=[prop.name for prop in MidiBoxProps],
         layer=[prop.name for prop in MidiBoxLayerProps],
         pedal=[prop.name for prop in MidiBoxPedalProps],
     )
 
-    validate_config(config, props)
+    validate_config(config)
 
     # Sanitize input config
     for i, p in enumerate(config.get('presets', [])):

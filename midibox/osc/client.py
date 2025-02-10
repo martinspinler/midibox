@@ -3,9 +3,10 @@ import re
 import threading
 import mido
 from pythonosc import osc_packet
+from pythonosc import osc_message
 from pythonosc.osc_message_builder import OscMessageBuilder
 
-from typing import Union, Iterable
+from typing import Union, Iterable, Tuple, Optional, Any
 import socket
 
 import urllib.parse
@@ -13,19 +14,22 @@ import urllib.parse
 from ..controller.base import BaseMidibox
 
 
+OscMessage = osc_message.OscMessage
+
+
 class OscClient(threading.Thread):
-    def __init__(self, gp, addr):
+    def __init__(self, gp: "OscMidibox", addr: Tuple[str, int]):
         threading.Thread.__init__(self)
         self.addr = addr
         self.gp = gp
         self.s = None
 
-    def start(self):
+    def start(self) -> None:
         self.alive = threading.Event()
         self.alive.set()
         threading.Thread.start(self)
 
-    def stop(self):
+    def stop(self) -> None:
         self.alive.clear()
         if self.s:
             try:
@@ -35,7 +39,7 @@ class OscClient(threading.Thread):
                 pass
         self.join()
 
-    def handle_msg(self, m):
+    def handle_msg(self, m: OscMessage) -> None:
         self.gp.handle_msg(m)
 
     def send_message(self, address: str, value: Union[int, float, bytes, str, bool, tuple, list]) -> None:
@@ -57,7 +61,7 @@ class OscClient(threading.Thread):
             pass
             raise
 
-    def recv_size(self, size):
+    def recv_size(self, size: int) -> Optional[bytes]:
         data = b''
         while self.alive.is_set() and len(data) != size:
             try:
@@ -72,7 +76,7 @@ class OscClient(threading.Thread):
 
         return data if len(data) == size else None
 
-    def connect(self):
+    def connect(self) -> None:
         self.s = None
         while self.s is None and self.alive.is_set():
             try:
@@ -84,7 +88,7 @@ class OscClient(threading.Thread):
         if self.s:
             print("OSC client connected")
 
-    def run(self):
+    def run(self) -> None:
         self.connect()
         while self.alive.is_set():
             data = self.recv_size(4)
@@ -103,13 +107,13 @@ class OscClient(threading.Thread):
 
 
 class OscMidibox(BaseMidibox):
-    def __init__(self, url=None, addr="localhost", port=4302, debug=False):
+    def __init__(self, url: Optional[str] = None, addr: str = "localhost", port: int = 4302, debug: bool = False) -> None:
         super().__init__()
 
-        if url:
-            addr = urllib.parse.urlsplit(f"//{url}")
-            port = addr.port if addr.port else 4302
-            connection = addr.hostname, port
+        if url is not None:
+            paddr = urllib.parse.urlsplit(f"//{url}")
+            port = paddr.port if paddr.port else 4302
+            connection = (paddr.hostname, port)
         else:
             connection = (addr, port)
 
@@ -118,13 +122,13 @@ class OscMidibox(BaseMidibox):
 
         self._pedal_regex = r"pedal(\d+)\.(\w+)"
 
-    def _connect(self):
+    def _connect(self) -> None:
         self.client.start()
 
-    def _disconnect(self):
+    def _disconnect(self) -> None:
         self.client.stop()
 
-    def handle_msg(self, m):
+    def handle_msg(self, m: OscMessage) -> None:
         addr, params = m.message.address, m.message.params
         addr = addr.split("/")
 
@@ -169,19 +173,19 @@ class OscMidibox(BaseMidibox):
                                 setattr(pedal, f"_{prop}", params[0])
                                 pedal.emit('control_change', **kwargs)
 
-    def _initialize(self):
+    def _initialize(self) -> None:
         self.client.send_message("/midibox/initialize", None)
 
-    def _write(self, midi):
+    def _write(self, midi) -> None:
         self.client.send_message("/midibox/midi", bytes(midi))
 
-    def _write_config(self, name=None, value=None):
+    def _write_config(self, name: Optional[str] = None, value: Optional[Any] = None):
         if name:
             self.client.send_message(f"/midibox/{name}", value)
         else:
             print("osc.client._write_config unknown:", name)
 
-    def _write_layer_config(self, lr, name=None, value=None):
+    def _write_layer_config(self, lr, name=None, value=None) -> None:
         if name:
             self.client.send_message(f"/midibox/layers/{lr._index}/{name}", value)
         else:

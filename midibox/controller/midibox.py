@@ -28,15 +28,15 @@ class Midibox(BaseMidibox):
 
     _config: Optional[List[int]]
 
-    def __init__(self, port_name: str = "XIAO nRF52840", client_name=None, virtual=False, find=True, debug=False):
+    def __init__(self, port_name: str = "XIAO nRF52840", client_name: Optional[str] = None, virtual: bool = False, find: bool = True, debug: bool = False) -> None:
         self._port_name = port_name
         self._client_name = client_name
         self._virtual = virtual
         self._find = find
         self._debug = debug
 
-        self.portout = None
-        self.portin = None
+        self.portout: Optional[mido.ports.BaseOutput] = None
+        self.portin: Optional[mido.ports.BaseInput] = None
 
         super().__init__()
 
@@ -46,7 +46,7 @@ class Midibox(BaseMidibox):
             lr._config = None
             lr._do_init = False
 
-        self._cb_data = None
+        self._cb_data: Optional[list[int]] = None
         self._cb_data_waiting: Optional[Tuple[int, int, int]] = None
 
         if self._debug:
@@ -56,7 +56,7 @@ class Midibox(BaseMidibox):
         self._midi_thread_exit = False
         self._midi_thread = Thread(target=self._connection_check)
 
-    def _wait_for_cb_data(self, timeout: float = READ_TIMEOUT):
+    def _wait_for_cb_data(self, timeout: float = READ_TIMEOUT) -> Optional[list[int]]:
         while not self._cb_data and timeout > 0:
             time.sleep(0.01)
             timeout -= 0.01
@@ -67,19 +67,19 @@ class Midibox(BaseMidibox):
         self._cb_data = None
         return ret
 
-    def _disconnect(self):
+    def _disconnect(self) -> None:
         self._midi_thread_exit = True
         if self._midi_thread.is_alive():
             self._midi_thread.join()
 
-    def _connect(self):
+    def _connect(self) -> None:
         self._open_port()
         self._midi_thread.start()
         self._init_configuration()
 
-    def _open_port(self):
+    def _open_port(self) -> None:
         if self._find:
-            def findSubstr(strings, substr):
+            def findSubstr(strings: list[str], substr: str) -> str:
                 for i in strings:
                     if substr in i:
                         return i
@@ -105,13 +105,14 @@ class Midibox(BaseMidibox):
         self.portout = mido.open_output(self._output_port_name, client_name=self._client_name, virtual=self._virtual, api=api)
         self.portin = mido.open_input(self._input_port_name, client_name=self._client_name, virtual=self._virtual, api=api)
 
+        #if self.portin is None:
         # Let the patch to connect
         if self._virtual:
             time.sleep(0.3)
 
         self.portin.callback = self.inputCallback
 
-    def _connection_check(self):
+    def _connection_check(self) -> None:
         checking = False
         self._midi_last_activity = time.time()
         while not self._midi_thread_exit:
@@ -145,11 +146,11 @@ class Midibox(BaseMidibox):
                 checking = False
                 #print("Resetting check")
 
-    def inputCallback(self, msg):
+    def inputCallback(self, msg: mido.Message) -> None:
         self._midi_last_activity = time.time()
         super().inputCallback(msg)
 
-    def _init_configuration(self, retries: Optional[int] = None, timeout: float = READ_TIMEOUT):
+    def _init_configuration(self, retries: Optional[int] = None, timeout: float = READ_TIMEOUT) -> None:
         self._read_config(retries, timeout)
 
         # INFO: all debug, not enable
@@ -160,6 +161,9 @@ class Midibox(BaseMidibox):
 
         # My config
         c = self._config
+        if c is None:
+            return
+
         for i in range(8):
             c[6+16 + 0+i] = 0x00
             c[6+16 + 8+i] = 0x7f
@@ -178,17 +182,19 @@ class Midibox(BaseMidibox):
         #    c[6+16 + 8+i] = 0x38
         self._write_config()
 
-    def _write_sysex(self, msg):
+    def _write_sysex(self, msg: list[int]) -> None:
         self._write([0xF0] + msg + [0xF7])
 
-    def _send_mbreq(self, cmd: int, layer: int, offset: int, reqlen: int, msg=[]):
+    def _send_mbreq(self, cmd: int, layer: int, offset: int, reqlen: int, msg: list[int] = []) -> None:
         c = ((cmd & 0x07) << 4) | (layer & 0x0F)
         assert c < 0xF0
         if msg:
             assert reqlen == len(msg)
         self._write([0xF0, self._SYSEX_ID, c, offset, reqlen] + msg + [0xF7])
 
-    def _write(self, b: bytes):
+    def _write(self, b: bytes|list[int]) -> None:
+        if isinstance(b, list):
+            b = bytes(b)
         msg = mido.Message.from_bytes(b)
         if self._debug:
             print("send", mido.format_as_string(msg, False))
@@ -198,7 +204,7 @@ class Midibox(BaseMidibox):
         else:
             print("write failed, portout is None:", mido.format_as_string(msg, False))
 
-    def _read_regs(self, lr_index, firstreg, lastreg, retries: Optional[int] = None, timeout: float = READ_TIMEOUT) -> List[int]:
+    def _read_regs(self, lr_index: int, firstreg: int, lastreg: int, retries: Optional[int] = None, timeout: float = READ_TIMEOUT) -> List[int]:
         ret: List[int] = []
         MAXREQ = 16
         while lastreg > firstreg:
@@ -222,20 +228,20 @@ class Midibox(BaseMidibox):
             firstreg += reqlen
         return ret
 
-    def _initialize(self):
+    def _initialize(self) -> None:
         self._do_init = True
         self._write_config()
         for i, lr in enumerate(self.layers):
             lr._do_init = True
             self._write_layer_config(lr)
 
-    def _write_config(self, name=None, value=None):
+    def _write_config(self) -> None:
         c = self._config
         if c is None:
             print("not connected")
             return
 
-        c[0] = (self._config[0] | 1) if self._enable else (self._config[0] & ~1)
+        c[0] = (c[0] | 1) if self._enable else (c[0] & ~1)
         c[2] = 1 if self._do_init else 0
         #c[3] = self._selected_layer
         self._do_init = False
@@ -243,11 +249,11 @@ class Midibox(BaseMidibox):
 
         self._send_mbreq(self._CMD_WRITE_REQ, self._LAYER_GLOBAL, 0, 6 + 16 + 16, c[0:6+16+16])
 
-    def _read_config(self, retries: Optional[int] = None, timeout: float = READ_TIMEOUT):
+    def _read_config(self, retries: Optional[int] = None, timeout: float = READ_TIMEOUT) -> None:
         self._config = self._read_regs(self._LAYER_GLOBAL, 0, 6 + 16 + 16, retries, timeout)
         self._enable = True if self._config[0] & 1 else False
 
-    def _write_layer_config(self, layer: MidiBoxLayer, name=None, value=None):
+    def _write_layer_config(self, layer: MidiBoxLayer) -> None:
         lr = layer
         c = lr._config
         if c is None:
@@ -298,12 +304,12 @@ class Midibox(BaseMidibox):
 
         self._send_mbreq(self._CMD_WRITE_REQ, lr._index, change_first, change_last - change_first + 1, c[change_first:change_last + 1])
 
-    def _read_layer_config(self, layer: MidiBoxLayer, retries: Optional[int] = None, timeout: float = READ_TIMEOUT):
+    def _read_layer_config(self, layer: MidiBoxLayer, retries: Optional[int] = None, timeout: float = READ_TIMEOUT) -> None:
         lr = layer
         lr._config = self._read_regs(lr._index, 0, 43, retries, timeout)
         self._load_layer_config(lr)
 
-    def _load_layer_config(self, layer: MidiBoxLayer):
+    def _load_layer_config(self, layer: MidiBoxLayer) -> None:
         lr = layer
         c = lr._config
         lr._enabled = True if c[0] & 1 else False
@@ -336,7 +342,7 @@ class Midibox(BaseMidibox):
 
         lr._portamento_time = c[42]
 
-    def _rc_callback(self, msg):
+    def _rc_callback(self, msg: mido.Message) -> None:
         if msg.type == 'sysex' and len(msg.data) > 2 and msg.data[0] == self._SYSEX_ID:
             cmd = (msg.data[1] >> 4) & 0x07
             layer = msg.data[1] & 0x0F

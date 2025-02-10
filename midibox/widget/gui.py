@@ -1,4 +1,5 @@
 import time
+import mido
 
 from PyQt5 import QtCore, QtGui
 
@@ -35,7 +36,7 @@ class PropertyMeta(type(QtCore.QObject)):
 
 
 class Property:
-    def __init__(self, initial_value, name=''):
+    def __init__(self, initial_value, name='') -> None:
         self.initial_value = initial_value
         self.name = name
 
@@ -61,12 +62,12 @@ def signal_attribute_name(property_name):
 class QMidiboxPedal(QObject, metaclass=PropertyMeta):
     _prop_meta_dict = MidiBoxPedalProps
 
-    def __init__(self, p, handler):
+    def __init__(self, p, handler) -> None:
         super().__init__()
         self._proxy = p
         self._proxy.bind(control_change=self.on_control_change)
 
-    def on_control_change(self, *args, **kwargs):
+    def on_control_change(self, *args, **kwargs) -> None:
         for name, value in kwargs.items():
             if hasattr(self, signal_attribute_name(name)):
                 getattr(self, signal_attribute_name(name)).emit(value)
@@ -78,7 +79,7 @@ class QMidiboxLayer(QObject, metaclass=PropertyMeta):
     programChange = pyqtSignal()
     pedalsChange = pyqtSignal()
 
-    def __init__(self, layer, handler):
+    def __init__(self, layer, handler) -> None:
         super().__init__()
         self._proxy = layer
         self._proxy.bind(control_change=self.on_control_change)
@@ -88,14 +89,14 @@ class QMidiboxLayer(QObject, metaclass=PropertyMeta):
             self._pedals.append(QMidiboxPedal(p, handler))
 
     @pyqtSlot()
-    def reset(self):
+    def reset(self) -> None:
         self._proxy.reset()
 
     @pyqtProperty(list, notify=pedalsChange)
     def pedals(self):
         return self._pedals
 
-    def on_control_change(self, *args, **kwargs):
+    def on_control_change(self, *args, **kwargs) -> None:
         for name, value in kwargs.items():
             if name == "program":
                 self.programChange.emit()
@@ -114,7 +115,7 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
     layersChange = pyqtSignal() # Not used
     transpositionExtraChange = pyqtSignal()
 
-    def __init__(self, box):
+    def __init__(self, box) -> None:
         super().__init__()
         self._proxy = self.box = box
 
@@ -127,7 +128,7 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
 
         self._presets = {}
 
-    def init(self, ro, config, presets):
+    def init(self, ro, config, presets) -> None:
         presets_btns = ro.findChild(QObject, "presets")
         presets_list = list(presets.values())
         self._presets = {k: v for k, v in enumerate(presets_list)}
@@ -145,43 +146,43 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
         return self.box.layers[0].transposition_extra == -12
 
     @transpositionExtra.setter
-    def transpositionExtra(self, v):
+    def transpositionExtra(self, v) -> None:
         self.box.layers[0].transposition_extra = -12 if v else 0
 
-    def on_control_change(self, *args, **kwargs):
+    def on_control_change(self, *args, **kwargs) -> None:
         for name, value in kwargs.items():
             if hasattr(self, signal_attribute_name(name)):
                 getattr(self, signal_attribute_name(name)).emit(value)
 
-    def on_layer_control_change(self, *args, **kwargs):
+    def on_layer_control_change(self, *args, **kwargs) -> None:
         name = list(kwargs.keys())[0]
         if name == "transposition_extra":
             self.transpositionExtraChange.emit()
 
     @pyqtSlot(int, str)
-    def requestKey(self, layer_index, target):
+    def requestKey(self, layer_index, target) -> None:
         self.box.requestKey('layer', layer_index, target)
 
     @pyqtSlot(int, result=str)
-    def note2text(self, note):
+    def note2text(self, note: int) -> str:
         note_names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
         return note_names[note % 12] + str(note // 12 - 2)
 
     @pyqtSlot()
-    def initialize(self):
+    def initialize(self) -> None:
         self.box.initialize()
 
     @pyqtSlot()
-    def split12(self):
+    def split12(self) -> None:
         self.layers[0].rangel = 56
         self.layers[1].rangeu = 55
 
     @pyqtSlot()
-    def allSoundsOff(self):
+    def allSoundsOff(self) -> None:
         self.box.allSoundsOff()
 
     @pyqtSlot(int)
-    def loadPreset(self, p):
+    def loadPreset(self, p) -> None:
         if p in self._presets:
             preset = self._presets[p]
             config = {}
@@ -222,7 +223,7 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
 class GraphUpdater(QObject):
     foo = pyqtSignal(int, int)
 
-    def __init__(self, box):
+    def __init__(self, box) -> None:
         super().__init__()
         #self._deque = collections.deque([0] * 360)
         self._deque_start = int(time.time())
@@ -233,7 +234,7 @@ class GraphUpdater(QObject):
         self.tmr.start(5000)
         self.tmr.timeout.connect(self.incDeque)
 
-    def incDeque(self):
+    def incDeque(self) -> None:
         t = int(time.time()) - self._deque_start
         self.foo.emit(t, self._deque_count)
 
@@ -242,7 +243,7 @@ class GraphUpdater(QObject):
         #self.tmr = threading.Timer(5, self.incDeque)
         #tmr.start()
 
-    def midi_cb(self, msg):
+    def midi_cb(self, msg: mido.Message) -> None:
         if msg.type == 'note_on':
             #i = int(time.time())
             self._deque_count += 1

@@ -8,9 +8,10 @@ from .osc.client_handler import MidiboxOSCClientHandler
 from .osc.server import SharedTCPServer, zc_register_osc_tcp
 
 from .midiplayer import Midiplayer, MidiplayerOSCClientHandler
+from .controller import BaseMidibox
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("-O", "--osc-server", help="Enable OSC server", action='store_true')
     parser.add_argument("-o", "--osc-client", help="Use OSC client as device")
@@ -24,7 +25,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def create_midibox_instance(args):
+def create_midibox_instance(args: argparse.Namespace) -> BaseMidibox:
     mb_params = {
         'debug': args.debug,
     }
@@ -44,7 +45,7 @@ class MainOSCClientHandler(MidiboxOSCClientHandler, MidiplayerOSCClientHandler):
     pass
 
 
-def main():
+def main() -> None:
     args = parse_args()
 
     config = {}

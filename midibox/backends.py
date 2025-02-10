@@ -1,4 +1,4 @@
-from .controller import Midibox
+from .controller import Midibox, BaseMidibox
 from .osc.client import OscMidibox
 
 default_backend = "mido"
@@ -21,7 +21,7 @@ backends = {
 }
 
 
-def create_midibox_from_config(backend="mido", **kwargs):
+def create_midibox_from_config(backend="mido", **kwargs) -> BaseMidibox:
     mb_class, mb_params = backends[backend]
     mb_params = mb_params.copy()
     mb_params.update(**kwargs)

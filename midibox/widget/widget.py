@@ -5,6 +5,7 @@ import functools
 import pathlib
 
 from types import SimpleNamespace
+from typing import Any
 
 import PyQt5
 import PyQt5.QtWebEngine
@@ -92,7 +93,7 @@ class MidiboxQuickWidget(QQuickWidget):
         return QSize(1280 // 1, 720 // 1)
 
 
-def create_gui(midibox, big_mode=False, disable_sandbox=False, config=None):
+def create_gui(midibox: BaseMidibox, big_mode: bool = False, disable_sandbox: bool = False, config: Any = None) -> QApplication:
     QIcon.setThemeName("Adwaita")
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
