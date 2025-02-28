@@ -4,8 +4,9 @@ import yaml
 import argparse
 
 from . import backends
+from .mido import MidoMidibox
 from .osc.client_handler import MidiboxOSCClientHandler
-from .osc.server import SharedTCPServer, zc_register_osc_tcp
+from .osc.server import TCPOSCServer, zc_register_osc_tcp
 
 from .midiplayer import Midiplayer, MidiplayerOSCClientHandler
 from .controller import BaseMidibox
@@ -21,7 +22,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("-d", "--debug", help="Debug Midibox", action='store_true')
     parser.add_argument("-c", "--config", help="Configuration YAML", default=None)
     parser.add_argument("--disable-sandbox", help="Disable sandbox for QtWebEngine", action='store_true')
-    #parser.add_argument("--disable-sandbox", help="Disable sandbox for QtWebEngine", action='store_true')
     return parser.parse_args()
 
 
@@ -57,6 +57,9 @@ def main() -> None:
     midibox.connect()
 
     if args.osc_server:
+        if not isinstance(midibox, MidoMidibox):
+            raise ValueError("The MidoMidibox must be used for server mode")
+
         mp = Midiplayer(midibox._output_port_name)
         mp.init()
         midi_file = config.get("midiplayer", {}).get("autoload")
@@ -64,7 +67,8 @@ def main() -> None:
             mp.load(midi_file)
         MainOSCClientHandler.mp = mp
         MainOSCClientHandler.mb = midibox
-        osc_srv = SharedTCPServer(MainOSCClientHandler)
+        osc_srv = TCPOSCServer(("0.0.0.0", 4302), MainOSCClientHandler)
+        osc_srv.start()
         zc_svcs = zc_register_osc_tcp()
 
     if args.gui:
@@ -74,10 +78,10 @@ def main() -> None:
 
         app = create_gui(midibox, disable_sandbox=args.disable_sandbox, config=config)
 
-        loop = qasync.QEventLoop(app)
+        loop = qasync.QEventLoop(app.qapp)
         asyncio.set_event_loop(loop)
 
-        #asyncio.ensure_future(app.pc.get_messages())
+        # asyncio.ensure_future(app.pc.get_messages())
         with loop:
             loop.run_forever()
     else:
@@ -90,7 +94,7 @@ def main() -> None:
     if args.osc_server:
         for zc, si in zc_svcs:
             zc.close()
-        osc_srv.shutdown()
+        osc_srv.stop()
 
         mp.destroy()
 

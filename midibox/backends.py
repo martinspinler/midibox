@@ -1,19 +1,22 @@
-from .controller import Midibox, BaseMidibox
+from typing import Any, Tuple
+
+from .controller import BaseMidibox
+from .mido import MidoMidibox
 from .osc.client import OscMidibox
 
 default_backend = "mido"
 
-backends = {
+backends: dict[str, Tuple[type[BaseMidibox], dict[Any, Any]]] = {
     'osc': (
         OscMidibox, {
         },
     ),
     'mido': (
-        Midibox, {
+        MidoMidibox, {
         },
     ),
     'simulator': (
-        Midibox, {
+        MidoMidibox, {
             'port_name': 'MidiboxSimulator:Control',
             'find': True,
         },
@@ -21,7 +24,7 @@ backends = {
 }
 
 
-def create_midibox_from_config(backend="mido", **kwargs) -> BaseMidibox:
+def create_midibox_from_config(backend: str = "mido", **kwargs: Any) -> BaseMidibox:
     mb_class, mb_params = backends[backend]
     mb_params = mb_params.copy()
     mb_params.update(**kwargs)

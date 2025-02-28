@@ -22,5 +22,5 @@ midibox = "midibox.__main__:main"
 packages = ["midibox"]
 
 [[tool.mypy.overrides]]
-module = "pydispatch,mido,schema,qasync,schema,netifaces,PyQt5.QtWebEngine"
+module = "pydispatch,mido,schema,qasync,schema,netifaces,PyQt5.QtWebEngine,sip"
 ignore_missing_imports = true

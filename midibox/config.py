@@ -1,8 +1,17 @@
+from __future__ import annotations
 from types import SimpleNamespace
-from .controller.base import MidiBoxLayerProps, MidiBoxProps, MidiBoxPedalProps
+from typing import Optional, Any
+
+from .controller.base import GeneralProps, LayerProps, PedalProps
+
+SAdict = dict[str, Any]
 
 
-def validate_config(config: dict) -> None:
+class NoFutherBaseException(Exception):
+    pass
+
+
+def validate_config(config: dict[str, Any]) -> None:
     try:
         from schema import Schema, SchemaError, Optional, Or
     except ModuleNotFoundError:
@@ -66,14 +75,14 @@ class PedalPreset():
     def __str__(self) -> str:
         return f"Pedal {self.layer} {self.index}"
 
-    def __init__(self, layer: "LayerPreset", cfg, index: int) -> None:
+    def __init__(self, layer: "LayerPreset", cfg: dict[str, Any], index: int) -> None:
         self._cfg = cfg
         self.index = cfg.get("pedal", index)
         self.layer = layer
-        self._base = []
-        self._presets = None
+        self._base: list[PedalPreset] = []
+        self._presets: Optional[dict[str, Preset]] = None
 
-    def update_refs(self, presets) -> None:
+    def update_refs(self, presets: dict[str, Preset]) -> None:
         if self._presets is not None:
             return
         self._presets = presets
@@ -98,7 +107,7 @@ class PedalPreset():
                 assert pi >= 0
                 self._base.append(layer.get_pedal(pi))
 
-    def get_config(self, config) -> None:
+    def get_config(self, config: dict[str, Any]) -> None:
         for base in self._base:
             base.get_config(config)
 
@@ -108,13 +117,13 @@ class PedalPreset():
 
 
 class LayerPreset():
-    def __init__(self, preset, cfg, index) -> None:
+    def __init__(self, preset: Preset, cfg: dict[str, Any], index: int) -> None:
         self._cfg = cfg
         self.index = cfg.get("layer", index)
         self.preset = preset
-        self._pedals = {}
-        self._base = []
-        self._presets = None
+        self._pedals: dict[int, PedalPreset] = {}
+        self._base: list[LayerPreset] = []
+        self._presets: Optional[SAdict] = None
 
         for k, v in cfg.items():
             if k == 'pedals':
@@ -130,7 +139,7 @@ class LayerPreset():
     def __str__(self) -> str:
         return f"Layer {self.preset.name} {self.index}"
 
-    def update_refs(self, presets) -> None:
+    def update_refs(self, presets: SAdict) -> None:
         if self._presets is not None:
             return
         self._presets = presets
@@ -157,7 +166,7 @@ class LayerPreset():
         for pedal in self._pedals.values():
             pedal.update_refs(presets)
 
-    def get_config(self, config) -> None:
+    def get_config(self, config: SAdict) -> None:
         if config.get('pedals') is None:
             config['pedals'] = {}
 
@@ -173,22 +182,25 @@ class LayerPreset():
                 config['pedals'][pedal.index] = {}
             pedal.get_config(config['pedals'][pedal.index])
 
-    def get_pedal(self, index):
+    def get_pedal(self, index: int) -> PedalPreset:
         if index in self._pedals:
             return self._pedals[index]
-        elif self._base:
-            return self._base.get_pedal(index)
-        raise Exception(f"No futher base to get pedal in {self}:{index}")
+        for b in self._base:
+            try:
+                return b.get_pedal(index)
+            except NoFutherBaseException:
+                pass
+        raise NoFutherBaseException(f"No futher base to get pedal in {self}:{index}")
 
 
 class Preset():
-    def __init__(self, cfg: dict, props) -> None:
+    def __init__(self, cfg: SAdict, props: SimpleNamespace) -> None:
         self._cfg = cfg
         self.name = cfg.get("name")
         self.label = cfg.get("label")
-        self._layers = {}
-        self._base = []
-        self._presets = None
+        self._layers: dict[int, LayerPreset] = {}
+        self._base: list[Preset] = []
+        self._presets: Optional[dict[str, Preset]] = None
         self._props = props
 
         for k, v in cfg.items():
@@ -205,7 +217,7 @@ class Preset():
     def __str__(self) -> str:
         return f"Preset {self.name}"
 
-    def update_refs(self, presets):
+    def update_refs(self, presets: dict[str, Preset]) -> None:
         if self._presets is not None:
             return
         self._presets = presets
@@ -220,19 +232,22 @@ class Preset():
                 raise NotImplementedError()
 
             for copy in base:
-                self._base.append(presets.get(copy))
+                self._base.append(presets[copy])
 
         for layer in self._layers.values():
             layer.update_refs(presets)
 
-    def get_layer(self, index):
+    def get_layer(self, index: int) -> LayerPreset:
         if index in self._layers:
             return self._layers[index]
-        elif self._base:
-            return self._base.get_layer(index)
-        raise Exception(f"No futher base to get layer in {self}:{index}")
+        for b in self._base:
+            try:
+                return b.get_layer(index)
+            except NoFutherBaseException:
+                pass
+        raise NoFutherBaseException(f"No futher base to get layer in {self}:{index}")
 
-    def get_config(self, config):
+    def get_config(self, config: dict[str, Any]) -> None:
         if config.get('layers') is None:
             config['layers'] = {}
 
@@ -249,11 +264,11 @@ class Preset():
             layer.get_config(config['layers'][layer.index])
 
 
-def presets_from_config(config: dict):
+def presets_from_config(config: dict[str, Any]) -> dict[str, Preset]:
     props = SimpleNamespace(
-        glob=[prop.name for prop in MidiBoxProps],
-        layer=[prop.name for prop in MidiBoxLayerProps],
-        pedal=[prop.name for prop in MidiBoxPedalProps],
+        glob=[prop.name for prop in GeneralProps],
+        layer=[prop.name for prop in LayerProps],
+        pedal=[prop.name for prop in PedalProps],
     )
 
     validate_config(config)

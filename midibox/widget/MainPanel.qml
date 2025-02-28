@@ -10,8 +10,8 @@ Column{
 
 	Switch{
 		text: "Enable"
-		onToggled: midibox.enable = checked
-		checked: midibox.enable
+		onToggled: midibox.general.enable = checked
+		checked: midibox.general.enable
 	}
 	Switch{
 		text: "Transpose 1ova on ch0"

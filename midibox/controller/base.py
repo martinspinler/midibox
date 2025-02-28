@@ -1,14 +1,15 @@
 import mido
 
 from pydispatch import Dispatcher
-from typing import NamedTuple, List, Any, Callable, Optional, Tuple, TypeVar, Sequence
+from typing import NamedTuple, List, Any, Callable, Optional, Tuple, TypeVar, Sequence, Type
+from types import TracebackType
 
 
 def clamp(val: int, lower: int, upper: int) -> int:
     return lower if val < lower else upper if val > upper else val
 
 
-class MidiBoxProgram(NamedTuple):
+class Program(NamedTuple):
     pc: int
     msb: int
     lsb: int
@@ -19,69 +20,66 @@ class MidiBoxProgram(NamedTuple):
 
 T = TypeVar('T')
 
-class CheckedPropHandler(Dispatcher):  # type: ignore[misc]
+
+class PropHandler(Dispatcher):  # type: ignore[misc]
     _mb_properties: Sequence["CheckedProp[Any]"]
     _events_ = ['control_change']
 
-    def __init__(self, *args, **kwargs) -> None:  # type: ignore[no-untyped-def]
-        #for p in self._mb_properties:
-        #    setattr(self, f"_{p.name}", p.init_value)
+    def __init__(self, dev: "BaseMidibox", *args, **kwargs) -> None:  # type: ignore[no-untyped-def]
+        self._dev = dev
         super().__init__(*args, **kwargs)
 
     def on_checkedprop_change(self, name: str, value: Any) -> None:
-        pass
+        self._dev.set_prop(self, name, value)
+
+    def reset(self) -> None:
+        for prop in self._mb_properties:
+            setattr(self, prop.name, prop.default)
+
+    def emit_control(self, name: str) -> None:
+        kwargs = {name: getattr(self, name)}
+        self.emit('control_change', **kwargs)
+
+    def emit_all(self) -> None:
+        for ctrl in self._mb_properties:
+            kwargs = {ctrl.name: getattr(self, ctrl.name)}
+            self.emit('control_change', **kwargs)
 
     def _on_checkedprop_change(self, cp: "CheckedProp[T]", value: Any) -> None:
         _name = f'_{cp.name}'
         value = cp.validator(self, value)
         if value != getattr(self, _name):
             setattr(self, _name, value)
-            #cp.callback(self, cp.name, value)
             self.on_checkedprop_change(cp.name, value)
             self.emit('control_change', **{cp.name: value})
 
 
 class CheckedProp[T]:
-    def __init__(self, name: str, init_value: T, validator: Callable[[CheckedPropHandler, T], T]) -> None:  # , callback: Callable[[CheckedPropHandler, str, Any], None]) -> None:
+    def __init__(self, name: str, default: T, validator: Callable[[PropHandler, T], T], initial: Optional[T] = None) -> None:
         self.name = name
-        self.init_value = init_value
-        #self.callback = callback
         self.validator = validator
+        self.default = default
+        self.initial = initial if initial is not None else default
 
-        getter: Callable[[CheckedPropHandler], T] = lambda cph: getattr(cph, f'_{name}')
-        setter: Callable[[CheckedPropHandler, T], None] = lambda cph, val: cph._on_checkedprop_change(self, val)
+        getter: Callable[[PropHandler], T] = lambda cph: getattr(cph, f'_{name}')
+        setter: Callable[[PropHandler, T], None] = lambda cph, val: cph._on_checkedprop_change(self, val)
         self.prop = property(getter, setter)
 
 
-def mb_properties_init(cls: type[CheckedPropHandler]) -> type[CheckedPropHandler]:
-    for item in cls._mb_properties:
-        setattr(cls, f"_{item.name}", item.init_value)
-        setattr(cls, item.name, item.prop)
-    return cls
-
-
 class BoolProp(CheckedProp[bool]):
-    def __init__(self, name: str, default: bool = False) -> None:  # , callback: Optional[Callable[[Any, Any, Any], None]] = None) -> None:
-        #validator: Callable[[Any, int], int] = lambda s, v: clamp(v, min, max)
-        validator: Callable[[CheckedPropHandler, bool], bool] = lambda s, v: True if v else False
+    def __init__(self, name: str, default: bool = False) -> None:
+        validator: Callable[[PropHandler, bool], bool] = lambda s, v: True if v else False
         super().__init__(name, default, validator)
 
 
 class IntProp(CheckedProp[int]):
-    def __init__(self, name: str, default: int = 0, min: int = 0, max: int = 127) -> None:  # , callback: Optional[Callable[[Any, Any, Any], None]] = None) -> None:
-        validator: Callable[[CheckedPropHandler, int], int] = lambda s, v: clamp(v, min, max)
+    def __init__(self, name: str, default: int = 0, min: int = 0, max: int = 127) -> None:
+        validator: Callable[[PropHandler, int], int] = lambda s, v: clamp(v, min, max)
         super().__init__(name, default, validator)
-
-        #if callback is None:
-            # FIXME!!!
-            #callback = lambda self, n, v: self._write_config(n, v)
-        #    #callback = lambda self, n, v: self._layer._write_config(f"pedal{self._index}.{n}", v)
-
 
 
 class UIntProp(IntProp):
-    def __init__(self, name: str) -> None:
-        super().__init__(name)
+    pass
 
 
 class SIntProp(IntProp):
@@ -89,39 +87,45 @@ class SIntProp(IntProp):
         super().__init__(name, min=-64, max=63)
 
 
-MidiBoxPedalProps = [
+def mb_properties_init(cls: type[PropHandler]) -> type[PropHandler]:
+    for item in cls._mb_properties:
+        setattr(cls, f"_{item.name}", item.initial)
+        setattr(cls, item.name, item.prop)
+    return cls
+
+
+PedalProps = [
     UIntProp("cc"),
     UIntProp("mode"),
 ]
 
 
 @mb_properties_init
-class MidiBoxPedal(CheckedPropHandler):
-    _mb_properties = MidiBoxPedalProps
+class Pedal(PropHandler):
+    _mb_properties = PedalProps
 
-    def __init__(self, layer: "MidiBoxLayer", index: int):
+    def __init__(self, dev: "BaseMidibox", layer: "Layer", index: int):
+        super().__init__(dev)
+        self._dev = dev
         self._layer = layer
         self._index = index
 
-    def _write_config(self, name: Optional[str] = None, value: Optional[Any] = None) -> None:
-        self._layer._write_config(name, value)
 
-
-MidiBoxLayerProps: list[CheckedProp[Any]] = [
-    SIntProp("transposition"),
-    SIntProp("transposition_extra"),
+LayerProps: list[CheckedProp[Any]] = [
+    SIntProp('transposition'),
+    SIntProp('transposition_extra'),
     BoolProp('enabled'),
     BoolProp('active', True),
     CheckedProp('rangel', 21, lambda s, v: clamp(v, 0, s._rangeu)),
     CheckedProp('rangeu', 108, lambda s, v: clamp(v, s._rangel, v)),
-    CheckedProp('program', '-unknown-', lambda s, v: v if v in s.programs else s.programs[s._program]),
-    IntProp("volume", default=100),
-    SIntProp("release"),
-    SIntProp("attack"),
-    SIntProp("cutoff"),
-    SIntProp("decay"),
-    UIntProp("portamento_time"),
-    CheckedProp('percussion', 0, lambda s, v: s.percussions[clamp(v, 0, 5)][1]),
+    CheckedProp('program', 'piano', lambda s, v: v if v in s.programs else s.programs[s._program], initial='-unknown-'),
+    IntProp('volume', default=100),
+    SIntProp('release'),
+    SIntProp('attack'),
+    SIntProp('cutoff'),
+    SIntProp('decay'),
+    UIntProp('portamento_time'),
+    CheckedProp('percussion', 0, lambda s, v: s.percussions[clamp(v, 0, 4)][1]),
     *[
         CheckedProp(f'harmonic_bar{i}', 0, lambda s, v: clamp(v, 0, 15)) for i in range(9)
     ],
@@ -136,18 +140,18 @@ efx = {
 
 
 @mb_properties_init
-class MidiBoxLayer(CheckedPropHandler):
-    _mb_properties = MidiBoxLayerProps
+class Layer(PropHandler):
+    _mb_properties = LayerProps
     programs = {  #                      PC MSB LSB
-        'piano'         : MidiBoxProgram( 1,  0, 68, [efx['dumper']], 'Pn', 'Piano'), # noqa
-        'epiano'        : MidiBoxProgram( 5,  0, 67, [efx['epiano']], 'eP', 'E-Piano'), # noqa
-        'bass'          : MidiBoxProgram(33,  0, 71, [efx['none']],   'Bs', 'Bass'), # noqa
-        'hammond'       : MidiBoxProgram(17, 32, 68, [efx['rotary']], 'Hm', 'Hammond'), # noqa
-        'vibraphone'    : MidiBoxProgram(12,  0,  0, [efx['rotary']], 'Vp', 'Vibraphone'), # noqa
-        'marimba'       : MidiBoxProgram(13,  0, 64, [efx['rotary']], 'Mb', 'Marimba'), # noqa
-        'mallet_isle'   : MidiBoxProgram(115, 0, 64, [efx['rotary']], 'Mi', 'Mallet Isle'), # noqa
-        'fretlessbass'  : MidiBoxProgram(36,  0,  0, [efx['none']],   'FB', 'Fretlett Bass'), # noqa
-        'bass_cymbal'   : MidiBoxProgram(33,  0, 66, [efx['none']],   'Bc', 'Bass + Cymbal'), # noqa
+        'piano'         : Program( 1,  0, 68, [efx['dumper']], 'Pn', 'Piano'), # noqa
+        'epiano'        : Program( 5,  0, 67, [efx['epiano']], 'eP', 'E-Piano'), # noqa
+        'bass'          : Program(33,  0, 71, [efx['none']],   'Bs', 'Bass'), # noqa
+        'hammond'       : Program(17, 32, 68, [efx['rotary']], 'Hm', 'Hammond'), # noqa
+        'vibraphone'    : Program(12,  0,  0, [efx['rotary']], 'Vp', 'Vibraphone'), # noqa
+        'marimba'       : Program(13,  0, 64, [efx['rotary']], 'Mb', 'Marimba'), # noqa
+        'mallet_isle'   : Program(115, 0, 64, [efx['rotary']], 'Mi', 'Mallet Isle'), # noqa
+        'fretlessbass'  : Program(36,  0,  0, [efx['none']],   'FB', 'Fretlett Bass'), # noqa
+        'bass_cymbal'   : Program(33,  0, 66, [efx['none']],   'Bc', 'Bass + Cymbal'), # noqa
     }
     percussions = [
         ('Off'           , 0x00), # noqa
@@ -158,9 +162,9 @@ class MidiBoxLayer(CheckedPropHandler):
     ]
 
     def __init__(self, dev: "BaseMidibox", index: int):
+        super().__init__(dev)
         self._index = index
         self._part = (index + 1) & 0xF if index != 9 else 0
-        self._dev = dev
         self._mode = 0
 
         pedal_cc = ['Sustain', 'Hold', 'Expression'] + [0] + ['GPC1', 'GPC2', 'GPC3', 'GPC4']
@@ -169,55 +173,57 @@ class MidiBoxLayer(CheckedPropHandler):
         pedal_mode = ['Ignore', 'Normal', 'NoteLength', 'Toggle Active', 'Push Active']
         self._pedal_mode = [self._dev.pedal_mode[x] if x in self._dev.pedal_mode else x for x in pedal_mode]
 
-        self._hb = [0] * 9
-
-        self.pedals = [MidiBoxPedal(self, i) for i in range(8)]
+        self.pedals = [Pedal(dev, self, i) for i in range(8)]
 
     def reset(self) -> None:
-        for p in self._mb_properties:
-            if p.name == 'program':
-                setattr(self, p.name, 'piano')
-            else:
-                setattr(self, p.name, p.init_value)
+        super().reset()
+        for p in self.pedals:
+            p.reset()
 
-    def setProgram(self, value: str) -> None:
-        p = self.programs[value]
-
-        self._dev.cc((self._index) & 0xF, 0, p.msb)
-        self._dev.cc((self._index) & 0xF, 32, p.lsb)
-        self._dev.pc((self._index) & 0xF, p.pc - 1)
-
-        # Check?
-        for sysex in p.sysex:
-            sysex[1] = 0x40 | (self._part)
-            self._dev.roland_sysex(sysex)
-
-    #def hb(self, path, index, value) -> None:
-    #    val = int(value * 16) & 0xF
-    #    self._hb[index[0]] = val
-    #    #hammond_bars[14] = {0x40, 0x41, 0x51, 0x00, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-    #    self._dev.roland_sysex([0x40, 0x40 | (self._part), 0x51, 0x00, 0x01] + self._hb)
-
-    def on_checkedprop_change(self, name: str, value: Any) -> None:
-        self._write_config(name, value)
-
-    def _write_config(self, name: Optional[str] = None, value: Optional[Any] = None) -> None:
-        self._dev._write_layer_config(self) #, name, value)
-
-    def _read_layer_config(self) -> None:
-        self._dev._read_layer_config(self)
+    def emit_all(self) -> None:
+        super().emit_all()
+        for p in self.pedals:
+            p.emit_all()
 
 
-MidiBoxProps = [
+GeneralProps = [
     BoolProp('enable'),
     BoolProp('mute'),
 ]
 
 
 @mb_properties_init
-class BaseMidibox(CheckedPropHandler):
-    _mb_properties = MidiBoxProps
+class General(PropHandler):
+    _mb_properties = GeneralProps
 
+
+class PropChange(NamedTuple):
+    source: PropHandler
+    name: str
+    value: Any
+
+
+class BundleManager:
+    def __init__(self, request_handler: "BaseMidibox"):
+        self._mb = request_handler
+
+    def __enter__(self) -> None:
+        if self._mb._bundle_inner == 0:
+            self._mb._bundle = None
+            self._mb._bundle = []
+        self._mb._bundle_inner += 1
+
+    def __exit__(self, exc_type: Optional[Type[BaseException]], exc: Optional[BaseException], traceback: Optional[TracebackType]) -> Optional[bool]:
+        self._mb._bundle_inner -= 1
+        if self._mb._bundle_inner == 0:
+            if self._mb._bundle:
+                bundle = self._mb._bundle
+                self._mb._bundle = None
+                self._mb.set_props(bundle)
+        return None
+
+
+class BaseMidibox():
     pedal_cc = {
         'Unknown': 0,
         'Sustain': 64,
@@ -241,48 +247,63 @@ class BaseMidibox(CheckedPropHandler):
         'Push Active': 4,
     }
 
-    layers: List[MidiBoxLayer]
+    layers: List[Layer]
+
+    _bundle: Optional[list[PropChange]]
+    _bundle_inner: int
 
     def __init__(self) -> None:
         super().__init__()
 
-        self.layers = [MidiBoxLayer(self, i) for i in range(8)]
+        self.layers = [Layer(self, i) for i in range(8)]
+        self.general = General(self)
         self._callbacks: list[Callable[[mido.Message], None]] = []
 
         self._requestKey: Optional[Tuple[str, int, str]] = None
+        self._bundle = None
+        self._bundle_inner = 0
 
     def disconnect(self) -> None:
-        self._disconnect()
+        pass
 
     def connect(self) -> None:
-        self._connect()
-        self.emit_all()
-
-    def on_checkedprop_change(self, name: str, value: Any) -> None:
-        self._write_config()
-
-    def emit_control(self, name: str) -> None:
-        kwargs = {name: getattr(self, name)}
-        self.emit('control_change', **kwargs)
+        pass
 
     def emit_all(self) -> None:
-        for ctrl in BaseMidibox._mb_properties:
-            kwargs = {ctrl.name: getattr(self, ctrl.name)}
-            self.emit('control_change', **kwargs)
-
+        self.general.emit_all()
         for lr in self.layers:
-            for lctrl in MidiBoxLayer._mb_properties:
-                kwargs = {lctrl.name: getattr(lr, lctrl.name)}
-                lr.emit('control_change', **kwargs)
+            lr.emit_all()
 
-            for p in lr.pedals:
-                for pctrl in MidiBoxPedal._mb_properties:
-                    kwargs = {pctrl.name: getattr(p, pctrl.name)}
-                    p.emit('control_change', **kwargs)
+    def reset(self) -> None:
+        self.general.reset()
+        for lr in self.layers:
+            lr.reset()
 
-    def inputCallback(self, msg: mido.Message) -> None:
-        for c in self._callbacks:
-            c(msg)
+    def send(self, b: bytes | list[int]) -> None:
+        if isinstance(b, list):
+            b = bytes(b)
+        msg = mido.Message.from_bytes(b)
+        self.sendmsg(msg)
+
+    def bundle(self) -> BundleManager:
+        return BundleManager(self)
+
+    def set_prop(self, source: PropHandler, name: str, value: Any) -> None:
+        pc = PropChange(source, name, value)
+        if self._bundle is not None:
+            self._bundle.append(pc)
+        else:
+            self.set_props([pc])
+
+    def set_props(self, props: list[PropChange]) -> None:
+        raise NotImplementedError
+
+    def sendmsg(self, msg: mido.Message) -> None:
+        raise NotImplementedError
+
+    def input_callback(self, msg: mido.Message) -> None:
+        for cb in self._callbacks:
+            cb(msg)
 
         if msg.type == 'clock':
             return
@@ -290,8 +311,8 @@ class BaseMidibox(CheckedPropHandler):
         if msg.type == 'note_on':
             if self._requestKey is not None:
                 target, layer_index, target_prop = self._requestKey
-                assert target == 'layer'
-                setattr(self.layers[layer_index], target_prop, msg.note)
+                if target == 'layer':
+                    setattr(self.layers[layer_index], target_prop, msg.note)
                 self._requestKey = None
                 self.mute = False
 
@@ -318,7 +339,7 @@ class BaseMidibox(CheckedPropHandler):
                     #print(eff_type, data)
 
     def initialize(self) -> None:
-        self._initialize()
+        pass
 
     def requestKey(self, target: str, index: int, prop: str) -> None:
         self.mute = True
@@ -329,24 +350,19 @@ class BaseMidibox(CheckedPropHandler):
             self.cc(i, 120, 0)
 
     def note_on(self, channel: int, note: int, vel: int) -> None:
-        self._write([0x90 | (channel & 0xF), note & 0x7F, vel & 0x7F])
+        self.send([0x90 | (channel & 0xF), note & 0x7F, vel & 0x7F])
 
     def note_off(self, channel: int, note: int, vel: int) -> None:
-        self._write([0x80 | (channel & 0xF), note & 0x7F, vel & 0x7F])
+        self.send([0x80 | (channel & 0xF), note & 0x7F, vel & 0x7F])
 
     def cc(self, channel: int, cc: int, val: int) -> None:
-        self._write([0xB0 | (channel & 0xF), cc & 0x7F, val & 0x7F])
+        self.send([0xB0 | (channel & 0xF), cc & 0x7F, val & 0x7F])
 
     def pc(self, channel: int, pgm: int) -> None:
-        self._write([0xC0 | (channel & 0xF), pgm & 0x7F])
+        self.send([0xC0 | (channel & 0xF), pgm & 0x7F])
+
+    def sysex(self, msg: list[int]) -> None:
+        self.send([0xF0] + msg + [0xF7])
 
     def roland_sysex(self, data: list[int]) -> None:
-        self._write_sysex([0x41, 0x10, 0x42, 0x12] + data + [(128 - sum(data)) & 0x7F])
-
-    #def setPartParam(self, part: int, param: int, val: list[int]) -> None:
-    #    self.setSystemParam(0x10 | (part & 0xF), param, val)
-
-    #def setSystemParam(self, a: int, param: int, val: list[int]) -> None:
-    #    if type(val) not in [bytes, list]:
-    #        val = [val]
-    #    self.roland_sysex([0x40, 0x00 | a, param] + val)
+        self.sysex([0x41, 0x10, 0x42, 0x12] + data + [(128 - sum(data)) & 0x7F])

@@ -4,10 +4,12 @@ import threading
 import queue
 import mido
 
-from typing import TypedDict, Optional
+from typing import Optional, Callable, Tuple, Iterable
+from dataclasses import dataclass
 
 
-class MidiplayerStatus(TypedDict):
+@dataclass
+class MidiplayerStatus():
     current_time: Optional[float] = None
     total_time: Optional[float] = None
 
@@ -16,14 +18,15 @@ class Midiplayer():
     def __init__(self, port: str):
         self._port_name = port
         self._midifile = None
-        self._midiiter = iter(())
+        self._midiiter: Iterable[mido.Message] = iter(())
+
         self._global_time = 0.0
 
         self._stop = threading.Event()
         self._pause = threading.Event()
         self._timer_reset = threading.Event()
-        self.update_cbs = []
-        self._update_queue = queue.Queue()
+        self.update_cbs: list[Callable[[MidiplayerStatus], None]] = []
+        self._update_queue: queue.Queue[MidiplayerStatus] = queue.Queue()
 
     def _update_func(self) -> None:
         while not self._stop.is_set():
@@ -55,7 +58,7 @@ class Midiplayer():
     def pause(self) -> None:
         self.play(False)
 
-    def play(self, play=True) -> None:
+    def play(self, play: bool = True) -> None:
         if not self.is_paused() == play:
             return
 
@@ -65,13 +68,19 @@ class Midiplayer():
         else:
             self._pause.set()
 
-    def load(self, filename) -> None:
+    def load(self, filename: str) -> None:
         self._midifile = mido.MidiFile(filename)
+        if self._midifile is None:
+            return
+
         self._midiiter = iter(self._midifile)
 
     def seek(self, timestamp: float = 0.0) -> None:
+        if self._midifile is None:
+            return
+
         midiiter = iter(self._midifile)
-        tempiter = iter(self._midifile)
+        tempiter: Iterable[mido.MidiMessage] = iter(self._midifile)
         total_time = 0.0
         for msg in tempiter:
             if total_time >= timestamp:
@@ -84,7 +93,7 @@ class Midiplayer():
         self._midiiter = midiiter
         self._timer_reset.set()
 
-    def _stop_all_playing_notes(self):
+    def _stop_all_playing_notes(self) -> None:
         self._output.reset()
         for n, vel in self._playing_notes.items():
             note, channel = n
@@ -92,11 +101,11 @@ class Midiplayer():
 
         #self._playing_notes.clear()
 
-    def _handle_msg(self, msg):
+    def _handle_msg(self, msg: mido.Message) -> None:
         #print(msg)
         if not isinstance(msg, mido.MetaMessage):
             if msg.type == 'note_on' and msg.velocity == 0:
-                print("RETYPE to note_off")
+                #print("RETYPE to note_off")
                 msg.type = 'note_off'
 
             if msg.type == 'note_on':
@@ -112,16 +121,17 @@ class Midiplayer():
             if True or msg.type in ['note_on', 'note_off', 'control_change', 'program_change']:
                 self._output.send(msg)
 
-    def _run(self):
-        def now():
+    def _run(self) -> None:
+        def now() -> float:
             return time.time()
 
-        self._playing_notes = {}
+        self._playing_notes: dict[Tuple[int, int], int] = {}
         paused_msg = None
 
         t0 = None
         input_time = 0.0
         global_time = 0.0
+        midifile_length = 0.0
 
         self._output = mido.open_output(self._port_name)
 
@@ -136,8 +146,10 @@ class Midiplayer():
                 t0 = None
                 paused_msg = None
                 midi_iter = self._midiiter
+                #midi_iter:  = iter(self._midifile)
                 global_time = self._global_time
-                midifile_length = self._midifile.length
+                if self._midifile is not None:
+                    midifile_length = self._midifile.length
 
             #for n, vel in self._playing_notes.items():
             #    note, channel = n
@@ -146,7 +158,6 @@ class Midiplayer():
             if paused_msg:
                 self._handle_msg(paused_msg)
                 paused_msg = None
-
             for msg in midi_iter:
                 if not t0:
                     t0 = time.time()
@@ -194,6 +205,6 @@ class Midiplayer():
 
         self._stop_all_playing_notes()
 
-    def _update_cbs(self, status):
+    def _update_cbs(self, status: MidiplayerStatus) -> None:
         if self._update_queue.qsize() < 2:
             self._update_queue.put_nowait(status)
