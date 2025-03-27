@@ -69,7 +69,9 @@ def main() -> None:
         MainOSCClientHandler.mb = midibox
         osc_srv = TCPOSCServer(("0.0.0.0", 4302), MainOSCClientHandler)
         osc_srv.start()
-        zc_svcs = zc_register_osc_tcp()
+        allowed_ips = None
+        #allowed_ips = ['10.42.0.1']
+        zc_svcs = zc_register_osc_tcp(allowed_ips=allowed_ips)
 
     if args.gui:
         import qasync

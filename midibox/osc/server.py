@@ -135,13 +135,15 @@ def getIPv4Addresses() -> dict[str, str]:
     return ret
 
 
-def zc_register_osc_tcp(port: int = 4302, oscname: str = "MidiboxOSC") -> list[tuple[Zeroconf, ServiceInfo]]:
+def zc_register_osc_tcp(port: int = 4302, oscname: str = "MidiboxOSC", allowed_ips: list[str] | None = None) -> list[tuple[Zeroconf, ServiceInfo]]:
     zc_service = "_osc._tcp.local."
     zc_name = oscname + "." + zc_service
     zc_svcs = []
     # Workaround to publish all IP addresses
     for ifname, ip in getIPv4Addresses().items():
         zc_name = f"{oscname}_{ifname}.{zc_service}"
+        if allowed_ips is not None and ip not in allowed_ips:
+            continue
         si = ServiceInfo(zc_service, zc_name, port, addresses=[ip]) # type: ignore[list-item]
         zc = Zeroconf([ip])
         zc.register_service(si)
