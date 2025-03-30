@@ -64,7 +64,7 @@ def main() -> None:
         mp.init()
         midi_file = config.get("midiplayer", {}).get("autoload")
         if midi_file:
-            mp.load(midi_file)
+            mp.open(midi_file)
         MainOSCClientHandler.mp = mp
         MainOSCClientHandler.mb = midibox
         osc_srv = TCPOSCServer(("0.0.0.0", 4302), MainOSCClientHandler)

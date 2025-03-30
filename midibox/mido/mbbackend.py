@@ -389,7 +389,7 @@ class MidoMidibox(BaseMidibox):
         if "rangeu" in names:
             c[7] = lr.rangeu
         if "volume" in names:
-            c[9] = lr.volume
+            c[8] = lr.volume
         if "transposition" in names:
             c[10] = lr.transposition + 64
         if "transposition_extra" in names:
