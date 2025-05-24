@@ -89,6 +89,7 @@ Item {
 						ListView {
 							anchors.fill: parent
 							model: programPresetsModel
+							clip: true
 							ScrollBar.vertical: ScrollBar {
 								active: true
 							}

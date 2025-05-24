@@ -67,7 +67,7 @@ Pane {
 			Layers {
 			}
 
-			GridLayout{
+			GridLayout {
 				objectName: "presets"
 				rows: 6
 				flow: GridLayout.TopToBottom
