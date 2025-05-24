@@ -72,7 +72,12 @@ class OscClient(threading.Thread):
         while self.s is None and self.alive.is_set():
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.connect(self.addr)
+                s.settimeout(5)
+                try:
+                    s.connect(self.addr)
+                except TimeoutError:
+                    continue
+                s.settimeout(None)
                 self.s = s
             except OSError:
                 time.sleep(0.1)
