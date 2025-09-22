@@ -415,6 +415,9 @@ class MidoMidibox(BaseMidibox):
         if "portamento_time" in names:
             c[42] = lr._portamento_time
 
+        if "volume_ch" in names:
+            c[43] = lr._volume_ch
+
     def _update_pedal_config(self, p: Pedal, names: list[str]) -> None:
         lr = p._layer
         i = p._index
@@ -432,7 +435,7 @@ class MidoMidibox(BaseMidibox):
 
     def _read_layer_config(self, layer: Layer, retries: Optional[int] = None, timeout: float = READ_TIMEOUT) -> None:
         lr = layer
-        self._config[lr._index] = self._read_regs(lr._index, 0, 43, retries, timeout)
+        self._config[lr._index] = self._read_regs(lr._index, 0, 44, retries, timeout)
         self._load_layer_config(lr)
 
     def _load_layer_config(self, layer: Layer) -> None:
@@ -467,3 +470,4 @@ class MidoMidibox(BaseMidibox):
             setattr(lr, f'harmonic_bar{i}', c[33 + i])
 
         lr.portamento_time = c[42]
+        lr.volume_ch = c[43]

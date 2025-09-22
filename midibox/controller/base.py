@@ -129,6 +129,7 @@ LayerProps: list[CheckedProp[Any]] = [
     *[
         CheckedProp(f'harmonic_bar{i}', 0, lambda s, v: clamp(v, 0, 15)) for i in range(9)
     ],
+    UIntProp('volume_ch'),
 ]
 
 efx = {

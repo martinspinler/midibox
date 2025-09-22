@@ -84,6 +84,7 @@ struct layer_state_reg {
 	uint8_t harmonic_bar[9];
 	/* offset 42 */
 	uint8_t portamento_time;
+	uint8_t volume_ch;	/* React to volume controller on channel (0 = disabled) */
 };
 
 struct global_state_reg {

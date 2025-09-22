@@ -524,6 +524,9 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 		uint8_t bsl;
 	} tc;
 
+	struct midi_changes changes;
+	changes = {0};
+
 
 	if ((gs.r.status & GS_STATUS_INITED) == 0) {
 		midi_send_init();
@@ -673,6 +676,14 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 					else
 						tc.bsl = msg_out.data2;
 				}
+			} else if (b1 == ChannelVolume) {
+				if (msg.channel == lr.r.volume_ch) {
+					lr.r.volume = b2;
+					changes.volume = 1;
+					midi_update_layer(lr, lr, changes);
+					midi_inform_lr_change(l, 8, 1);
+					MS1.send(msg_out);
+				}
 			} else {
 				MS1.send(msg_out);
 			}
@@ -791,6 +802,13 @@ void midi_init()
 		}
 
 		lr.r.portamento_time = 0;
+
+		if (l < 2)
+			lr.r.volume_ch = 1;
+		else if (l >= 6)
+			lr.r.volume_ch = 3;
+		else
+			lr.r.volume_ch = 0;
 
 		for (uint8_t j = 0; j < 128/8; j++) {
 			lr.note[j] = 0;
