@@ -7,6 +7,8 @@ dependencies = [
 	"python-dispatch",
 	"python-osc",
 	"python-rtmidi",
+	"pyyaml",
+	"zeroconf",
 ]
 
 [project.optional-dependencies]
