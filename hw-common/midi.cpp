@@ -154,7 +154,7 @@ void midi_handle_pedal_input(uint8_t pedal, uint8_t val)
 			MS1.sendControlChange(cc, val, i + 1);
 			if (cc == PortamentoTime) {
 				lr.r.portamento_time = val;
-				midi_inform_lr_change(i, 42, 1);
+				midi_inform_lr_change(i, offsetof(struct layer_state_reg, portamento_time), 1);
 			}
 		} else if (pm == PEDAL_MODE_TOGGLE_ACT) {
 			if (val == 0x7F) {
@@ -180,7 +180,7 @@ void midi_handle_pedal_input(uint8_t pedal, uint8_t val)
 			}
 		}
 		if (lr.r.active != prev_active) {
-			midi_inform_lr_change(i, 0, 1);
+			midi_inform_lr_change(i, offsetof(struct layer_state_reg, config), 1);
 		}
 	}
 }
@@ -665,7 +665,7 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 				lr.r.pgm = tc.pgm;
 				lr.r.bs = tc.bsm;
 				lr.r.bs_lsb = tc.bsl;
-				midi_inform_lr_change(l, 3, 3);
+				midi_inform_lr_change(l, offsetof(struct layer_state_reg, pgm), 3);
 			}
 		} else if (cmd == midi::ControlChange) {
 			if (b1 == BankSelect || b1 == BankSelectLSB) {
@@ -681,7 +681,7 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 					lr.r.volume = b2;
 					changes.volume = 1;
 					midi_update_layer(lr, lr, changes);
-					midi_inform_lr_change(l, 8, 1);
+					midi_inform_lr_change(l, offsetof(struct layer_state_reg, volume), 1);
 					MS1.send(msg_out);
 				}
 			} else {
@@ -706,7 +706,7 @@ void handleS1Error(int8_t e)
 {
 	if (e & (1 << ErrorActiveSensingTimeout) && (gs.r.status & GS_STATUS_INITED)) {
 		gs.r.status &= ~GS_STATUS_INITED;
-		midi_inform_lr_change(MIDIBOX_LAYER_ID_GLOBAL, 1, 1);
+		midi_inform_lr_change(MIDIBOX_LAYER_ID_GLOBAL, offsetof(struct global_state_reg, status), 1);
 	}
 }
 
@@ -881,7 +881,7 @@ void midi_send_init()
 	}
 
 	gs.r.status |= GS_STATUS_INITED;
-	midi_inform_lr_change(MIDIBOX_LAYER_ID_GLOBAL, 1, 1);
+	midi_inform_lr_change(MIDIBOX_LAYER_ID_GLOBAL, offsetof(struct global_state_reg, status), 1);
 }
 
 #if 0
