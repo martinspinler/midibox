@@ -5,7 +5,7 @@ set(PICO_BOARD pico_w)
 set(ARDUINO_LIBRARIES_DIR "$ENV{HOME}/Arduino/libraries")
 set(ARDUINO_CORE_DIR "$ENV{HOME}/.arduino15/packages/rp2040/hardware/rp2040/3.4.1/cores/rp2040")
 
-include_directories(${ARDUINO_LIBRARIES_DIR}/MIDI_Library/src)
+include_directories(${ARDUINO_LIBRARIES_DIR}/MIDI_Library/src ${ARDUINO_LIBRARIES_DIR}/Protothreads/src)
 
 include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 project(${PROJECT} C CXX ASM)
@@ -24,7 +24,7 @@ target_include_directories(${PROJECT} PUBLIC
 )
 #target_compile_options(${PROJECT} PUBLIC -DPICO_STDIO_USB_ENABLE_RESET_VIA_VENDOR_INTERFACE=1)
 
-target_link_libraries(${PROJECT} pico_stdlib pico_multicore tinyusb_host tinyusb_board)
+target_link_libraries(${PROJECT} pico_stdlib pico_multicore hardware_adc tinyusb_host tinyusb_board)
 pico_add_extra_outputs(${PROJECT})
 pico_enable_stdio_usb(${PROJECT} 0)
 pico_enable_stdio_uart(${PROJECT} 1)
