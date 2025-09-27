@@ -139,6 +139,7 @@ void check_inputs()
 
 			if (invert)
 				val = 0x7F - val;
+/*
 
 			avg = val;
 			pmin = 0x7f;
@@ -157,6 +158,7 @@ void check_inputs()
 
 			pmax = avg <  0x7f ? avg + 1 : 0x7f;
 			pmin = avg >= 0x01 ? avg - 1 : 0x00;
+*/
 
 			if (
 					((val < pmin || val > pmax) || (val == 0x00 || val == 0x7f)) &&
