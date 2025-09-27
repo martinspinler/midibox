@@ -748,8 +748,16 @@ void midi_init()
 
 	for (i = 0; i < MIDIBOX_PEDALS; i++) {
 		gs.r.pedal_mode[i] = PEDAL_MODE_NORMAL;
-		gs.r.pedal_min[i] = 0x00;
-		gs.r.pedal_max[i] = 0x7f;
+		if (i < 2) {
+			gs.r.pedal_min[i] = 0x05;
+			gs.r.pedal_max[i] = 0x06;
+		} else if (i == 2) {
+			gs.r.pedal_min[i] = 0x00;
+			gs.r.pedal_max[i] = 0x75;
+		} else {
+			gs.r.pedal_min[i] = 0x00;
+			gs.r.pedal_max[i] = 0x7f;
+		}
 	}
 	gs.r.pedal_mode[3] = PEDAL_MODE_IGNORE;
 
