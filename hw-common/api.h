@@ -105,13 +105,18 @@ struct global_state_reg {
 	uint8_t init;	/* W/O */
 	uint8_t selected_layer;
 
+	/* offset 4 */
 	uint8_t tempo_msb;
 	uint8_t tempo_lsb;
 //	int8_t _unused0[2];
 
+	/* offset 6 */
 	uint8_t pedal_cc[PEDALS];
+	/* offset 14 */
 	uint8_t pedal_mode[PEDALS];
 
+	/* offset 22 */
 	uint8_t pedal_min[PEDALS];
+	/* offset 30 */
 	uint8_t pedal_max[PEDALS];
 };

@@ -49,6 +49,13 @@ class MidoMidibox(BaseMidibox):
     _CMD_WRITE_ACK = 5 # noqa
     _CMD_WRITE_NAK = 6 # noqa
 
+    _LR_GENERAL_OFFSETS = {
+        "pedal_cc": 6,
+        "pedal_mode": 14,
+        "pedal_min": 22,
+        "pedal_max": 30
+    }
+
     _config: dict[int, List[int]]
     _do_init: dict[PropHandler, bool]
 
@@ -347,6 +354,13 @@ class MidoMidibox(BaseMidibox):
         c = self._config[self._LAYER_GENERAL]
         if "enable" in names:
             c[0] = sbit(c[0], 0, self.general.enable)
+
+        for i in range(8):
+            for n, o in self._LR_GENERAL_OFFSETS.items():
+                name = f"{n}{i}"
+                if name in names:
+                    c[o+i] = getattr(self.general, name)
+
         #####c[2] = 1 if self._do_init.get(self.general, 1) else 0
         #c[3] = self._selected_layer
         self._do_init[self.general] = False
@@ -360,6 +374,11 @@ class MidoMidibox(BaseMidibox):
     def _load_general_config(self) -> None:
         c = self._config[self._LAYER_GENERAL]
         self.general.enable = True if c[0] & 1 else False
+
+        for i in range(8):
+            for n, o in self._LR_GENERAL_OFFSETS.items():
+                name = f"{n}{i}"
+                setattr(self.general, name, c[o+i])
 
     def _write_layer_config(self, layer: Layer) -> None:
         c = self._config.get(layer)

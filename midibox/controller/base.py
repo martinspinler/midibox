@@ -190,6 +190,10 @@ class Layer(PropHandler):
 GeneralProps = [
     BoolProp('enable'),
     BoolProp('mute'),
+    *[UIntProp(f'pedal_cc{i}', ) for i in range(8)],
+    *[UIntProp(f'pedal_mode{i}', ) for i in range(8)],
+    *[UIntProp(f'pedal_min{i}', ) for i in range(8)],
+    *[UIntProp(f'pedal_max{i}', ) for i in range(8)],
 ]
 
 
