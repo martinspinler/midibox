@@ -71,10 +71,6 @@ class MidoMidibox(BaseMidibox):
         self._cb_data: Optional[list[int]] = None
         self._cb_data_waiting: Optional[Tuple[int, int, int]] = None
 
-        if self._debug:
-            self._callbacks.append(lambda msg: self._log.debug("recv", mido.format_as_string(msg, False)))
-
-        #self._callbacks.append(self._rc_callback)
         self._midi_thread_exit = False
         self._midi_thread = Thread(target=self._connection_check)
 
@@ -218,6 +214,9 @@ class MidoMidibox(BaseMidibox):
 
     def _input_callback(self, msg: mido.Message) -> None:
         self._midi_last_activity = time.time()
+
+        if self._debug:
+            print("recv", mido.format_as_string(msg, False))
 
         if not self._rc_callback(msg):
             self.input_callback(msg)
