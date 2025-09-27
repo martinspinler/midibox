@@ -751,6 +751,9 @@ void midi_init()
 		gs.r.pedal_min[i] = 0x00;
 		gs.r.pedal_max[i] = 0x7f;
 	}
+	gs.r.pedal_mode[0] = PEDAL_MODE_IGNORE;
+	gs.r.pedal_mode[1] = PEDAL_MODE_IGNORE;
+	gs.r.pedal_mode[2] = PEDAL_MODE_IGNORE;
 	gs.r.pedal_mode[3] = PEDAL_MODE_IGNORE;
 
 	for (uint8_t l = 0; l < LAYERS; l++) {
