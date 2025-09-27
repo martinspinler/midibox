@@ -292,7 +292,7 @@ void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 
 		gs_prev = gs;
 
-		memcpy(&gs.r + offset, c, len);
+		memcpy(((uint8_t*)(&gs.r)) + offset, c, reqlen);
 
 		gs.tempo = gs.r.tempo_msb << 7 + gs.r.tempo_lsb;
 
