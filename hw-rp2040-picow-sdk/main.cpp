@@ -219,6 +219,7 @@ int main(void)
 		midi_loop();
 		check_inputs();
 		Serial_HW1.tx_cb();
+		Serial_HW1.tx_flush();
 	}
 
 	return 0;
@@ -250,4 +251,6 @@ void tuh_midi_tx_cb(uint8_t idx, uint32_t xferred_bytes)
 {
 	(void) idx;
 	(void) xferred_bytes;
+
+	Serial_HW1.tx_flush();
 }

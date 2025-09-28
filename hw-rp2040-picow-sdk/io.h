@@ -28,12 +28,12 @@ public:
 class TUHMidiSerial: public VirtualSerial
 {
 	std::vector<uint8_t> m_input_message;
-//	std::vector<uint8_t> m_output_message;
+	std::vector<uint8_t> m_output_message;
 	uint8_t m_buf[256];
 public:
 	TUHMidiSerial() {
 		m_input_message.reserve(256);
-//		m_output_message.reserve(256);
+		m_output_message.reserve(256);
 	}
 	virtual ~TUHMidiSerial() {}
 
@@ -46,6 +46,7 @@ public:
 
 	void rx_cb(uint8_t);
 	void tx_cb();
+	void tx_flush();
 };
 
 class UartMidiSerial: public VirtualSerial

@@ -43,6 +43,7 @@ enum {
 
 enum {
 	GS_STATUS_INITED = 1,
+	GS_STATUS_ERR = 2,
 };
 
 struct layer_state_reg {
