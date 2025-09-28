@@ -9,6 +9,8 @@
 
 #include "tusb.h"
 
+#include "midi.h"
+
 using namespace midi;
 using namespace std;
 
@@ -140,15 +142,40 @@ void TUHMidiSerial::rx_cb(uint8_t xferred_bytes)
 
 size_t TUHMidiSerial::write(uint8_t byte)
 {
+	uint32_t ret;
 	uint8_t buffer[1];
-	buffer[0] = byte;
 
-	return tuh_midi_stream_write(0, 0, buffer, 1);
+	if (m_output_message.empty()) {
+		buffer[0] = byte;
+		ret = tuh_midi_stream_write(0, 0, buffer, 1);
+		if (ret != 1) {
+			gs.r.status |= 2;
+		}
+		m_output_message.push_back(byte);
+	} else {
+		m_output_message.push_back(byte);
+	}
+	return ret;
 }
 
 void TUHMidiSerial::tx_cb()
 {
 	tuh_midi_write_flush(0);
+}
+
+void TUHMidiSerial::tx_flush()
+{
+	uint32_t ret;
+	uint8_t buffer[1];
+
+	while (!m_output_message.empty()) {
+		buffer[0] = m_output_message.front();;
+		ret = tuh_midi_stream_write(0, 0, buffer, 1);
+		if (ret != 1) {
+			return;
+		}
+		m_output_message.erase(m_output_message.begin());
+	}
 }
 
 void check_reset(int c)
