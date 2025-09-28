@@ -96,7 +96,7 @@ struct global_state_reg {
 			bool debug_s2b_all: 1;
 			bool debug_s2b: 1;
 			bool debug_smsg_print: 1;
-			bool debug_cfg_print: 1;
+			bool check_keep_alive: 1;
 		};
 		uint8_t config;
 	};
