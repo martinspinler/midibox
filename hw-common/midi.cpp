@@ -7,6 +7,7 @@
 using namespace midi;
 
 static unsigned long next_tick = 0;
+static unsigned long last_keep_alive = 0;
 
 struct global_state gs;
 struct layer_state ls[LAYERS];
@@ -411,10 +412,13 @@ void handleUsbMidiMessage(const Message<128> & msg)
 	if (msg.type == SystemExclusive) {
 		if (msg.sysexArray[1] == MIDIBOX_SYSEX_ID1 || msg.sysexArray[1] == MIDIBOX_SYSEX_ID2) {
 			midi_handle_controller_cmd(1, msg.sysexArray + 1, msg.getSysExSize() - 2);
+			last_keep_alive = micros();
 		} else if (msg.sysexArray[1] == MIDIBOX_PEDAL_SYSEX_ID) {
 			midi_handle_pedal_input(msg.sysexArray[3], msg.sysexArray[4]);
+			//last_keep_alive = micros();
 		} else {
-			MS1.send(msg);
+			if (gs.r.check_keep_alive == 0 || last_keep_alive + 2000000 > micros())
+				MS1.send(msg);
 		}
 	} else {
 		switch (msg.type)
@@ -426,7 +430,8 @@ void handleUsbMidiMessage(const Message<128> & msg)
 		case AfterTouchPoly:
 		case AfterTouchChannel:
 		case ProgramChange:
-			MS1.send(msg);
+			if (gs.r.check_keep_alive == 0 || last_keep_alive + 2000000 > micros())
+				MS1.send(msg);
 			break;
 		default:
 			break;
@@ -724,6 +729,7 @@ void midi_init()
 	gs2reg(gs);
 
 	gs.r.debug_s2u_all = 1;
+	gs.r.check_keep_alive = 0;
 
 	gs.r.pedal_cc[0] = Sustain;
 	gs.r.pedal_cc[1] = SoftPedal;
