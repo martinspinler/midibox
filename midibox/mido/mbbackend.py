@@ -1,7 +1,7 @@
 import time
 import mido
 import logging
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Any
 
 from ..controller.base import BaseMidibox, Layer, PropHandler, General, Pedal, PropChange
 
@@ -38,6 +38,8 @@ class PortNotFoundError(Exception):
 
 
 class MidoMidibox(BaseMidibox):
+    PERIODIC_CHECK = False
+
     _SYSEX_ID = 0x77
     _LAYER_GENERAL = 15
 
@@ -115,7 +117,7 @@ class MidoMidibox(BaseMidibox):
                 index = self._LAYER_GENERAL
                 if index not in origs:
                     origs[index] = self._config[index].copy()
-                self._update_general_config([p.name])
+                self._update_general_config({p.name: p.value})
             elif isinstance(s, Layer):
                 index = s._index
                 if index not in origs:
@@ -191,7 +193,8 @@ class MidoMidibox(BaseMidibox):
         self._midi_last_activity = time.time()
         while not self._midi_thread_exit:
             time.sleep(0.2)
-            self._midi_last_activity = time.time()
+            if not self.PERIODIC_CHECK:
+                self._midi_last_activity = time.time()
             if time.time() > self._midi_last_activity + 1:
                 if time.time() > self._midi_last_activity + 2:
                     self._log.info("Midibox reconnecting")
@@ -231,9 +234,6 @@ class MidoMidibox(BaseMidibox):
     def _init_config(self, retries: Optional[int] = None, timeout: float = READ_TIMEOUT) -> None:
         self._read_general_config(retries, timeout)
 
-        # INFO: all debug, not enable
-        #self._config[2] |= 0x7e
-
         for lr in self.layers:
             self._read_layer_config(lr, retries, timeout)
 
@@ -241,24 +241,11 @@ class MidoMidibox(BaseMidibox):
         if c is None:
             return
 
-        # Analog pedals min-max
-        #for i in range(8):
-        #    c[6 + 16 + 0 + i] = 0x00
-        #    c[6 + 16 + 8 + i] = 0x7f
-
-        #c[6 + 16 + 0 + 0] = 0x20
-        #c[6 + 16 + 8 + 0] = 0x50
-
-        #c[6 + 16 + 0 + 1] = 0x20
-        #c[6 + 16 + 8 + 1] = 0x50
-
-        #c[6 + 16 + 0 + 2] = 0x09
-        #c[6 + 16 + 8 + 2] = 0x38
-
-        for i in range(8):
-            c[6 + 16 + 0 + i] = 0x0
-            c[6 + 16 + 8 + i] = 0x0
-        self._write_general_config()
+        p = [
+            PropChange(self.general, "_check-keep-alive", self.PERIODIC_CHECK),
+            PropChange(self.general, "_send-adc-rawdata", False),
+        ]
+        self.set_props(p)
 
     def _send_mbreq(self, cmd: int, layer: int, offset: int, reqlen: int, msg: list[int] = []) -> None:
         c = ((cmd & 0x07) << 4) | (layer & 0x0F)
@@ -350,10 +337,16 @@ class MidoMidibox(BaseMidibox):
             self._log.info("not connected")
             return
 
-    def _update_general_config(self, names: list[str]) -> None:
+    def _update_general_config(self, names: dict[str, Any]) -> None:
         c = self._config[self._LAYER_GENERAL]
         if "enable" in names:
             c[0] = sbit(c[0], 0, self.general.enable)
+
+        if "_check-keep-alive" in names:
+            c[0] = sbit(c[0], 6, names["_check-keep-alive"])
+
+        if "_send-adc-rawdata" in names:
+            c[0] = sbit(c[0], 5, names["_send-adc-rawdata"])
 
         for i in range(8):
             for n, o in self._LR_GENERAL_OFFSETS.items():
