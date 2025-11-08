@@ -729,7 +729,7 @@ void midi_init()
 	gs2reg(gs);
 
 	gs.r.debug_s2u_all = 1;
-	gs.r.check_keep_alive = 0;
+	gs.r.check_keep_alive = 1;
 
 	gs.r.pedal_cc[0] = Sustain;
 	gs.r.pedal_cc[1] = SoftPedal;
