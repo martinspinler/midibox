@@ -21,6 +21,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("-G", "--no-gui", help="Do not run GUI", action='store_false', dest='gui')
     parser.add_argument("-d", "--debug", help="Debug Midibox", action='store_true')
     parser.add_argument("-c", "--config", help="Configuration YAML", default=None)
+
+    parser.add_argument("--osc-server-port", help="Specify OSC server port", metavar='int', type=int, default=4302)
     parser.add_argument("--disable-sandbox", help="Disable sandbox for QtWebEngine", action='store_true')
     return parser.parse_args()
 
@@ -67,11 +69,11 @@ def main() -> None:
             mp.open(midi_file)
         MainOSCClientHandler.mp = mp
         MainOSCClientHandler.mb = midibox
-        osc_srv = TCPOSCServer(("0.0.0.0", 4302), MainOSCClientHandler)
+        osc_srv = TCPOSCServer(("0.0.0.0", args.osc_server_port), MainOSCClientHandler)
         osc_srv.start()
         allowed_ips = None
         #allowed_ips = ['10.42.0.1']
-        zc_svcs = zc_register_osc_tcp(allowed_ips=allowed_ips)
+        zc_svcs = zc_register_osc_tcp(allowed_ips=allowed_ips, port=args.osc_server_port)
 
     if args.gui:
         import qasync
