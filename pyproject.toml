@@ -9,6 +9,7 @@ dependencies = [
 	"python-rtmidi",
 	"pyyaml",
 	"zeroconf",
+	"numpy",
 ]
 
 [project.optional-dependencies]
@@ -17,6 +18,10 @@ gui = [
 	"PyQtChart",
 	"PyQtWebengine",
 	"qasync",
+]
+
+beater = [
+	"matplotlib",
 ]
 
 types = [
