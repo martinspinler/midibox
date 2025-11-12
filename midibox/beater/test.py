@@ -20,24 +20,24 @@ testfiles = [
         ],
         "skip_ranges": [
             range(0, 13),
-            range(260, 10000)
+            #range(260, 10000)
         ],
         "time_mult": 1 / 0.483,
     }, {
         "filename": "bands/Perfect Time/midi/Aruanda.mid",
         "skip_ranges": [
             range(0, 55),
-            range(240, 100000),
+            #range(240, 100000),
         ],
-        "tempo_hint": 176 * 2,
-        "time_mult": 2.933 * 2,
+        "tempo_hint": 176 * 1,
+        "time_mult": 2.933 * 1,
     }, {
         "filename": "bands/Perfect Time/midi/Can You Can Two Toucans in Two Cans.mid",
         "bch": 3,
-        "tempo_hint": 180,
-        "time_mult": 1/3,
+        "tempo_hint": 180*2,
+        "time_mult": 1/3 *2,
         "skip_ranges": [
-            range(60, 360000),
+            #range(60, 360000),
         ],
     }, {
         "filename": "bands/Perfect Time/midi/Days of Wine and Roses.mid",
@@ -45,7 +45,7 @@ testfiles = [
         "tempo_hint": 165,
         "time_mult": 1 / 0.3636,
         "skip_ranges": [
-            range(0, 36),
+            #range(0, 36),
             #range(200, 20000),
         ],
     },
@@ -75,11 +75,12 @@ def test():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-r', '--root')
+    parser.add_argument('-f', '--file', type=int, default=0)
     parser.add_argument('-b', '--begin', type=float, default=0)
     parser.add_argument('-e', '--end', type=float, default=1e9)
     args = parser.parse_args()
 
-    tf = testfiles[1]
+    tf = testfiles[args.file]
 
     filename = args.root + tf["filename"]
     _midifile = mido.MidiFile(filename)
@@ -117,11 +118,7 @@ def test():
                         skip = True
 
                 if not skip:
-                    tp.check_beat(ttime) # Helper for correct printing sequence
-                if not skip:
-                    print(('-' if skip else "=") * 10, f"{msg_id: 4d} {note2text(msg.note):4}", f"{ttime:.3f}", f"(orig: {(ttime+offset) / time_mult:.3f})" if show_orig else "", "=" * 10)
-                if not skip:
-                    tp.on_note_event(ttime, msg)
+                    tp.on_note_event(ttime, msg_id, msg, f"{note2text(msg.note):4}")
 
     visualiser.draw(max(args.begin, 0), min(ttime, args.end))
 
