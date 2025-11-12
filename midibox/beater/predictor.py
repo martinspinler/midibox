@@ -65,8 +65,14 @@ class Prediction:
     dbg_all_phases: list["Prediction"] = field(default_factory=lambda: [])
 
 
+@dataclass
+class PredictionConfiguration:
+    nws_coef: float = 0.8
+    bw_coef: float = 5/3
+
+
 class TempoPredictor:
-    def __init__(self, visualiser, debug=False):
+    def __init__(self, visualiser, debug=False, debug_beats=[]):
         self.events = []
         self.beats_abs = []
         self.beat_last = None
@@ -80,6 +86,10 @@ class TempoPredictor:
         self._dbg_last_showed_event = 0
         self._last_phase_change = 1e9
         self._debug = debug
+        self._verbosity = 2
+        self._debug_beats = debug_beats
+
+        self.conf = PredictionConfiguration()
         #self._current_beat_offset = 0
 
     def set_hint(self, tempo, time_mult=1):
@@ -209,7 +219,7 @@ class TempoPredictor:
 
         # The beats / event here are in relative values
         beats = [(n - m) for n, m in zip(self.beats_abs[1:], self.beats_abs[:-1])]
-        beats_weight = [max(1 / (len(beats) * (5/3 *(n+1))), 0.1) for n in range(len(beats))]
+        beats_weight = [max(1 / (len(beats) * (self.conf.bw_coef *(n+1))), 0.1) for n in range(len(beats))]
 
         best = None
         #for off in [0, 1/3, 2/3, 1/2, 1/4]: # 0 is implicit (from previous line)
@@ -237,7 +247,7 @@ class TempoPredictor:
                 p.dbg_predicted_notes = predicted_notes
             all_phases.append(p)
 
-            if best is None or notes_weight_sum * 0.8 > best[2]:
+            if best is None or notes_weight_sum * self.conf.nws_coef > best[2]:
                 best = p, predicted_notes, notes_weight_sum, beat_phase
 
         prediction = best[0]
@@ -247,19 +257,28 @@ class TempoPredictor:
             #prediction.dbg_all_phases = all_phases
         return prediction
 
-    def beat_apply_prediction(self, prediction, beat_next, beat_len, beat_phase_dbg):
-        verbose = 0
+    def pdebug(self, prediction=None, beat_next=None, beat_len=None, beat_phase_dbg=None):
+        if prediction is None:
+            prediction = self.current_prediction
+        if beat_len is None:
+            beat_len = prediction.beat_len
+        if beat_next is None:
+            beat_next = self.beat_last + beat_len
+        if beat_phase_dbg is None:
+            beat_phase_dbg = ""
+
+        verbose = self._verbosity
 
         beats_rel = [(n - m) for n, m in zip(self.beats_abs[1:], self.beats_abs[:-1])]
         bpm_mult = 60 * self._time_mult
         bpm = bpm_mult / beat_len if beat_len != 0 else 0
 
         p = prediction
-        if p and self._debug:
+        if p and self._debug and p.dbg_beats_with_weight:
             if verbose > 1:
                 MAX_N = 8
                 predicted_notes_sel = [(i.p.rel_time, i.p.weight, i.p.weight_pow) for i in p.dbg_predicted_notes]
-                notes, notes_weight, notes_weight_pow = [list(i) for i in zip(*predicted_notes_sel)]
+                notes, notes_weight, notes_weight_pow = [list(i) for i in zip(*predicted_notes_sel)] if predicted_notes_sel else ([], [], [])
 
                 for pn in p.dbg_predicted_notes:
                     for notep, np_bp in pn.dbg_all_p:
@@ -307,6 +326,9 @@ class TempoPredictor:
         #    print(f"Phase {prediction.beat_phase:2f} >>>>>>>>>>>>>>")
 
     def beat(self, prediction):
+        if len(self.v.beats) in self._debug_beats:
+            breakpoint()
+
         # Trigger offset
         beat_len = prediction.beat_len
         beat_phase_dbg = ""
@@ -325,7 +347,7 @@ class TempoPredictor:
 
         beat_next = self.beat_last + beat_len
 
-        self.beat_apply_prediction(prediction, beat_next, beat_len, beat_phase_dbg)
+        self.pdebug(prediction, beat_next, beat_len, beat_phase_dbg)
 
         self.beat_len = beat_len
         self.beat_last = beat_next
