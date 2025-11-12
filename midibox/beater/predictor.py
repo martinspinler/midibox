@@ -4,7 +4,6 @@ import logging
 import numpy as np
 
 
-DEBUG = True
 log_phaser = logging.getLogger("midibox.beater.phaser")
 
 def pfl(fl):
@@ -63,7 +62,7 @@ class Prediction:
 
 
 class TempoPredictor:
-    def __init__(self, visualiser):
+    def __init__(self, visualiser, debug=False):
         self.beat_len = 0
         self.beats_abs = []
         self.events = []
@@ -79,6 +78,7 @@ class TempoPredictor:
 
         self._dbg_last_showed_event = 0
         self._last_phase_change = 1e9
+        self._debug = debug
         #self._current_beat_offset = 0
 
     def set_hint(self, tempo, time_mult=1):
@@ -135,7 +135,7 @@ class TempoPredictor:
             self.prepare_first_beat()
             self.beat(self.beat_len)
 
-        if DEBUG:
+        if self._debug:
             print("=" * 10, f"{msg_id: 4d} {msg_text}", f"{time:.3f}")
 
         if True or len(self.events) > 2:
@@ -182,7 +182,7 @@ class TempoPredictor:
         state = f"{st} {timestamp:.3f} | {1/acnt:.3f} = {probability:.3f}, {weight:.3f}, {weight_pow:.3f}"
 
         p = NotePrediction(e, timestamp, probability, weight, weight_pow, acnt)
-        if DEBUG:
+        if self._debug:
             p.dbg_state = (f"{e:.3f} {beat_phase:.2f} | {ed: 5.3f} {edi: 5.3f} {edn: 5.3f} {edni: 5.3f} | {cnt: 3d} {acnt} {state}")
         return p
         
@@ -200,15 +200,15 @@ class TempoPredictor:
                 if best is None or best.p.probability < n_prediction.probability:
                     best = NoteOffsetPrediction(n_prediction, local_beat_phase, [])
 
-            if DEBUG:
+            if self._debug:
                 best.dbg_all_p = all_local
 
             if best.p.probability < 0.55:
-                if DEBUG:
+                if self._debug:
                     best.dbg_state = f"Best {e:.3f}: NONE"
                 pass
             else:
-                if DEBUG:
+                if self._debug:
                     best.dbg_state = f"Best {e:.3f}: {best.p.rel_time:.3f} for {best.beat_phase:.2f} / {best.p.probability:.2f}"
                 all_best.append(best)
 
@@ -244,7 +244,7 @@ class TempoPredictor:
             notes_weight_sum = sum(notes_weight)
 
             p = Prediction(bl, notes_weight_sum, beat_phase)
-            if DEBUG:
+            if self._debug:
                 p.dbg_predicted_notes = predicted_notes
             all_phases.append(p)
 
@@ -252,7 +252,7 @@ class TempoPredictor:
                 best = p, predicted_notes, notes_weight_sum, beat_phase
 
         prediction = best[0]
-        if DEBUG:
+        if self._debug:
             prediction.dbg_beats_with_weight = beats, beats_weight
             prediction.dbg_all_phases = all_phases
             #prediction.dbg_all_phases = all_phases
@@ -266,7 +266,7 @@ class TempoPredictor:
         bpm = bpm_mult / beat_len if beat_len != 0 else 0
 
         p = prediction
-        if p and DEBUG:
+        if p and self._debug:
             if verbose:
                 MAX_N = 8
                 predicted_notes_sel = [(i.p.rel_time, i.p.weight, i.p.weight_pow) for i in p.dbg_predicted_notes]
@@ -352,8 +352,6 @@ class TempoPredictor:
         if self.beat_last is None:
             return
         while self.beat_last + self.beat_len_predicted < current:
-            #self.offbeats.clear()
-
             self.beat(self.beat_len_predicted, self.current_prediction)
 
             # If no event will arise, recompute prediction anyway
