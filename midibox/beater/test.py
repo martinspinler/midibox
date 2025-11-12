@@ -78,6 +78,9 @@ def test():
     parser.add_argument('-f', '--file', type=int, default=0)
     parser.add_argument('-b', '--begin', type=float, default=0)
     parser.add_argument('-e', '--end', type=float, default=1e9)
+    parser.add_argument('-d', '--debug', action='store_true')
+    parser.add_argument('-g', '--graph', action='store_true')
+    parser.add_argument('-o', '--omni', action='store_true')
     args = parser.parse_args()
 
     tf = testfiles[args.file]
@@ -86,7 +89,7 @@ def test():
     _midifile = mido.MidiFile(filename)
     temp_iter = iter(_midifile)
     visualiser = MPVisualiser()
-    tp = TempoPredictor(visualiser)
+    tp = TempoPredictor(visualiser, debug=args.debug)
     time_mult = tf.get("time_mult", 1)
     tp.set_hint(tf.get("tempo_hint", 120), time_mult)
 
@@ -102,9 +105,7 @@ def test():
         if isinstance(msg, mido.MetaMessage):
             pass
         else:
-            if msg.type == 'note_on' and msg.channel == bch:
-                show_orig = False
-
+            if msg.type == 'note_on' and (msg.channel == bch or args.omni):
                 if offset is None and not skip:
                     offset = ttime
 
@@ -120,7 +121,8 @@ def test():
                 if not skip:
                     tp.on_note_event(ttime, msg_id, msg, f"{note2text(msg.note):4}")
 
-    visualiser.draw(max(args.begin, 0), min(ttime, args.end))
+    if args.graph:
+        visualiser.draw(max(args.begin, 0), min(ttime, args.end))
 
 if __name__ == "__main__":
     test()
