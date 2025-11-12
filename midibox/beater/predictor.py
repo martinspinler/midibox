@@ -55,7 +55,7 @@ class NoteOffsetPrediction:
 
 @dataclass
 class Prediction:
-    beat_len: Optional[float] = None
+    beat_len: float = 0
     note_weight: float = 0
     #note_weight: Optional[float] = None
     beat_phase: float = 0
@@ -128,18 +128,16 @@ class TempoPredictor:
 
         if len(self.events) == 1:
             self.reset(time)
-            self.beat(0)
+            self.beat(Prediction())
         elif len(self.events) == 2:
             self.prepare_first_beat()
-            self.beat(self.beat_len)
+            self.beat(Prediction(self.beat_len))
 
         if self._debug:
             print("=" * 10, f"{msg_id: 4d} {msg_text}", f"{time:.3f}")
 
-        self.current_prediction = self.predict()
-
-        if self.current_prediction.beat_len is not None:
-            self.beat_len_predicted = self.current_prediction.beat_len
+        cp = self.predict()
+        self.current_prediction = cp
 
     def predict_note(self, e, beat_exp, beat_len, beat_phase):
         # ed:   event difference
@@ -258,7 +256,7 @@ class TempoPredictor:
 
         p = prediction
         if p and self._debug:
-            if verbose:
+            if verbose > 1:
                 MAX_N = 8
                 predicted_notes_sel = [(i.p.rel_time, i.p.weight, i.p.weight_pow) for i in p.dbg_predicted_notes]
                 notes, notes_weight, notes_weight_pow = [list(i) for i in zip(*predicted_notes_sel)]
@@ -308,16 +306,17 @@ class TempoPredictor:
         #if verbose:
         #    print(f"Phase {prediction.beat_phase:2f} >>>>>>>>>>>>>>")
 
-    def beat(self, beat_len, prediction=None):
+    def beat(self, prediction):
         # Trigger offset
+        beat_len = prediction.beat_len
         beat_phase_dbg = ""
-        if self.current_prediction.beat_phase and self._last_phase_change > 8:
+        if prediction.beat_phase and self._last_phase_change > 8:
             self._last_phase_change = 0
             self.v.resets.append(self.beat_last)
 
             bp = self.current_prediction.beat_phase
             bpc = bp + 1 if bp < 0.5 else bp + 0
-            abs_offset = self.beat_len_predicted * (bpc)
+            abs_offset = beat_len * (bpc)
             beat_phase_dbg = f">>> Phase shitf {bp:.2f} {bpc:.2f} {abs_offset:.2f}"
             self.beats_abs = [n + abs_offset for n in self.beats_abs]
             self.beat_last += abs_offset
@@ -339,11 +338,12 @@ class TempoPredictor:
         self.v.beats_len.append(self.beat_len)
         self.v.beats_err.append([self.beat_len*0.1, self.beat_len*0.1])
 
-    def check_beat(self, current):
-        if self.beat_last is None:
+    def check_beat(self, current_time):
+        cp = self.current_prediction
+        if self.beat_last is None or cp.beat_len == 0:
             return
-        while self.beat_last + self.beat_len_predicted < current:
-            self.beat(self.beat_len_predicted, self.current_prediction)
+        while self.beat_last + cp.beat_len < current_time:
+            self.beat(cp)
 
             # If no event will arise, recompute prediction anyway
             self.current_prediction = self.predict()
