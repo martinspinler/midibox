@@ -81,6 +81,7 @@ def test():
     parser.add_argument('-d', '--debug', action='store_true')
     parser.add_argument('-g', '--graph', action='store_true')
     parser.add_argument('-o', '--omni', action='store_true')
+    parser.add_argument('-D', '--debug-beats', type=str, default="")
     args = parser.parse_args()
 
     tf = testfiles[args.file]
@@ -89,7 +90,7 @@ def test():
     _midifile = mido.MidiFile(filename)
     temp_iter = iter(_midifile)
     visualiser = MPVisualiser()
-    tp = TempoPredictor(visualiser, debug=args.debug)
+    tp = TempoPredictor(visualiser, debug=args.debug, debug_beats=[int(n) for n in args.debug_beats.split(",") if n])
     time_mult = tf.get("time_mult", 1)
     tp.set_hint(tf.get("tempo_hint", 120), time_mult)
 
