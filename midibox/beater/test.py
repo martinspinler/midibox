@@ -22,7 +22,7 @@ testfiles = [
             range(0, 13),
             #range(260, 10000)
         ],
-        "time_mult": 1 / 0.483,
+        #"time_mult": 1 / 0.483,
     }, {
         "filename": "bands/Perfect Time/midi/Aruanda.mid",
         "skip_ranges": [
