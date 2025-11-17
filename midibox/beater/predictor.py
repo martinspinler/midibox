@@ -36,6 +36,7 @@ class Pattern:
 class NotePrediction:
     event: Event
     rel_time: float
+    abs_time: float
     probability: float
     weight: float
     weight_pow: float
@@ -87,7 +88,7 @@ class PredictionConfiguration:
 
 
 style_patterns = {
-    "swing": Pattern(1, 4, [0, 2/3], []),
+    "swing": Pattern(1, 4, [0, 1/3, 2/3], []),
     "samba": Pattern(1, 2, [0, 1/2], []),
     #"swing": Pattern(1, 4, [0, 1, 2, 3]),
     #"swing_half": Pattern(1, 4, [0, 2]),
@@ -98,6 +99,7 @@ style_patterns = {
 class TempoListener:
     #def __init__(self):
     #    pass
+    #def on_beat(self, ctx: PredictionContext):
     def on_beat(self, beat_last, beat_len):
         pass
 
@@ -200,6 +202,9 @@ class TempoPredictor:
             self.ctx = self.beat(Prediction(ctx, ctx.beat_len))
 
         cp = self.predict(self.ctx)
+
+        #for i in self.listeners:
+        #    i.on_apply_prediction(cp, beat_phase_dbg)
         self.cur_pred = cp
 
     def predict_note(self, e, beat_exp, beat_len, beat_phase):
@@ -211,29 +216,33 @@ class TempoPredictor:
         edi, cnt = to_interval(ed, beat_len, beat_len, 0)
         edn = ed / beat_len
         edni, cnt = to_interval(edn, 1, 1, 0)
-        acnt = -cnt if cnt < 0 else 1
+        acnt = (-cnt + 1) if cnt < 0 else 1
 
         # HERE sort to 1/3, 2/3, 1/2 ....
         if edni <= 0.5:
             rel_time = edi + 1
+            bl = edi + 1 * beat_len
             probability = 1 - edni * 2
             st = "<"
+            err = -edi
         else:
             rel_time = edi + 0
+            bl = edi + 0 * beat_len
             probability = edni * 2 - 1
             st = ">"
+            err = beat_len - edi
 
-        err = 1 - rel_time
-        weight = probability / (acnt * 3.5)
+        weight = (probability / (acnt * 3.5) * 1.5)
         weight_pow = probability * probability / (acnt * acnt)
 
-        p = NotePrediction(e, rel_time, probability, weight, weight_pow, acnt, err_diff=err)
+        p = NotePrediction(e, rel_time, bl, probability, weight, weight_pow, acnt, err_diff=err)
         if self._debug:
-            state = f"{st} {rel_time:.3f} | {1/acnt:.3f} = {probability:.3f}, {weight:.3f}, {weight_pow:.3f}"
-            p.dbg_state = (f"{e:.3f} {beat_phase:.2f} | {ed: 5.3f} {edi: 5.3f} {edn: 5.3f} {edni: 5.3f} | {beat_len:.3f} | {cnt: 3d} {acnt} {state}")
+            state = f"{st} {rel_time:.3f} : {beat_exp:.3f} ({1/acnt:.3f} = {probability:.3f}, {weight:.3f}, {weight_pow:.3f})"
+            p.dbg_state = (f"{e:.3f} {beat_phase:.2f} {beat_len:.3f} | {bl:.3f} {cnt: 3d} | {ed: 5.3f} {edi: 5.3f} {edn: 5.3f} {edni: 5.3f} | {cnt: 3d}/{cnt2: 3d} {state} . {err:0.3f}")
         return p
 
     def predict_notes(self, ctx, beat_phase):
+        # TODO: start predicting from virtual beat as last note with good beat probability
         all_best = []
         probed_notes = ctx.events
         unused_index = None
@@ -286,7 +295,7 @@ class TempoPredictor:
                 # TODO
                 del ctx.events[unused_index:]
 
-            predicted_notes_sel = [(i.p.rel_time, i.p.weight, i.p.weight_pow) for i in predicted_notes]
+            predicted_notes_sel = [(i.p.abs_time, i.p.weight, i.p.weight_pow) for i in predicted_notes]
             notes, notes_weight, notes_weight_pow = [list(i) for i in zip(*predicted_notes_sel)] if len(predicted_notes_sel) else ([], [], [])
 
             events, events_weight = ((beats + notes), (beats_weight + notes_weight))

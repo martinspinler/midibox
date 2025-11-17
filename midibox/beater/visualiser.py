@@ -63,7 +63,7 @@ class Visualiser(TempoListener):
         if p and self._debug and p.dbg_beats_with_weight:
             if verbose > 1:
                 MAX_N = 8
-                predicted_notes_sel = [(i.p.rel_time, i.p.weight, i.p.weight_pow) for i in p.dbg_predicted_notes]
+                predicted_notes_sel = [(i.p.abs_time, i.p.weight, i.p.weight_pow) for i in p.dbg_predicted_notes]
                 notes, notes_weight, notes_weight_pow = [list(i) for i in zip(*predicted_notes_sel)] if predicted_notes_sel else ([], [], [])
 
                 for pn in p.dbg_predicted_notes:
@@ -82,7 +82,7 @@ class Visualiser(TempoListener):
                 #print(f"BPRED: {bp:.3f} | {pfl(beats[-3:]):35s} {pfl(beats_weight[-3:]):35s}")
 
                 for ph in p.dbg_all_phases:
-                    predicted_notes_sel = [(i.p.rel_time, i.p.weight, i.p.weight_pow) for i in ph.dbg_predicted_notes]
+                    predicted_notes_sel = [(i.p.abs_time, i.p.weight, i.p.weight_pow) for i in ph.dbg_predicted_notes]
                     notes, notes_weight, notes_weight_pow = [list(i) for i in zip(*predicted_notes_sel)]
 
                     pfx = (" " * 5 + " > ") if ph == p else " " * 8
@@ -95,7 +95,7 @@ class Visualiser(TempoListener):
                     print(pfx + f"ALT BPRED: {ph.beat_len:.3f}, {ph.beat_phase: .2f} | {ph.note_weight:.3f}")
                 #print(f"TPRED: {p.beat_len:.3f} phase: {p.beat_phase: .2f}")
                 #print(f"TPRED: {pl.beat_len:.3f} | NTP: {sum(notes_weight) / len(notes_weight):.3f} | {pfl(beats[-3:]):35s} {pfl(beats_weight[-3:]):35s} {pfl(notes):35s} {pfl(notes_weight):35s}")
-                print(f"TPRED: {p.beat_len:.3f} | NTP: {sum(notes_weight) / len(notes_weight):.3f} | {pfl(beats[-3:]):35s} {pfl(beats_weight[-3:]):35s}")
+                print(f"TPRED: {p.beat_len:.3f} | NTP: {sum(notes_weight):.3f} / {len(notes_weight)} | {pfl(beats[-3:]):35s} {pfl(beats_weight[-3:]):35s}")
 
             for nop in p.dbg_predicted_notes:
                 if nop.p.rel_beat == 1:
