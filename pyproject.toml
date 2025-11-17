@@ -19,6 +19,11 @@ gui = [
 	"qasync",
 ]
 
+types = [
+	"types-pyyaml",
+	"PyQt5-stubs",
+]
+
 [project.scripts]
 midibox = "midibox.__main__:main"
 

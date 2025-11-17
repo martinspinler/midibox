@@ -187,7 +187,7 @@ class Layer(PropHandler):
             p.emit_all()
 
 
-GeneralProps = [
+GeneralProps: list[CheckedProp[Any]] = [
     BoolProp('enable'),
     BoolProp('mute'),
     *[UIntProp(f'pedal_cc{i}', ) for i in range(8)],
