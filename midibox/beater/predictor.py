@@ -130,8 +130,9 @@ class TempoPredictor:
         self.conf = PredictionConfiguration()
         self.ctx = PredictionContext(None)
 
-    def set_hint(self, tempo, time_mult=1):
+    def set_hint(self, tempo, time_mult=1, style="swing"):
         self._time_mult = time_mult
+        self._style_hint = style
         self.beat_len_hint = (60 / tempo) * time_mult
 
         for i in self.listeners:
@@ -231,11 +232,13 @@ class TempoPredictor:
         all_best = []
         probed_notes = ctx.events
         unused_index = None
+        sp = style_patterns[self._style_hint]
         for index, e in enumerate(probed_notes):
             best = None
             all_local = []
-            for local_beat_phase in [0, 1/3, 2/3, 1/2]:
-            #for local_beat_phase in [0, 1/2]:
+            for local_beat_phase in sp.offsets:
+            #for local_beat_phase in [0, 1/3, 2/3, 1/2]:
+            ##for local_beat_phase in [0, 1/2]:
                 beat_exp = ctx.beat_last + (ctx.beat_len * (beat_phase + local_beat_phase))
                 n_prediction = self.predict_note(e, beat_exp, ctx.beat_len, local_beat_phase)
 

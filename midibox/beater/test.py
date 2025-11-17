@@ -31,6 +31,7 @@ testfiles = [
         ],
         "tempo_hint": 176 * 1,
         "time_mult": 2.933 * 1,
+        "style_hint": "samba",
     }, {
         "filename": "bands/Perfect Time/midi/Can You Can Two Toucans in Two Cans.mid",
         "bch": 3,
@@ -39,6 +40,7 @@ testfiles = [
         "skip_ranges": [
             #range(60, 360000),
         ],
+        "style_hint": "samba",
     }, {
         "filename": "bands/Perfect Time/midi/Days of Wine and Roses.mid",
         "bch": 3,
@@ -96,7 +98,7 @@ def test():
     visualiser.pred = tp
 
     time_mult = tf.get("time_mult", 1)
-    tp.set_hint(tf.get("tempo_hint", 120), time_mult)
+    tp.set_hint(tf.get("tempo_hint", 120), time_mult, tf.get("style_hint", "swing"))
 
     bch = tf.get("bch", 2)
 
