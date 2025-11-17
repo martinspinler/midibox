@@ -10,6 +10,7 @@ from .osc.server import TCPOSCServer, zc_register_osc_tcp
 
 from .midiplayer import Midiplayer, MidiplayerOSCClientHandler
 from .controller import BaseMidibox
+from .beater import TempoPredictor, TempoPredictorOSCClientHandler
 
 
 def parse_args() -> argparse.Namespace:
@@ -43,7 +44,7 @@ def create_midibox_instance(args: argparse.Namespace) -> BaseMidibox:
     return backends.create_midibox_from_config(mb_backend, **mb_params)
 
 
-class MainOSCClientHandler(MidiboxOSCClientHandler, MidiplayerOSCClientHandler):
+class MainOSCClientHandler(MidiboxOSCClientHandler, MidiplayerOSCClientHandler, TempoPredictorOSCClientHandler):
     pass
 
 
@@ -62,6 +63,20 @@ def main() -> None:
         if not isinstance(midibox, MidoMidibox):
             raise ValueError("The MidoMidibox must be used for server mode")
 
+        dbg, ver = False, 0
+        tp = TempoPredictor(debug=dbg)
+        time_start = time.time()
+        def note_event(msg):
+            try:
+                if msg.type == 'note_on' and msg.note < 60:
+                    tp.on_note_event(time.time() - time_start, 0, msg, str(msg))
+            except Exception as e:
+                import traceback
+                print(e)
+                traceback.print_exc()
+
+        midibox._callbacks.append(note_event)
+
         mp = Midiplayer(midibox._output_port_name)
         mp.init()
         midi_file = config.get("midiplayer", {}).get("autoload")
@@ -69,6 +84,7 @@ def main() -> None:
             mp.open(midi_file)
         MainOSCClientHandler.mp = mp
         MainOSCClientHandler.mb = midibox
+        MainOSCClientHandler.tp = tp
         osc_srv = TCPOSCServer(("0.0.0.0", args.osc_server_port), MainOSCClientHandler)
         osc_srv.start()
         allowed_ips = None
