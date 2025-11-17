@@ -2,8 +2,8 @@ import logging
 import argparse
 import mido
 
-from visualiser import MPVisualiser
-from predictor import TempoPredictor
+from .visualiser import MPVisualiser
+from .predictor import TempoPredictor
 
 
 testfiles = [
