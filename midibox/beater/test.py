@@ -90,8 +90,11 @@ def test():
     filename = args.root + tf["filename"]
     _midifile = mido.MidiFile(filename)
     temp_iter = iter(_midifile)
-    visualiser = MPVisualiser()
-    tp = TempoPredictor(visualiser, debug=args.debug, debug_beats=[int(n) for n in args.debug_beats.split(",") if n], verbosity=args.verbose)
+    visualiser = MPVisualiser(debug=args.debug, verbosity=args.verbose)
+    tp = TempoPredictor(debug=args.debug, debug_beats=[int(n) for n in args.debug_beats.split(",") if n], verbosity=args.verbose)
+    tp.listeners.append(visualiser)
+    visualiser.pred = tp
+
     time_mult = tf.get("time_mult", 1)
     tp.set_hint(tf.get("tempo_hint", 120), time_mult)
 
