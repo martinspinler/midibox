@@ -98,7 +98,7 @@ style_patterns = {
 class TempoListener:
     #def __init__(self):
     #    pass
-    def on_beat(self, ctx: PredictionContext):
+    def on_beat(self, beat_last, beat_len):
         pass
 
     def on_reset(self, time: float):
@@ -126,6 +126,8 @@ class TempoPredictor:
         self.cur_pred = Prediction()
 
         self._last_phase_change = 1e9
+        self._time_mult = 1
+        self._style_hint = "swing"
 
         self.conf = PredictionConfiguration()
         self.ctx = PredictionContext(None)
@@ -178,6 +180,9 @@ class TempoPredictor:
             abs_diff = event - ctx.events[0]
             if abs_diff / self._time_mult > 7:  # 7 seconds (real seconds)
                 ctx.events.clear()
+                ctx.events.insert(0, time)
+                self.reset(time)
+                return
 
         self.check_beat(time)
 
@@ -210,21 +215,21 @@ class TempoPredictor:
 
         # HERE sort to 1/3, 2/3, 1/2 ....
         if edni <= 0.5:
-            timestamp = edi + 1
+            rel_time = edi + 1
             probability = 1 - edni * 2
             st = "<"
         else:
-            timestamp = edi + 0
+            rel_time = edi + 0
             probability = edni * 2 - 1
             st = ">"
 
-        err = 1 - timestamp
+        err = 1 - rel_time
         weight = probability / (acnt * 3.5)
         weight_pow = probability * probability / (acnt * acnt)
 
-        p = NotePrediction(e, timestamp, probability, weight, weight_pow, acnt, err_diff=err)
+        p = NotePrediction(e, rel_time, probability, weight, weight_pow, acnt, err_diff=err)
         if self._debug:
-            state = f"{st} {timestamp:.3f} | {1/acnt:.3f} = {probability:.3f}, {weight:.3f}, {weight_pow:.3f}"
+            state = f"{st} {rel_time:.3f} | {1/acnt:.3f} = {probability:.3f}, {weight:.3f}, {weight_pow:.3f}"
             p.dbg_state = (f"{e:.3f} {beat_phase:.2f} | {ed: 5.3f} {edi: 5.3f} {edn: 5.3f} {edni: 5.3f} | {beat_len:.3f} | {cnt: 3d} {acnt} {state}")
         return p
 

@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.markers import MarkerStyle
 from matplotlib.transforms import Affine2D
 
-from predictor import TempoListener
+from .predictor import TempoListener
 
 
 def pfl(fl):
@@ -24,6 +24,9 @@ class Visualiser(TempoListener):
         self.resets = []
         self.offbeat = []
         self.predictions = []
+        self.nearest_pred = []
+
+        self._time_mult = 1
 
     def on_reset(self, time):
         if self._debug:
@@ -114,7 +117,6 @@ class Visualiser(TempoListener):
 class MPVisualiser(Visualiser):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.nearest_pred = []
         self.fig, self.ax = fig, ax = plt.subplots(figsize=(20, 5))
         fig.canvas.mpl_connect('pick_event', self.on_pick)
         fig.canvas.mpl_connect('key_press_event', self.on_press)
