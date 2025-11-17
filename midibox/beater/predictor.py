@@ -1,15 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Optional, Any
 import math
-import logging
 import numpy as np
-
-
-log_phaser = logging.getLogger("midibox.beater.phaser")
-
-
-def pfl(fl):
-    return "[" + ", ".join([f"{n:.3f}" for n in fl]) +"]"
 
 
 def to_interval(val: float, inc: float, to: float, fr: float = 0):
@@ -32,6 +24,15 @@ BeatPhase = type[float]
 
 
 @dataclass
+class Pattern:
+    probability: float
+    repeat: int
+    offsets: list[float]
+    events: list[float]
+    #measure_timing: str
+
+
+@dataclass
 class NotePrediction:
     event: Event
     rel_time: float
@@ -40,6 +41,7 @@ class NotePrediction:
     weight_pow: float
     rel_beat: float
     weight_pow_sum: float = 0
+    err_diff: float = 0
 
     dbg_state: str = ""
 
@@ -59,6 +61,7 @@ class PredictionContext:
     beats_abs: list[float] = field(default_factory=lambda: [])
     beat_len: float = 0
     events: list[Event] = field(default_factory=lambda: [])
+    beat_last_id: int = 0
 
 
 @dataclass
@@ -72,26 +75,57 @@ class Prediction:
     dbg_beats_with_weight: Any = None
 
     dbg_all_phases: list["Prediction"] = field(default_factory=lambda: [])
+    #@property
+    def beat_next(self): return self.ctx.beat_last + self.beat_len
 
 
 @dataclass
 class PredictionConfiguration:
     nws_coef: float = 0.8
     bw_coef: float = 5/3
+    max_beats: int = 6
+
+
+style_patterns = {
+    "swing": Pattern(1, 4, [0, 2/3], []),
+    "samba": Pattern(1, 2, [0, 1/2], []),
+    #"swing": Pattern(1, 4, [0, 1, 2, 3]),
+    #"swing_half": Pattern(1, 4, [0, 2]),
+    #"swing_p1": Pattern(1, 4, [0, 1, 2, 3, 3 + 2/3]),
+    #"samba": Pattern(1, 2, [0, 3/4 * 2]),
+}
+
+class TempoListener:
+    #def __init__(self):
+    #    pass
+    def on_beat(self, ctx: PredictionContext):
+        pass
+
+    def on_reset(self, time: float):
+        pass
+
+    def on_apply_prediction(self, prediction, beat_phase_dbg=None):
+        pass
+
+    def on_note_event(self, time, msg_id, msg, msg_text):
+        pass
+
+    def on_tempo_hint(self, tempo, time_mult):
+        pass
 
 
 class TempoPredictor:
-    def __init__(self, visualiser, debug=False, debug_beats=[], verbosity=0):
-        self.beat_len_hint = None
-        self.v = visualiser
-
-        self.current_prediction = Prediction()
-
-        self._dbg_last_showed_event = 0
-        self._last_phase_change = 1e9
+    def __init__(self, debug=False, debug_beats=[], verbosity=0):
         self._debug = debug
         self._verbosity = verbosity
         self._debug_beats = debug_beats
+
+        self.beat_len_hint = None
+        self.listeners = []
+
+        self.cur_pred = Prediction()
+
+        self._last_phase_change = 1e9
 
         self.conf = PredictionConfiguration()
         self.ctx = PredictionContext(None)
@@ -99,6 +133,9 @@ class TempoPredictor:
     def set_hint(self, tempo, time_mult=1):
         self._time_mult = time_mult
         self.beat_len_hint = (60 / tempo) * time_mult
+
+        for i in self.listeners:
+            i.on_tempo_hint(tempo, time_mult)
 
     def reset(self, time):
         notes = self.ctx.events
@@ -113,9 +150,8 @@ class TempoPredictor:
 
         ctx.beat_last = notes[0]
 
-        self.v.resets.append(time)
-
-        print(">>> Reset")
+        for i in self.listeners:
+            i.on_reset(time)
 
     def prepare_first_beat(self):
         ctx = self.ctx
@@ -123,30 +159,32 @@ class TempoPredictor:
         beat_len = notes[0] - notes[1]
         ctx.beat_len = beat_len
         if self.beat_len_hint is not None:
-            diff = abs(beat_len - self.beat_len_hint)
-            if True or self.beat_len_hint * 0.45 < diff:
-                ctx.beat_len = self.beat_len_hint
-            print("Hint diff:", self.beat_len_hint, self.beat_len_hint * 0.45, diff, "|", ctx.beat_len)
+            ctx.beat_len = self.beat_len_hint
 
-        ctx.beat_last = notes[0]
-        ctx.beats_abs = [notes[0]]
+        if True:
+            ctx.beat_last = notes[1]
+            ctx.beats_abs = [notes[1]]
+        else:
+            ctx.beat_last = notes[0]
+            ctx.beats_abs = [notes[0]]
 
     def on_note_event(self, time, msg_id, msg, msg_text):
         event = time
         note = msg.note
-        ctx = self.ctx
 
+        ctx = self.ctx
         if len(ctx.events):
             abs_diff = event - ctx.events[0]
             if abs_diff / self._time_mult > 7:  # 7 seconds (real seconds)
                 ctx.events.clear()
 
         self.check_beat(time)
-        ctx.events.insert(0, time)
-        self.v.notes.append([time, note])
 
-        if self._debug:
-            print("=" * 10, f"{msg_id: 4d} {msg_text}", f"{time:.3f}")
+        ctx = self.ctx
+        ctx.events.insert(0, time)
+
+        for i in self.listeners:
+            i.on_note_event(time, msg_id, msg, msg_text)
 
         if len(ctx.events) == 1:
             self.reset(time)
@@ -156,7 +194,7 @@ class TempoPredictor:
             self.ctx = self.beat(Prediction(ctx, ctx.beat_len))
 
         cp = self.predict(self.ctx)
-        self.current_prediction = cp
+        self.cur_pred = cp
 
     def predict_note(self, e, beat_exp, beat_len, beat_phase):
         # ed:   event difference
@@ -179,15 +217,16 @@ class TempoPredictor:
             probability = edni * 2 - 1
             st = ">"
 
+        err = 1 - timestamp
         weight = probability / (acnt * 3.5)
         weight_pow = probability * probability / (acnt * acnt)
 
-        p = NotePrediction(e, timestamp, probability, weight, weight_pow, acnt)
+        p = NotePrediction(e, timestamp, probability, weight, weight_pow, acnt, err_diff=err)
         if self._debug:
             state = f"{st} {timestamp:.3f} | {1/acnt:.3f} = {probability:.3f}, {weight:.3f}, {weight_pow:.3f}"
             p.dbg_state = (f"{e:.3f} {beat_phase:.2f} | {ed: 5.3f} {edi: 5.3f} {edn: 5.3f} {edni: 5.3f} | {beat_len:.3f} | {cnt: 3d} {acnt} {state}")
         return p
-        
+
     def predict_notes(self, ctx, beat_phase):
         all_best = []
         probed_notes = ctx.events
@@ -208,7 +247,7 @@ class TempoPredictor:
 
             best.dbg_all_p = all_local
 
-            if best.p.probability < 0.55:
+            if False and best.p.probability < 0.55:
                 if self._debug:
                     best.dbg_state = f"Best {e:.3f}: NONE"
                 pass
@@ -264,120 +303,55 @@ class TempoPredictor:
             prediction.dbg_all_phases = all_phases
         return prediction
 
-    def pdebug(self, prediction=None, beat_next=None, beat_len=None, beat_phase_dbg=None):
-        ctx = self.ctx
-        if prediction is None:
-            prediction = self.current_prediction
-        if beat_len is None:
-            beat_len = prediction.beat_len
-        if beat_next is None:
-            beat_next = ctx.beat_last + beat_len
-        if beat_phase_dbg is None:
-            beat_phase_dbg = ""
-
-        verbose = self._verbosity
-
-        beats_rel = [(n - m) for n, m in zip(ctx.beats_abs[1:], ctx.beats_abs[:-1])]
-        bpm_mult = 60 * self._time_mult
-        bpm = bpm_mult / beat_len if beat_len != 0 else 0
-
-        p = prediction
-        if p and self._debug and p.dbg_beats_with_weight:
-            if verbose > 1:
-                MAX_N = 8
-                predicted_notes_sel = [(i.p.rel_time, i.p.weight, i.p.weight_pow) for i in p.dbg_predicted_notes]
-                notes, notes_weight, notes_weight_pow = [list(i) for i in zip(*predicted_notes_sel)] if predicted_notes_sel else ([], [], [])
-
-                for pn in p.dbg_predicted_notes:
-                    for notep, np_bp in pn.dbg_all_p:
-                        pfx = (" " * 13 + " > ") if notep == pn.p else " " * 16 
-                        print(pfx + notep.dbg_state)
-                    print(" " * 12 + pn.dbg_state)
-
-                beats, beats_weight = p.dbg_beats_with_weight
-
-                #if len(notes_weight):
-                #    ep = float(np.average(notes, weights=notes_weight))
-                #    print(f"NPRED: {ep:.3f} | {pfl(notes[:MAX_N]):35s} {pfl(notes_weight[:MAX_N]):35s} | {pfl(notes_weight_pow[:MAX_N])}")
-
-                #bp = float(np.average(beats, weights=beats_weight))
-                #print(f"BPRED: {bp:.3f} | {pfl(beats[-3:]):35s} {pfl(beats_weight[-3:]):35s}")
-
-                for ph in p.dbg_all_phases:
-                    predicted_notes_sel = [(i.p.rel_time, i.p.weight, i.p.weight_pow) for i in ph.dbg_predicted_notes]
-                    notes, notes_weight, notes_weight_pow = [list(i) for i in zip(*predicted_notes_sel)]
-
-                    pfx = (" " * 5 + " > ") if ph == p else " " * 8
-                    if len(notes_weight):
-                        ep = float(np.average(notes, weights=notes_weight))
-                        print(pfx + f"ALT NPRED: {ep:.3f}, {ph.beat_phase: .2f} | {sum(notes_weight):.3f} {sum(notes_weight_pow):.3f} | {pfl(notes[:MAX_N]):35s} {pfl(notes_weight[:MAX_N]):35s} | {pfl(notes_weight_pow[:MAX_N])}")
-
-                for ph in p.dbg_all_phases:
-                    pfx = (" " * 5 + " > ") if ph == p else " " * 8
-                    print(pfx + f"ALT BPRED: {ph.beat_len:.3f}, {ph.beat_phase: .2f} | {ph.note_weight:.3f}")
-                #print(f"TPRED: {p.beat_len:.3f} phase: {p.beat_phase: .2f}")
-                #print(f"TPRED: {pl.beat_len:.3f} | NTP: {sum(notes_weight) / len(notes_weight)} | {pfl(beats[-3:]):35s} {pfl(beats_weight[-3:]):35s} {pfl(notes):35s} {pfl(notes_weight):35s}")
-                print(f"TPRED: {p.beat_len:.3f} | NTP: {sum(notes_weight) / len(notes_weight)} | {pfl(beats[-3:]):35s} {pfl(beats_weight[-3:]):35s}")
-
-            for nop in p.dbg_predicted_notes:
-                if nop.p.event > self._dbg_last_showed_event:
-                    self.v.predictions.append([nop.p.event, nop.beat_phase, nop.p.probability])
-                    self._dbg_last_showed_event = nop.p.event
-        if beat_phase_dbg:
-            print(beat_phase_dbg)
-
-        if verbose:
-            print("+" * 10 + f" {len(self.v.beats): 4d} BEAT {beat_next:.3f} | {bpm: 6.1f} | {beat_len:.3f}", pfl(beats_rel))
-
-        #if verbose:
-        #    print(f"Phase {prediction.beat_phase:2f} >>>>>>>>>>>>>>")
-
     def beat(self, prediction):
-        if len(self.v.beats) in self._debug_beats:
+        ctx = prediction.ctx
+        if self._debug:
+            ctx = PredictionContext(ctx.beat_last, ctx.beats_abs.copy(), ctx.beat_len, ctx.events.copy(), ctx.beat_last_id)
+            prediction.ctx = ctx
+
+        if ctx.beat_last_id in self._debug_beats:
             breakpoint()
 
-        ctx = prediction.ctx
         # Trigger offset
         beat_len = prediction.beat_len
         beat_phase_dbg = ""
         if prediction.beat_phase and self._last_phase_change > 8:
             self._last_phase_change = 0
-            self.v.resets.append(ctx.beat_last)
 
-            bp = self.current_prediction.beat_phase
+            bp = self.cur_pred.beat_phase
             bpc = bp + 1 if bp < 0.5 else bp + 0
             abs_offset = beat_len * (bpc)
-            beat_phase_dbg = f">>> Phase shitf {bp:.2f} {bpc:.2f} {abs_offset:.2f}"
+            beat_phase_dbg = f">>> Phase shift {bp:.2f} {bpc:.2f} {abs_offset:.2f}"
             ctx.beats_abs = [n + abs_offset for n in ctx.beats_abs]
+            for i in self.listeners:
+                i.on_reset(ctx.beat_last)
             ctx.beat_last += abs_offset
-            #self.current_prediction.beat_phase = 0
+            #self.cur_pred.beat_phase = 0
         self._last_phase_change += 1
 
         beat_next = ctx.beat_last + beat_len
 
-        self.pdebug(prediction, beat_next, beat_len, beat_phase_dbg)
+        for i in self.listeners:
+            i.on_apply_prediction(prediction, beat_phase_dbg)
 
         ctx.beat_len = beat_len
         ctx.beat_last = beat_next
+        ctx.beat_last_id += 1
 
         ctx.beats_abs.append(ctx.beat_last)
-        if len(ctx.beats_abs) > 6:
+        if len(ctx.beats_abs) > self.conf.max_beats:
             ctx.beats_abs.pop(0)
 
-        self.v.beats.append(ctx.beat_last)
-        self.v.beats_len.append(ctx.beat_len)
-        self.v.beats_err.append([ctx.beat_len*0.1, ctx.beat_len*0.1])
+        for i in self.listeners:
+            i.on_beat(ctx.beat_last, ctx.beat_len)
 
         return ctx
 
     def check_beat(self, current_time):
-        cp = self.current_prediction
-        ctx = self.ctx
-        if ctx.beat_last is None or cp.beat_len == 0:
+        if self.ctx.beat_last is None or self.cur_pred.beat_len == 0:
             return
-        while ctx.beat_last + cp.beat_len < current_time:
-            self.ctx = self.beat(cp)
-            ctx = self.ctx
+        while self.ctx.beat_last + self.cur_pred.beat_len < current_time:
+            self.ctx = self.beat(self.cur_pred)
 
             # If no event will arise, recompute prediction anyway
-            self.current_prediction = self.predict(ctx)
+            self.cur_pred = self.predict(self.ctx)
