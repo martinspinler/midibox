@@ -10,6 +10,7 @@ from .osc.server import TCPOSCServer, zc_register_osc_tcp
 
 from .midiplayer import Midiplayer, MidiplayerOSCClientHandler
 from .controller import BaseMidibox
+from .recorder import Recorder
 
 
 def parse_args() -> argparse.Namespace:
@@ -47,6 +48,21 @@ class MainOSCClientHandler(MidiboxOSCClientHandler, MidiplayerOSCClientHandler):
     pass
 
 
+def main_loop_gui(args, midibox, config):
+    import qasync
+    import asyncio
+    from .widget import create_gui
+
+    app = create_gui(midibox, disable_sandbox=args.disable_sandbox, config=config)
+
+    loop = qasync.QEventLoop(app.qapp)
+    asyncio.set_event_loop(loop)
+
+    # asyncio.ensure_future(app.pc.get_messages())
+    with loop:
+        loop.run_forever()
+
+
 def main() -> None:
     args = parse_args()
 
@@ -64,6 +80,8 @@ def main() -> None:
 
         mp = Midiplayer(midibox._output_port_name)
         mp.init()
+        mr = Recorder(midibox._input_port_name)
+
         midi_file = config.get("midiplayer", {}).get("autoload")
         if midi_file:
             mp.open(midi_file)
@@ -75,34 +93,23 @@ def main() -> None:
         #allowed_ips = ['10.42.0.1']
         zc_svcs = zc_register_osc_tcp(allowed_ips=allowed_ips, port=args.osc_server_port)
 
-    if args.gui:
-        import qasync
-        import asyncio
-        from .widget import create_gui
-
-        app = create_gui(midibox, disable_sandbox=args.disable_sandbox, config=config)
-
-        loop = qasync.QEventLoop(app.qapp)
-        asyncio.set_event_loop(loop)
-
-        # asyncio.ensure_future(app.pc.get_messages())
-        with loop:
-            loop.run_forever()
-    else:
-        try:
+    try:
+        if args.gui:
+            main_loop_gui(args, midibox, config)
+        else:
             while True:
                 time.sleep(0.1)
-        except KeyboardInterrupt:
-            pass
+    finally:
+        if args.osc_server:
+            mr.close()
 
-    if args.osc_server:
-        for zc, si in zc_svcs:
-            zc.close()
-        osc_srv.stop()
+            for zc, si in zc_svcs:
+                zc.close()
+            osc_srv.stop()
 
-        mp.destroy()
+            mp.destroy()
 
-    midibox.disconnect()
+        midibox.disconnect()
 
 
 if __name__ == "__main__":
