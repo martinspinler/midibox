@@ -420,7 +420,7 @@ class MidoMidibox(BaseMidibox):
         if "percussion" in names:
             c[32] = lr.percussion
         for i in range(9):
-            n = f'_harmonic_bar{i}'
+            n = f'harmonic_bar{i}'
             if n in names:
                 c[33 + i] = getattr(lr, n)
         if "portamento_time" in names:

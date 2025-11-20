@@ -215,7 +215,7 @@ void midi_update_layer(struct layer_state & lr, struct layer_state & lr_prev, st
 		MS1.sendControlChange(5, lr.r.portamento_time, lr.channel);
 
 	if ((changes.harmonic_bar_set || changes.program || changes.all) &&
-			(lr.r.pgm == 17 && lr.r.bs == 32 && lr.r.bs_lsb == 68)) {
+			(lr.r.pgm == 16 && lr.r.bs == 32 && lr.r.bs_lsb == 68)) {
 		i = roland_sysex_begin(s);
 		s[i+0] = 0x40;
 		s[i+1] = 0x40 | lr.part;
