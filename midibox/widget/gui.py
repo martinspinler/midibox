@@ -113,7 +113,7 @@ class QMidiboxLayer(QObject, metaclass=PropertyMeta):
 
     @pyqtProperty(str, notify=programChange)  # type: ignore
     def shortName(self) -> str:
-        return self._proxy.programs[self._proxy.program].short if self._proxy.program in self._proxy.programs else '?'
+        return self._proxy.programs_by_ident[self._proxy.program].short if self._proxy.program in self._proxy.programs_by_ident else '?'
 
 
 class QMidiboxGeneral(QObject, metaclass=PropertyMeta):
@@ -319,7 +319,7 @@ class PedalMode(NameDataItem):
 
 
 def ProgramPresetModel(box: BaseMidibox) -> NameDataItemModel:
-    return _NameDataItemModel([ProgramPreset(k, v.name) for k, v in box.layers[0].programs.items()])
+    return _NameDataItemModel([ProgramPreset(v.ident, v.label) for k, v in box.layers[0].programs.items()])
 
 
 def PedalCcModel(box: BaseMidibox) -> NameDataItemModel:

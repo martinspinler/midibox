@@ -8,14 +8,19 @@ from types import TracebackType
 def clamp(val: int, lower: int, upper: int) -> int:
     return lower if val < lower else upper if val > upper else val
 
+def prg_id(pc, msb, lsb):
+    return pc, msb, lsb, f"_pgm_{pc}_{msb}_{lsb}_"
+
 
 class Program(NamedTuple):
     pc: int
     msb: int
     lsb: int
+    ident: str
     sysex: List[List[int]]
     short: str
     name: str
+    label: str
 
 
 T = TypeVar('T')
@@ -110,6 +115,13 @@ class Pedal(PropHandler):
         self._layer = layer
         self._index = index
 
+def check_prop_program(s, v):
+    if v in s.programs:
+        return s.programs[v].ident
+    elif isinstance(v, str) and v.startswith("_pgm_"):
+        return v
+    else:
+        return s._program
 
 LayerProps: list[CheckedProp[Any]] = [
     SIntProp('transposition'),
@@ -118,7 +130,7 @@ LayerProps: list[CheckedProp[Any]] = [
     BoolProp('active', True),
     CheckedProp('rangel', 21, lambda s, v: clamp(v, 0, s._rangeu)),
     CheckedProp('rangeu', 108, lambda s, v: clamp(v, s._rangel, v)),
-    CheckedProp('program', 'piano', lambda s, v: v if v in s.programs else s.programs[s._program], initial='-unknown-'),
+    CheckedProp('program', 'piano', check_prop_program, initial='-unknown-'),
     IntProp('volume', default=100),
     SIntProp('release'),
     SIntProp('attack'),
@@ -139,21 +151,24 @@ efx = {
     'epiano': [0x40, 0x40, 0x23, 0x01, 0x42, 0x00, 0x40, 0x37, 0x02],
 }
 
+all_programs = [  # PC MSB LSB
+    Program(*prg_id( 1,  0, 68), [efx['dumper']], 'Pn', 'piano',        'Piano'), # noqa
+    Program(*prg_id( 5,  0, 67), [efx['epiano']], 'eP', 'epiano',       'E-Piano'), # noqa
+    Program(*prg_id(33,  0, 71), [efx['none']],   'Bs', 'bass',         'Bass'), # noqa
+    Program(*prg_id(17, 32, 68), [efx['rotary']], 'Hm', 'hammond',      'Hammond'), # noqa
+    Program(*prg_id(12,  0,  0), [efx['rotary']], 'Vp', 'vibraphone',   'Vibraphone'), # noqa
+    Program(*prg_id(13,  0, 64), [efx['rotary']], 'Mb', 'marimba',      'Marimba'), # noqa
+    Program(*prg_id(115, 0, 64), [efx['rotary']], 'Mi', 'mallet_isle',  'Mallet Isle'), # noqa
+    Program(*prg_id(36,  0,  0), [efx['none']],   'FB', 'fretlessbass', 'Fretlett Bass'), # noqa
+    Program(*prg_id(33,  0, 66), [efx['none']],   'Bc', 'bass_cymbal',  'Bass + Cymbal'), # noqa
+]
 
 @mb_properties_init
 class Layer(PropHandler):
     _mb_properties = LayerProps
-    programs = {  #                      PC MSB LSB
-        'piano'         : Program( 1,  0, 68, [efx['dumper']], 'Pn', 'Piano'), # noqa
-        'epiano'        : Program( 5,  0, 67, [efx['epiano']], 'eP', 'E-Piano'), # noqa
-        'bass'          : Program(33,  0, 71, [efx['none']],   'Bs', 'Bass'), # noqa
-        'hammond'       : Program(17, 32, 68, [efx['rotary']], 'Hm', 'Hammond'), # noqa
-        'vibraphone'    : Program(12,  0,  0, [efx['rotary']], 'Vp', 'Vibraphone'), # noqa
-        'marimba'       : Program(13,  0, 64, [efx['rotary']], 'Mb', 'Marimba'), # noqa
-        'mallet_isle'   : Program(115, 0, 64, [efx['rotary']], 'Mi', 'Mallet Isle'), # noqa
-        'fretlessbass'  : Program(36,  0,  0, [efx['none']],   'FB', 'Fretlett Bass'), # noqa
-        'bass_cymbal'   : Program(33,  0, 66, [efx['none']],   'Bc', 'Bass + Cymbal'), # noqa
-    }
+    programs = {p.name: p for p in all_programs}
+    programs_by_ident = {p.ident: p for p in all_programs}
+
     percussions = [
         ('Off'           , 0x00), # noqa
         ('4, Short'      , 0x01), # noqa

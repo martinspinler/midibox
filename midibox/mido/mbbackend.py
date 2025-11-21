@@ -1,9 +1,10 @@
 import time
 import mido
+import re
 import logging
 from typing import List, Optional, Tuple, Any
 
-from ..controller.base import BaseMidibox, Layer, PropHandler, General, Pedal, PropChange
+from ..controller.base import BaseMidibox, Layer, PropHandler, General, Pedal, PropChange, Program, prg_id
 
 from threading import Thread
 
@@ -414,9 +415,14 @@ class MidoMidibox(BaseMidibox):
         if "decay" in names:
             c[15] = lr.decay + 64
 
-        if "program" in names and lr.program in lr.programs:
-            p = lr.programs[lr._program]
-            c[3:6] = [p.pc - 1, p.msb, p.lsb]
+        if "program" in names:
+            p = None
+            m = re.fullmatch("_pgm_(\d+)_(\d+)_(\d+)_", lr.program)
+            if m is not None:
+                g = m.groups()
+                pc, msb, lsb = int(g[0]), int(g[1]), int(g[2])
+                print("SP", lr.program, pc, msb, lsb)
+                c[3:6] = [pc - 1, msb, lsb]
         if "percussion" in names:
             c[32] = lr.percussion
         for i in range(9):
@@ -463,13 +469,8 @@ class MidoMidibox(BaseMidibox):
         lr.decay = c[15] - 64
 
         pc, bs, bs_lsb = c[3:6]
-        program = '-unknown-'
-        for pn in layer.programs:
-            p = layer.programs[pn]
-            if p.pc == pc + 1 and p.msb == bs and p.lsb == bs_lsb:
-                program = pn
-                break
-
+        pc += 1
+        program = f"_pgm_{pc}_{bs}_{bs_lsb}_"
         lr.program = program
 
         for i in range(len(lr.pedals)):
