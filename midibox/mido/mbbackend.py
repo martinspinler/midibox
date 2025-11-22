@@ -417,7 +417,7 @@ class MidoMidibox(BaseMidibox):
 
         if "program" in names:
             p = None
-            m = re.fullmatch("_pgm_(\d+)_(\d+)_(\d+)_", lr.program)
+            m = re.fullmatch(r"_pgm_(\d+)_(\d+)_(\d+)_", lr.program)
             if m is not None:
                 g = m.groups()
                 pc, msb, lsb = int(g[0]), int(g[1]), int(g[2])
