@@ -421,7 +421,6 @@ class MidoMidibox(BaseMidibox):
             if m is not None:
                 g = m.groups()
                 pc, msb, lsb = int(g[0]), int(g[1]), int(g[2])
-                print("SP", lr.program, pc, msb, lsb)
                 c[3:6] = [pc - 1, msb, lsb]
         if "percussion" in names:
             c[32] = lr.percussion

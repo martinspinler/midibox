@@ -175,13 +175,13 @@ class Midiplayer():
     def _handle_msg_meta(self, pt: float, st: MidiplayerState, msg: mido.Message) -> None:
         if msg.type == 'time_signature':
             st.ts = (msg.numerator, msg.denominator)
-            print("TS:", st.ts)
+            #print("TS:", st.ts)
             #st.ts_beat = st.abs_beat
         elif msg.type == 'set_tempo':
             # Current beat relative position (percent)
             #rel_position = (pt - st.beat_time) / st.ct_tempo
             #beat_time = pt - rel_position * msg.tempo
-            print("Tempo", mido.tempo2bpm(msg.tempo))
+            #print("Tempo", mido.tempo2bpm(msg.tempo))
             st.beat_time = (msg.tempo * (st.beat_time - pt) + st.ct_tempo * pt) / st.ct_tempo
             st.ct_tempo = msg.tempo
 
@@ -254,7 +254,7 @@ class Midiplayer():
     def _do_play(self, st: MidiplayerState):
         msg: Optional[mido.Message] = None
         st.current_time_offset = now() - st.next_event
-        print(f"{st.ct_measure}.{st.ct_beat}")
+        #print(f"{st.ct_measure}.{st.ct_beat}")
 
         status = MidiplayerStatus(st.total_time, st.next_event, False, self.is_paused(), st.ct_measure, st.ct_beat)
 
@@ -275,7 +275,7 @@ class Midiplayer():
 
             pt = playback_time * 1_000_000
             if self._advance_beat(pt, st):
-                print(f"{st.ct_measure}.{st.ct_beat}")
+                #print(f"{st.ct_measure}.{st.ct_beat}")
                 if self.jumps:
                     (cm, cb), (nm, nb) = self.jumps[0]
                     if (cm, cb) == (st.ct_measure, st.ct_beat):
