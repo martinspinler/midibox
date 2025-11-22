@@ -66,7 +66,7 @@ class Midiplayer():
         self.status = MidiplayerStatus()
         self.jumps = [
             #((16, 1), (32, 1)),
-            ((5, 1), (1, 1)),
+            #((5, 1), (1, 1)),
         ]
 
     def init(self) -> None:
