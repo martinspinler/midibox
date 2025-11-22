@@ -6,7 +6,7 @@ import argparse
 from . import backends
 from .mido import MidoMidibox
 from .osc.client_handler import MidiboxOSCClientHandler
-from .osc.server import TCPOSCServer, zc_register_osc_tcp
+from .osc.server import TCPOSCServer, ZCPublisher
 
 from .midiplayer import Midiplayer, MidiplayerOSCClientHandler
 from .controller import BaseMidibox
@@ -91,7 +91,7 @@ def main() -> None:
         osc_srv.start()
         allowed_ips = None
         #allowed_ips = ['10.42.0.1']
-        zc_svcs = zc_register_osc_tcp(allowed_ips=allowed_ips, port=args.osc_server_port)
+        zc = ZCPublisher(allowed_ips=allowed_ips, port=args.osc_server_port)
 
     try:
         if args.gui:
@@ -102,9 +102,7 @@ def main() -> None:
     finally:
         if args.osc_server:
             mr.close()
-
-            for zc, si in zc_svcs:
-                zc.close()
+            zc.stop()
             osc_srv.stop()
 
             mp.destroy()

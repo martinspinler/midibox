@@ -1,3 +1,4 @@
+import time
 import socket
 import socketserver
 import threading
@@ -135,18 +136,33 @@ def getIPv4Addresses() -> dict[str, str]:
     return ret
 
 
-def zc_register_osc_tcp(port: int = 4302, oscname: str = "MidiboxOSC", allowed_ips: list[str] | None = None) -> list[tuple[Zeroconf, ServiceInfo]]:
-    zc_service = "_osc._tcp.local."
-    zc_name = oscname + "." + zc_service
-    zc_svcs = []
-    # Workaround to publish all IP addresses
-    for ifname, ip in getIPv4Addresses().items():
-        zc_name = f"{oscname}_{ifname}_{port}.{zc_service}"
-        if allowed_ips is not None and ip not in allowed_ips:
-            continue
-        si = ServiceInfo(zc_service, zc_name, port, addresses=[ip]) # type: ignore[list-item]
-        zc = Zeroconf([ip])
-        zc.register_service(si)
-        print("Zeroconf register %s on IP %s" % (zc_name, ip))
-        zc_svcs.append((zc, si))
-    return zc_svcs
+class ZCPublisher(threading.Thread):
+    def __init__(self, port: int = 4302, oscname: str = "MidiboxOSC", allowed_ips: list[str] | None = None) -> list[tuple[Zeroconf, ServiceInfo]]:
+        self._stop_event = threading.Event()
+        self._zc_svcs = {}
+        super().__init__(target=self._run, args=(port, oscname, allowed_ips))
+        self.start()
+
+    def stop(self):
+        self._stop_event.set()
+        self.join()
+
+    def _run(self, port, oscname, allowed_ips):
+        zc_service = "_osc._tcp.local."
+        zc_name = oscname + "." + zc_service
+
+        while not self._stop_event.is_set():
+            # Workaround to publish all IP addresses
+            for ifname, ip in getIPv4Addresses().items():
+                zc_name = f"{oscname}_{ifname}_{port}.{zc_service}"
+                if ip in self._zc_svcs or (allowed_ips is not None and ip not in allowed_ips):
+                    continue
+                si = ServiceInfo(zc_service, zc_name, port, addresses=[ip]) # type: ignore[list-item]
+                zc = Zeroconf([ip])
+                zc.register_service(si)
+                print("Zeroconf register %s on IP %s" % (zc_name, ip))
+                self._zc_svcs.update({ip: (zc, si)})
+            time.sleep(1)
+
+        for ip, (zc, si) in self._zc_svcs.items():
+            zc.close()
