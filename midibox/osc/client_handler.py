@@ -1,7 +1,7 @@
 import mido
 from typing import Callable, Any
 
-from ..controller.base import BaseMidibox, Layer, Pedal, GeneralProps, LayerProps, PedalProps, PropHandler
+from ..controller.base import BaseMidibox, Layer, Pedal, GeneralProps, GeneralPedal, GeneralPedalProps, LayerProps, PedalProps, PropHandler
 from .server import DispatchedOSCRequestHandler
 
 from pythonosc.osc_message_builder import OscMessageBuilder
@@ -42,16 +42,20 @@ class MidiboxOSCClientHandler(DispatchedOSCRequestHandler):
 
     def __init_dispatcher(self) -> None:
         self.map("/init", self.__init)
+        self._chp = []
 
         # Midibox section
         self.mb.general.bind(control_change=self.on_main_control_change)
         for mbp in GeneralProps:
             self.map("/midibox/%s" % (mbp.name), self.main_control_change, mbp.name)
 
+        for pedal in self.mb.general.pedals:
+            for mbp in GeneralPedalProps:
+                self.map("/midibox/pedal%d.%s" % (pedal._index, mbp.name), self.general_pedal_control_change, pedal, mbp.name)
+            self._chp.append(ControlChangeHandlerProxy(pedal, self.on_general_pedal_control_change))
+
         self.map("/midibox/initialize", self.initialize)
         self.map("/midibox/midi", self.on_midi)
-
-        self._chp = []
 
         for lr in self.mb.layers:
             for mblp in LayerProps:
@@ -67,6 +71,9 @@ class MidiboxOSCClientHandler(DispatchedOSCRequestHandler):
 
         for mbp in GeneralProps:
             bundle.add_msg("/midibox/%s" % (mbp.name), getattr(self.mb.general, mbp.name))
+        for pedal in self.mb.general.pedals:
+            for mbpp in GeneralPedalProps:
+                bundle.add_msg("/midibox/pedal%d.%s" % (pedal._index, mbpp.name), getattr(pedal, mbpp.name))
 
         for lr in self.mb.layers:
             index = lr._index
@@ -107,6 +114,10 @@ class MidiboxOSCClientHandler(DispatchedOSCRequestHandler):
         prop, value = list(kwargs.items())[0]
         self.send_message("/midibox/layers/%d/%s" % (layer._index, prop), value)
 
+    def on_general_pedal_control_change(self, pedal: GeneralPedal, **kwargs: Any) -> None:
+        prop, value = list(kwargs.items())[0]
+        self.send_message("/midibox/pedal%d.%s" % (pedal._index, prop), value)
+
     def on_layer_pedal_control_change(self, pedal: Pedal, **kwargs: Any) -> None:
         prop, value = list(kwargs.items())[0]
         self.send_message("/midibox/layers/%d/pedal%d.%s" % (pedal._layer._index, pedal._index, prop), value)
@@ -118,6 +129,10 @@ class MidiboxOSCClientHandler(DispatchedOSCRequestHandler):
     def layer_control_change(self, addr: str, layer: Layer, prop: str, value: Any) -> None:
         if hasattr(layer, prop):
             setattr(layer, prop, value)
+
+    def general_pedal_control_change(self, addr: str, pedal: Pedal, prop: str, value: Any) -> None:
+        if hasattr(pedal, prop):
+            setattr(pedal, prop, value)
 
     def layer_pedal_control_change(self, addr: str, pedal: Pedal, prop: str, value: Any) -> None:
         if hasattr(pedal, prop):

@@ -14,7 +14,7 @@ from PyQt5.QtCore import QTimer
 from PyQt5.QtQuick import QQuickItem
 
 
-from ..controller.base import GeneralProps, LayerProps, PedalProps, BaseMidibox, General, Layer, Pedal
+from ..controller.base import GeneralProps, GeneralPedalProps, LayerProps, PedalProps, BaseMidibox, General, GeneralPedal, Layer, Pedal
 
 from ..config import Preset
 
@@ -116,17 +116,41 @@ class QMidiboxLayer(QObject, metaclass=PropertyMeta):
         return self._proxy.programs_by_ident[self._proxy.program].short if self._proxy.program in self._proxy.programs_by_ident else '?'
 
 
+class QMidiboxGeneralPedal(QObject, metaclass=PropertyMeta):
+    _prop_meta_dict = GeneralPedalProps
+
+    def __init__(self, gpedal: GeneralPedal) -> None:
+        super().__init__()
+        self._proxy = gpedal
+        self._proxy.bind(control_change=self.on_control_change)
+
+    def on_control_change(self, *args: Any, **kwargs: dict[str, Any]) -> None:
+        for name, value in kwargs.items():
+            if hasattr(self, signal_attribute_name(name)):
+                getattr(self, signal_attribute_name(name)).emit(value)
+
+
 class QMidiboxGeneral(QObject, metaclass=PropertyMeta):
     _prop_meta_dict = GeneralProps
+
+    pedalsChange = pyqtSignal() # Not used
 
     def __init__(self, general: General, handler: BaseMidibox) -> None:
         super().__init__()
         self._proxy = general
         self._proxy.bind(control_change=self.on_control_change)
 
+        self._pedals: list[QMidiboxGeneralPedal] = []
+        for p in general.pedals:
+            self._pedals.append(QMidiboxGeneralPedal(p))
+
     @pyqtSlot()
     def reset(self) -> None:
         self._proxy.reset()
+
+    @pyqtProperty(list, notify=pedalsChange)  # type: ignore
+    def pedals(self) -> list[QMidiboxGeneralPedal]:
+        return self._pedals
 
     def on_control_change(self, *args: Any, **kwargs: dict[str, Any]) -> None:
         for name, value in kwargs.items():

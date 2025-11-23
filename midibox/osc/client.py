@@ -14,7 +14,7 @@ from pythonosc.osc_message_builder import OscMessageBuilder
 from pythonosc.osc_bundle_builder import OscBundleBuilder, IMMEDIATELY
 
 from .osc import OscValue
-from ..controller.base import BaseMidibox, PropChange, General, Layer, Pedal
+from ..controller.base import BaseMidibox, PropChange, General, GeneralPedal, Layer, Pedal
 
 
 class OscClient(threading.Thread):
@@ -150,6 +150,22 @@ class OscMidibox(BaseMidibox):
                     setattr(self.general, f"_{prop}", params[0])
                     kwargs = {prop: getattr(self.general, prop)}
                     self.general.emit('control_change', **kwargs)
+                else:
+                    match_res = re.fullmatch(self._pedal_regex, prop)
+                    if match_res is None:
+                        grps = None
+                    else:
+                        grps = match_res.groups()
+
+                    if grps is not None:
+                        index = int(grps[0])
+                        prop = grps[1]
+                        pedal = self.general.pedals[index]
+                        if hasattr(pedal, prop):
+                            kwargs = {prop: getattr(pedal, prop)}
+                            setattr(pedal, f"_{prop}", params[0])
+                            pedal.emit('control_change', **kwargs)
+
             elif prop == "layers" and len(addr) >= 2:
                 lr = self.layers[int(addr[0])]
                 prop = addr[1]
@@ -184,6 +200,8 @@ class OscMidibox(BaseMidibox):
             address = "/midibox/"
             if isinstance(p.source, General):
                 address += f"{p.name}"
+            elif isinstance(p.source, GeneralPedal):
+                address += f"pedal{p.source._index}.{p.name}"
             elif isinstance(p.source, Layer):
                 address += f"layers/{p.source._index}/{p.name}"
             elif isinstance(p.source, Pedal):
