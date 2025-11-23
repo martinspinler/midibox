@@ -180,14 +180,8 @@ class Layer(PropHandler):
     def __init__(self, dev: "BaseMidibox", index: int):
         super().__init__(dev)
         self._index = index
-        self._part = (index + 1) & 0xF if index != 9 else 0
-        self._mode = 0
 
-        pedal_cc = ['Sustain', 'Hold', 'Expression'] + [0] + ['GPC1', 'GPC2', 'GPC3', 'GPC4']
-        self._pedal_cc = [self._dev.pedal_cc[x] if isinstance(x, str) else x for x in pedal_cc]
 
-        pedal_mode = ['Ignore', 'Normal', 'NoteLength', 'Toggle Active', 'Push Active']
-        self._pedal_mode = [self._dev.pedal_mode[x] if x in self._dev.pedal_mode else x for x in pedal_mode]
 
         self.pedals = [Pedal(dev, self, i) for i in range(8)]
 
@@ -205,16 +199,32 @@ class Layer(PropHandler):
 GeneralProps: list[CheckedProp[Any]] = [
     BoolProp('enable'),
     BoolProp('mute'),
-    *[UIntProp(f'pedal_cc{i}', ) for i in range(8)],
-    *[UIntProp(f'pedal_mode{i}', ) for i in range(8)],
-    *[UIntProp(f'pedal_min{i}', ) for i in range(8)],
-    *[UIntProp(f'pedal_max{i}', ) for i in range(8)],
 ]
+
+GeneralPedalProps: list[CheckedProp[Any]] = [
+    UIntProp('cc'),
+    UIntProp('mode'),
+    UIntProp('min'),
+    UIntProp('max'),
+]
+
+
+@mb_properties_init
+class GeneralPedal(PropHandler):
+    _mb_properties = GeneralPedalProps
+
+    def __init__(self, dev: "BaseMidibox", index: int):
+        super().__init__(dev)
+        self._index = index
 
 
 @mb_properties_init
 class General(PropHandler):
     _mb_properties = GeneralProps
+
+    def __init__(self, dev: "BaseMidibox"):
+        super().__init__(dev)
+        self.pedals = [GeneralPedal(dev, i) for i in range(8)]
 
 
 class PropChange(NamedTuple):

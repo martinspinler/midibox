@@ -14,7 +14,7 @@ from PyQt5.QtCore import QTimer
 from PyQt5.QtQuick import QQuickItem
 
 
-from ..controller.base import GeneralProps, LayerProps, PedalProps, BaseMidibox, General, Layer, Pedal
+from ..controller.base import GeneralProps, GeneralPedalProps, LayerProps, PedalProps, BaseMidibox, General, GeneralPedal, Layer, Pedal
 
 from ..config import Preset
 
@@ -134,11 +134,26 @@ class QMidiboxGeneral(QObject, metaclass=PropertyMeta):
                 getattr(self, signal_attribute_name(name)).emit(value)
 
 
+class QMidiboxGeneralPedal(QObject, metaclass=PropertyMeta):
+    _prop_meta_dict = GeneralPedalProps
+
+    def __init__(self, gpedal: GeneralPedal, handler: BaseMidibox) -> None:
+        super().__init__()
+        self._proxy = gpedal
+        self._proxy.bind(control_change=self.on_control_change)
+
+    def on_control_change(self, *args: Any, **kwargs: dict[str, Any]) -> None:
+        for name, value in kwargs.items():
+            if hasattr(self, signal_attribute_name(name)):
+                getattr(self, signal_attribute_name(name)).emit(value)
+
+
 class QMidiBox(QObject, metaclass=PropertyMeta):
     _prop_meta_dict = GeneralProps
 
     layersChange = pyqtSignal() # Not used
     generalChange = pyqtSignal() # Not used
+    pedalsChange = pyqtSignal() # Not used
     transpositionExtraChange = pyqtSignal()
 
     def __init__(self, box: BaseMidibox) -> None:
@@ -152,6 +167,10 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
         for lr in self.box.layers:
             self._layers.append(QMidiboxLayer(lr, self.box))
             lr.bind(control_change=self.on_layer_control_change)
+
+        self._pedals: list[QMidiboxGeneralPedal] = []
+        for p in self.box.general.pedals:
+            self._pedals.append(QMidiboxGeneralPedal(p, box))
 
         self._presets: dict[int, Preset] = {}
 
@@ -168,6 +187,10 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
     @pyqtProperty(QObject, notify=generalChange)  # type: ignore
     def general(self) -> QMidiboxGeneral:
         return self._general
+
+    @pyqtProperty(QObject, notify=pedalsChange)  # type: ignore
+    def pedals(self) -> list[QMidiboxGeneralPedal]:
+        return self._pedals
 
     @pyqtProperty(list, notify=layersChange)  # type: ignore
     def layers(self) -> list[QMidiboxLayer]:
