@@ -4,7 +4,7 @@ import re
 import logging
 from typing import List, Optional, Tuple, Any
 
-from ..controller.base import BaseMidibox, Layer, PropHandler, General, Pedal, PropChange
+from ..controller.base import BaseMidibox, Layer, PropHandler, General, GeneralPedal, Pedal, PropChange
 
 from threading import Thread
 
@@ -52,11 +52,11 @@ class MidoMidibox(BaseMidibox):
     _CMD_WRITE_ACK = 5 # noqa
     _CMD_WRITE_NAK = 6 # noqa
 
-    _LR_GENERAL_OFFSETS = {
-        "pedal_cc": 6,
-        "pedal_mode": 14,
-        "pedal_min": 22,
-        "pedal_max": 30
+    _LR_GENERAL_PEDAL_OFFSETS = {
+        "cc": 6,
+        "mode": 14,
+        "min": 22,
+        "max": 30
     }
 
     _config: dict[int, List[int]]
@@ -119,6 +119,11 @@ class MidoMidibox(BaseMidibox):
                 if index not in origs:
                     origs[index] = self._config[index].copy()
                 self._update_general_config({p.name: p.value})
+            elif isinstance(s, GeneralPedal):
+                index = self._LAYER_GENERAL
+                if index not in origs:
+                    origs[index] = self._config[index].copy()
+                self._update_general_pedal_config(s, [p.name])
             elif isinstance(s, Layer):
                 index = s._index
                 if index not in origs:
@@ -326,6 +331,8 @@ class MidoMidibox(BaseMidibox):
     def _load_config(self, source: PropHandler) -> None:
         if isinstance(source, General):
             self._load_general_config()
+        elif isinstance(source, GeneralPedal):
+            self._load_general_config()
         elif isinstance(source, Layer):
             self._load_layer_config(source)
         elif isinstance(source, Pedal):
@@ -348,16 +355,17 @@ class MidoMidibox(BaseMidibox):
         if "_send-adc-rawdata" in names:
             c[0] = sbit(c[0], 5, names["_send-adc-rawdata"])
 
-        for i in range(8):
-            for n, o in self._LR_GENERAL_OFFSETS.items():
-                name = f"{n}{i}"
-                if name in names:
-                    c[o+i] = getattr(self.general, name)
-
         #####c[2] = 1 if self._do_init.get(self.general, 1) else 0
         #c[3] = self._selected_layer
         self._do_init[self.general] = False
         #c[4:6] = [120, 0] # tempo
+
+    def _update_general_pedal_config(self, p: GeneralPedal, names: list[str]) -> None:
+        c = self._config[self._LAYER_GENERAL]
+        i = p._index
+        for name, o in self._LR_GENERAL_PEDAL_OFFSETS.items():
+            if name in names:
+                c[o+i] = getattr(p, name)
 
     def _read_general_config(self, retries: Optional[int] = None, timeout: float = READ_TIMEOUT) -> None:
         c = self._read_regs(self._LAYER_GENERAL, 0, 6 + 16 + 16, retries, timeout)
@@ -369,9 +377,9 @@ class MidoMidibox(BaseMidibox):
         self.general.enable = True if c[0] & 1 else False
 
         for i in range(8):
-            for n, o in self._LR_GENERAL_OFFSETS.items():
-                name = f"{n}{i}"
-                setattr(self.general, name, c[o+i])
+            p = self.general.pedals[i]
+            for name, o in self._LR_GENERAL_PEDAL_OFFSETS.items():
+                setattr(p, name, c[o+i])
 
     def _write_layer_config(self, layer: Layer) -> None:
         c = self._config.get(layer)

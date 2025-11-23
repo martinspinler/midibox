@@ -116,17 +116,13 @@ class QMidiboxLayer(QObject, metaclass=PropertyMeta):
         return self._proxy.programs_by_ident[self._proxy.program].short if self._proxy.program in self._proxy.programs_by_ident else '?'
 
 
-class QMidiboxGeneral(QObject, metaclass=PropertyMeta):
-    _prop_meta_dict = GeneralProps
+class QMidiboxGeneralPedal(QObject, metaclass=PropertyMeta):
+    _prop_meta_dict = GeneralPedalProps
 
-    def __init__(self, general: General, handler: BaseMidibox) -> None:
+    def __init__(self, gpedal: GeneralPedal) -> None:
         super().__init__()
-        self._proxy = general
+        self._proxy = gpedal
         self._proxy.bind(control_change=self.on_control_change)
-
-    @pyqtSlot()
-    def reset(self) -> None:
-        self._proxy.reset()
 
     def on_control_change(self, *args: Any, **kwargs: dict[str, Any]) -> None:
         for name, value in kwargs.items():
@@ -134,13 +130,27 @@ class QMidiboxGeneral(QObject, metaclass=PropertyMeta):
                 getattr(self, signal_attribute_name(name)).emit(value)
 
 
-class QMidiboxGeneralPedal(QObject, metaclass=PropertyMeta):
-    _prop_meta_dict = GeneralPedalProps
+class QMidiboxGeneral(QObject, metaclass=PropertyMeta):
+    _prop_meta_dict = GeneralProps
 
-    def __init__(self, gpedal: GeneralPedal, handler: BaseMidibox) -> None:
+    pedalsChange = pyqtSignal() # Not used
+
+    def __init__(self, general: General, handler: BaseMidibox) -> None:
         super().__init__()
-        self._proxy = gpedal
+        self._proxy = general
         self._proxy.bind(control_change=self.on_control_change)
+
+        self._pedals: list[QMidiboxGeneralPedal] = []
+        for p in general.pedals:
+            self._pedals.append(QMidiboxGeneralPedal(p))
+
+    @pyqtSlot()
+    def reset(self) -> None:
+        self._proxy.reset()
+
+    @pyqtProperty(list, notify=pedalsChange)  # type: ignore
+    def pedals(self) -> list[QMidiboxGeneralPedal]:
+        return self._pedals
 
     def on_control_change(self, *args: Any, **kwargs: dict[str, Any]) -> None:
         for name, value in kwargs.items():
@@ -153,7 +163,6 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
 
     layersChange = pyqtSignal() # Not used
     generalChange = pyqtSignal() # Not used
-    pedalsChange = pyqtSignal() # Not used
     transpositionExtraChange = pyqtSignal()
 
     def __init__(self, box: BaseMidibox) -> None:
@@ -167,10 +176,6 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
         for lr in self.box.layers:
             self._layers.append(QMidiboxLayer(lr, self.box))
             lr.bind(control_change=self.on_layer_control_change)
-
-        self._pedals: list[QMidiboxGeneralPedal] = []
-        for p in self.box.general.pedals:
-            self._pedals.append(QMidiboxGeneralPedal(p, box))
 
         self._presets: dict[int, Preset] = {}
 
@@ -187,10 +192,6 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
     @pyqtProperty(QObject, notify=generalChange)  # type: ignore
     def general(self) -> QMidiboxGeneral:
         return self._general
-
-    @pyqtProperty(QObject, notify=pedalsChange)  # type: ignore
-    def pedals(self) -> list[QMidiboxGeneralPedal]:
-        return self._pedals
 
     @pyqtProperty(list, notify=layersChange)  # type: ignore
     def layers(self) -> list[QMidiboxLayer]:

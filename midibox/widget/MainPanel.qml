@@ -96,6 +96,48 @@ ColumnLayout {
 				}
 			}
 		}
+
+		Column{
+		/* Pedals */
+			Item {
+				Layout.fillWidth: true
+				GridLayout {
+					anchors.fill: parent
+					columns: 2
+
+					Repeater {
+						id: pedal
+						Layout.fillWidth: true
+						model: 8
+
+						GridLayout {
+							Layout.fillWidth: true
+							//anchors.fill: parent
+							columns: 3
+							Label{text: qsTr("Pedal " + (modelData+1))}
+
+							ComboBox {
+								Layout.fillWidth: true
+								model: pedalCcModel
+								onActivated: midibox.general.pedals[modelData].cc = currentValue
+								currentIndex: indexOfValue(midibox.general.pedals[modelData].cc)
+								textRole: 'text'
+								valueRole: 'value'
+							}
+							ComboBox {
+								Layout.fillWidth: true
+								model: pedalModeModel
+								onActivated: midibox.general.pedals[modelData].mode = currentValue
+								currentIndex: indexOfValue(midibox.general.pedals[modelData].mode)
+								textRole: 'text'
+								valueRole: 'value'
+							}
+						}
+					}
+				}
+			}
+
+		}
 	}
 }
 

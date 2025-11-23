@@ -21,6 +21,8 @@ static struct pt pt_charlieplex;
 const int CPP_FIRST = 8;
 const int CPP_LAST  = 10;
 
+static const int ANALOG_PEDALS = 3;
+
 static int charlieplex(struct pt *pt)
 {
 	static int i;
@@ -68,7 +70,6 @@ static int charlieplex(struct pt *pt)
 
 void check_inputs()
 {
-	static const int ANALOG_PEDALS = 3;
 	static const int ANALOG_PEDALS_AVG = 16;
 	int i, j;
 	static unsigned long ms = 0;
@@ -198,6 +199,13 @@ void setup()
 
 	midi_init();
 	smidi_init();
+
+	gs.r.pedal_min[0] = 80;
+	gs.r.pedal_max[0] = 100;
+	gs.r.pedal_min[1] = 10;
+	gs.r.pedal_max[1] = 11;
+	gs.r.pedal_min[2] = 8;
+	gs.r.pedal_max[2] = 110;
 
 #ifdef MIDIBOX_ENABLE_BLE
 	ble_start_adv();

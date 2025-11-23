@@ -181,9 +181,14 @@ class Layer(PropHandler):
         super().__init__(dev)
         self._index = index
 
-
-
         self.pedals = [Pedal(dev, self, i) for i in range(8)]
+        #self._part = (index + 1) & 0xF if index != 9 else 0
+
+        #pedal_cc = ['Sustain', 'Hold', 'Expression'] + [0] + ['GPC1', 'GPC2', 'GPC3', 'GPC4']
+        #self._pedal_cc = [self._dev.pedal_cc[x] if isinstance(x, str) else x for x in pedal_cc]
+
+        #pedal_mode = ['Ignore', 'Normal', 'NoteLength', 'Toggle Active', 'Push Active']
+        #self._pedal_mode = [self._dev.pedal_mode[x] if x in self._dev.pedal_mode else x for x in pedal_mode]
 
     def reset(self) -> None:
         super().reset()
