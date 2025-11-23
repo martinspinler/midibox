@@ -4,7 +4,7 @@ import re
 import logging
 from typing import List, Optional, Tuple, Any
 
-from ..controller.base import BaseMidibox, Layer, PropHandler, General, Pedal, PropChange, Program, prg_id
+from ..controller.base import BaseMidibox, Layer, PropHandler, General, Pedal, PropChange
 
 from threading import Thread
 
@@ -307,20 +307,19 @@ class MidoMidibox(BaseMidibox):
             if self._cb_data_waiting == (layer, offset, reqlen):
                 self._cb_data = data
                 self._cb_data_waiting = None
-            else:
-                # Unrequested update
-                if cmd == self._CMD_READ_RES:
-                    grp: Optional[PropHandler] = None
+            # Unrequested update
+            elif cmd == self._CMD_READ_RES:
+                grp: Optional[PropHandler] = None
 
-                    if layer < 8:
-                        grp = self.layers[layer]
-                    elif layer == self._LAYER_GENERAL:
-                        grp = self.general
+                if layer < 8:
+                    grp = self.layers[layer]
+                elif layer == self._LAYER_GENERAL:
+                    grp = self.general
 
-                    if grp is not None:
-                        cfg = self._config[layer]
-                        cfg[offset:offset + reqlen] = data
-                        self._load_config(grp)
+                if grp is not None:
+                    cfg = self._config[layer]
+                    cfg[offset:offset + reqlen] = data
+                    self._load_config(grp)
             return True
         return False
 
@@ -416,7 +415,6 @@ class MidoMidibox(BaseMidibox):
             c[15] = lr.decay + 64
 
         if "program" in names:
-            p = None
             m = re.fullmatch(r"_pgm_(\d+)_(\d+)_(\d+)_", lr.program)
             if m is not None:
                 g = m.groups()

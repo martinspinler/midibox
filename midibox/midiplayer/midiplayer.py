@@ -64,7 +64,7 @@ class Midiplayer():
         self._tpb = 480
 
         self.status = MidiplayerStatus()
-        self.jumps = [
+        self.jumps: list[tuple[tuple[int, int], tuple[int, int]]] = [
             #((16, 1), (32, 1)),
             #((5, 1), (1, 1)),
         ]

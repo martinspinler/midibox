@@ -233,18 +233,19 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
                                 pedal = layer.pedals[pi]
                                 for pk, pv in pedal_config.items():
                                     if hasattr(pedal, pk):
+                                        val = pv
                                         if pk == "mode":
-                                            pv = {
+                                            mode = {
                                                 'none': 0,
                                                 'normal': 1,
                                                 'note_length': 2,
                                                 'toggle_active': 3,
                                                 'push_active': 4,
-                                            }[pv]
-                                        setattr(pedal, pk, pv)
-                        else:
-                            if hasattr(layer, k):
-                                setattr(layer, k, v)
+                                            }
+                                            val = mode[pv]
+                                        setattr(pedal, pk, val)
+                        elif hasattr(layer, k):
+                            setattr(layer, k, v)
 
                 for k, v in config.get("global", {}).items():
                     if k not in ['enabled', 'transpositionExtra']:

@@ -8,7 +8,7 @@ from types import TracebackType
 def clamp(val: int, lower: int, upper: int) -> int:
     return lower if val < lower else upper if val > upper else val
 
-def prg_id(pc, msb, lsb):
+def prg_id(pc: int, msb: int, lsb: int) -> Tuple[int, int, int, str]:
     return pc, msb, lsb, f"_pgm_{pc}_{msb}_{lsb}_"
 
 

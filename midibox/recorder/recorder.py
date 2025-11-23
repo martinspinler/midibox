@@ -40,7 +40,7 @@ class Recorder():
             self.track.append(m2)
             self.last_event = ts
 
-        if self.filepath is not None and (
+        if self.last_save is not None and (
                 msg.type == "reset" or
                 (self.last_save < self.last_event and self.last_save + 60 * 5 < ts)
         ):

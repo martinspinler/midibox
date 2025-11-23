@@ -137,9 +137,9 @@ def getIPv4Addresses() -> dict[str, str]:
 
 
 class ZCPublisher(threading.Thread):
-    def __init__(self, port: int = 4302, oscname: str = "MidiboxOSC", allowed_ips: list[str] | None = None) -> list[tuple[Zeroconf, ServiceInfo]]:
+    def __init__(self, port: int = 4302, oscname: str = "MidiboxOSC", allowed_ips: list[str] | None = None):
         self._stop_event = threading.Event()
-        self._zc_svcs = {}
+        self._zc_svcs: dict[str, tuple[Zeroconf, ServiceInfo]] = {}
         super().__init__(target=self._run, args=(port, oscname, allowed_ips))
         self.start()
 
