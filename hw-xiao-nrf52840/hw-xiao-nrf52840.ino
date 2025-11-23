@@ -199,6 +199,13 @@ void setup()
 	midi_init();
 	smidi_init();
 
+	gs.r.pedal_min[0] = 80;
+	gs.r.pedal_max[0] = 100;
+	gs.r.pedal_min[1] = 10;
+	gs.r.pedal_max[1] = 11;
+	gs.r.pedal_min[2] = 8;
+	gs.r.pedal_max[2] = 110;
+
 #ifdef MIDIBOX_ENABLE_BLE
 	ble_start_adv();
 #endif
