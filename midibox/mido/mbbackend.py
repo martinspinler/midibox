@@ -339,8 +339,8 @@ class MidoMidibox(BaseMidibox):
 
     def _update_general_config(self, names: dict[str, Any]) -> None:
         c = self._config[self._LAYER_GENERAL]
-        if "enable" in names:
-            c[0] = sbit(c[0], 0, self.general.enable)
+        if "enabled" in names:
+            c[0] = sbit(c[0], 0, self.general.enabled)
 
         if "_check-keep-alive" in names:
             c[0] = sbit(c[0], 6, names["_check-keep-alive"])
@@ -366,7 +366,7 @@ class MidoMidibox(BaseMidibox):
 
     def _load_general_config(self) -> None:
         c = self._config[self._LAYER_GENERAL]
-        self.general.enable = True if c[0] & 1 else False
+        self.general.enabled = True if c[0] & 1 else False
 
         for i in range(8):
             for n, o in self._LR_GENERAL_OFFSETS.items():

@@ -23,7 +23,7 @@ def validate_config(config: dict[str, Any]) -> None:
             {
                 "label": str,
                 "name": str,
-                Optional("global"): {
+                Optional("general"): {
                     Optional("enabled"): bool,
                 },
 
@@ -250,13 +250,15 @@ class Preset():
     def get_config(self, config: dict[str, Any]) -> None:
         if config.get('layers') is None:
             config['layers'] = {}
+        if config.get('general') is None:
+            config['general'] = {}
 
         for base in self._base:
             base.get_config(config)
 
-        for k, v in self._cfg.items():
+        for k, v in self._cfg.get('general', {}).items():
             if k in self._props.glob:
-                config[k] = v
+                config['general'][k] = v
 
         for layer in self._layers.values():
             if config['layers'].get(layer.index) is None:

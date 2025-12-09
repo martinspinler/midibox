@@ -247,11 +247,9 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
                         elif hasattr(layer, k):
                             setattr(layer, k, v)
 
-                for k, v in config.get("global", {}).items():
-                    if k not in ['enabled', 'transpositionExtra']:
-                        continue
-                    if hasattr(self, k):
-                        setattr(self, k, v)
+                for k, v in config.get("general", {}).items():
+                    if hasattr(self._general, k):
+                        setattr(self._general, k, v)
 
 
 class GraphUpdater(QObject):

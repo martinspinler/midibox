@@ -33,8 +33,8 @@ ColumnLayout {
 
 			Switch{
 				text: "Enable"
-				onToggled: midibox.general.enable = checked
-				checked: midibox.general.enable
+				onToggled: midibox.general.enabled = checked
+				checked: midibox.general.enabled
 			}
 			Switch{
 				text: "Transpose 1ova on ch0"

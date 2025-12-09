@@ -1,12 +1,12 @@
 presets:
  - label: Disable
    name: disable
-   global:
+   general:
      enabled: False
 
  - label: Reset
    name: reset
-   global:
+   general:
      enabled: True
      transpositionExtra: False
    layers:
@@ -42,7 +42,7 @@ presets:
 
  - label: Piano + bass
    name: p_b
-   global:
+   general:
      transpositionExtra: True
    layers:
    - program: piano

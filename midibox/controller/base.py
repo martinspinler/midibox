@@ -203,7 +203,7 @@ class Layer(PropHandler):
 
 
 GeneralProps: list[CheckedProp[Any]] = [
-    BoolProp('enable'),
+    BoolProp('enabled'),
     BoolProp('mute'),
     *[UIntProp(f'pedal_cc{i}', ) for i in range(8)],
     *[UIntProp(f'pedal_mode{i}', ) for i in range(8)],

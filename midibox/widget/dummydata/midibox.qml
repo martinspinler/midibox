@@ -1,7 +1,7 @@
 import QtQuick 2.3
 
 QtObject {
-	property bool enable: true
+	property bool enabled: true
 	property bool transpositionExtra: true
 
 	function note2text(i) {
