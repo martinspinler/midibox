@@ -129,11 +129,36 @@ void midi_inform_lr_change(uint8_t l, uint8_t reg, uint8_t len)
 
 /* TODO */
 
+void layer_handle_pedal_input(struct layer_state & lr, int pedal, uint8_t val)
+{
+	uint8_t i = lr.index;
+	uint8_t cc, pm;
+	uint8_t prev_active = lr.r.active;
+
+	cc = lr.r.pedal_cc[pedal];
+	pm = lr.r.pedal_mode[pedal];
+	if (pm == PEDAL_MODE_NORMAL) {
+		MS1.sendControlChange(cc, val, i + 1);
+		if (cc == PortamentoTime) {
+			lr.r.portamento_time = val;
+			midi_inform_lr_change(i, offsetof(struct layer_state_reg, portamento_time), 1);
+		}
+	} else if (pm == PEDAL_MODE_TOGGLE_ACT) {
+		if (val != 0) {
+			lr.r.active = lr.r.active ? 0 : 1;
+		}
+	} else if (pm == PEDAL_MODE_PUSH_ACT) {
+		lr.r.active = lr.r.active ? 0 : 1;
+	}
+	if (lr.r.active != prev_active) {
+		midi_inform_lr_change(i, offsetof(struct layer_state_reg, config), 1);
+	}
+}
+
 #if 1
 void midi_handle_pedal_input(uint8_t pedal, uint8_t val)
 {
 	uint8_t i;
-	uint8_t cmd, cc, pm;
 
 	if (pedal >= 8)
 		return;
@@ -147,42 +172,7 @@ void midi_handle_pedal_input(uint8_t pedal, uint8_t val)
 
 	for (i = 0; i < LAYERS; i++) {
 		struct layer_state & lr = ls[i];
-		uint8_t prev_active = lr.r.active;
-
-		cc = lr.r.pedal_cc[pedal];
-		pm = lr.r.pedal_mode[pedal];
-		if (pm == PEDAL_MODE_NORMAL) {
-			MS1.sendControlChange(cc, val, i + 1);
-			if (cc == PortamentoTime) {
-				lr.r.portamento_time = val;
-				midi_inform_lr_change(i, offsetof(struct layer_state_reg, portamento_time), 1);
-			}
-		} else if (pm == PEDAL_MODE_TOGGLE_ACT) {
-			if (val == 0x7F) {
-				#ifdef MIDIBOX_LOCAL_ACTIVE
-				lr.activate = lr.activate ? 0 : 1;
-				#else
-				lr.r.active = lr.r.active ? 0 : 1;
-				#endif
-			}
-		} else if (pm == PEDAL_MODE_PUSH_ACT) {
-			if (val == 0) {
-				#ifdef MIDIBOX_LOCAL_ACTIVE
-				lr.activate = lr.r.active ? 1 : 0;
-				#else
-				lr.r.active = lr.r.active ? 0 : 1;
-				#endif
-			} else if (val == 0x7F) {
-				#ifdef MIDIBOX_LOCAL_ACTIVE
-				lr.activate = lr.r.active ? 0 : 1;
-				#else
-				lr.r.active = lr.r.active ? 0 : 1;
-				#endif
-			}
-		}
-		if (lr.r.active != prev_active) {
-			midi_inform_lr_change(i, offsetof(struct layer_state_reg, config), 1);
-		}
+		layer_handle_pedal_input(lr, pedal, val);
 	}
 }
 #endif
@@ -769,6 +759,7 @@ void midi_init()
 		lr.r.volume = 127;
 		lr.r.mode = 0;
 
+		lr.index = l;
 		lr.transposition = 0;
 		lr.transposition_extra = 0;
 		lr.channel_in_mask = 0xffff;

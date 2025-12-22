@@ -19,6 +19,7 @@ struct layer_state {
 		uint8_t active: 1;
 		uint8_t activate: 1;
 	};
+	uint8_t index;
 	int8_t  transposition;
 	int8_t  transposition_extra;
 	uint8_t cc_sustain;
