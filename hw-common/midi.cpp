@@ -19,10 +19,15 @@ struct midi_changes {
 	int volume: 1;
 	int harmonic_bar_set : 1;
 	int all : 1;
+	int pedal_cc : 8;
+	int pedal_mode : 8;
+	int active : 1;
 #if 0
 	int part: 1;
 #endif
 };
+
+static uint8_t pedal_value[PEDALS] = {0};
 
 void midi_loop()
 {
@@ -129,14 +134,14 @@ void midi_inform_lr_change(uint8_t l, uint8_t reg, uint8_t len)
 
 /* TODO */
 
-void layer_handle_pedal_input(struct layer_state & lr, int pedal, uint8_t val)
+void _layer_handle_pedal_input(struct layer_state & lr, struct layer_state & lr_from, int pedal, uint8_t val)
 {
 	uint8_t i = lr.index;
 	uint8_t cc, pm;
 	uint8_t prev_active = lr.r.active;
 
-	cc = lr.r.pedal_cc[pedal];
-	pm = lr.r.pedal_mode[pedal];
+	cc = lr_from.r.pedal_cc[pedal];
+	pm = lr_from.r.pedal_mode[pedal];
 	if (pm == PEDAL_MODE_NORMAL) {
 		MS1.sendControlChange(cc, val, i + 1);
 		if (cc == PortamentoTime) {
@@ -155,6 +160,11 @@ void layer_handle_pedal_input(struct layer_state & lr, int pedal, uint8_t val)
 	}
 }
 
+void layer_handle_pedal_input(struct layer_state & lr, int pedal, uint8_t val)
+{
+	return _layer_handle_pedal_input(lr, lr, pedal, val);
+}
+
 #if 1
 void midi_handle_pedal_input(uint8_t pedal, uint8_t val)
 {
@@ -162,6 +172,8 @@ void midi_handle_pedal_input(uint8_t pedal, uint8_t val)
 
 	if (pedal >= 8)
 		return;
+
+	pedal_value[pedal] = val;
 
 	if (gs.r.pedal_mode[pedal] == PEDAL_MODE_NORMAL) {
 		MU.sendControlChange(gs.r.pedal_cc[pedal], val, 1);
@@ -176,6 +188,39 @@ void midi_handle_pedal_input(uint8_t pedal, uint8_t val)
 	}
 }
 #endif
+
+void midi_update_layer_pedal(struct layer_state & lr, struct layer_state & lr_from, struct midi_changes & changes, bool from)
+{
+	uint8_t cc, mode;
+	uint8_t val;
+	uint8_t i;
+	bool set;
+	bool ccc, pmc;
+
+	for (i = 0; i < PEDALS; i++) {
+		set = false;
+		mode = lr_from.r.pedal_mode[i];
+		cc = lr_from.r.pedal_cc[i];
+		val = from ? 0 : pedal_value[i];
+
+		ccc = (changes.pedal_cc & (1 << i)) ? true : false;
+		pmc = (changes.pedal_mode & (1 << i)) ? true : false;
+
+		if (mode == PEDAL_MODE_NORMAL) {
+			if (
+				(ccc || pmc) &&
+				(cc != PortamentoTime && cc != ExpressionController)
+			   ) {
+					set = true;
+			}
+		} else if (mode == PEDAL_MODE_PUSH_ACT) {
+			set = true;
+		}
+
+		if (set)
+			_layer_handle_pedal_input(lr, lr_from, i, val);
+	}
+}
 
 void midi_update_layer(struct layer_state & lr, struct layer_state & lr_prev, struct midi_changes &changes)
 {
@@ -231,6 +276,9 @@ void midi_update_layer(struct layer_state & lr, struct layer_state & lr_prev, st
 		reslen = roland_sysex_finish(s, 3+1);
 		MS1.sendSysEx(reslen, s, false);
 	}
+
+	midi_update_layer_pedal(lr, lr_prev, changes, false);
+	midi_update_layer_pedal(lr, lr, changes, true);
 }
 
 void control_handle_midi_msg(int origin, const Message<128> & msg)
@@ -349,6 +397,18 @@ void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 			changes.part = 1;
 		}
 #endif
+
+		if (lr_prev.r.active != lr.r.active)
+			changes.active = 1;
+
+		for (i = 0; i < PEDALS; i++) {
+			if (lr_prev.r.pedal_cc[i] != lr.r.pedal_cc[i]) {
+				changes.pedal_cc |= (1 << i);
+			}
+			if (lr_prev.r.pedal_mode[i] != lr.r.pedal_mode[i]) {
+				changes.pedal_cc |= (1 << i);
+			}
+		}
 		midi_update_layer(lr, lr_prev, changes);
 	} else if (cmd == MIDIBOX_CMD_READ_REQ && layer < LAYERS) {
 		struct layer_state & lr = ls[layer];
