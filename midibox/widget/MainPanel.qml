@@ -95,6 +95,53 @@ ColumnLayout {
 				}
 			}
 		}
+
+		/* Pedals */
+		Item{
+			Layout.fillWidth: true
+			Layout.fillHeight: true
+			Flickable{
+				Layout.fillWidth: true
+				Layout.fillHeight: true
+				anchors.fill: parent
+				contentHeight: pedalGL.height
+				clip: true
+
+				ScrollBar.vertical: ScrollBar {
+					policy: ScrollBar.AsNeeded
+				}
+
+				GridLayout {
+					id: pedalGL
+					columns: 3
+					Layout.fillWidth: true
+
+					Repeater {
+						model: 8
+						Item {
+							Slider {
+								Layout.alignment: Qt.AlignRight
+								parent: pedalGL
+								from: 0; to: 127; stepSize: 1
+								value: midibox.general.pedals[modelData].max
+								onMoved: midibox.general.pedals[modelData].max = Math.round(value)
+							}
+							Slider {
+								Layout.alignment: Qt.AlignRight
+								parent: pedalGL
+								from: 0; to: 127; stepSize: 1
+								value: midibox.general.pedals[modelData].min
+								onMoved: midibox.general.pedals[modelData].min = Math.round(value)
+							}
+							Label {
+								parent: pedalGL
+								text: qsTr("Ped " + (modelData+1) + ": " + midibox.general.pedals[modelData].min) + " - " + midibox.general.pedals[modelData].max
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 }
 
