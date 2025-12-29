@@ -138,7 +138,6 @@ void _layer_handle_pedal_input(struct layer_state & lr, struct layer_state & lr_
 {
 	uint8_t i = lr.index;
 	uint8_t cc, pm;
-	uint8_t prev_active = lr.r.active;
 
 	cc = lr_from.r.pedal_cc[pedal];
 	pm = lr_from.r.pedal_mode[pedal];
@@ -150,13 +149,13 @@ void _layer_handle_pedal_input(struct layer_state & lr, struct layer_state & lr_
 		}
 	} else if (pm == PEDAL_MODE_TOGGLE_ACT) {
 		if (val != 0) {
-			lr.r.active = lr.r.active ? 0 : 1;
+			lr.r.active_status = lr.r.active_status ? 0 : 1;
 		}
 	} else if (pm == PEDAL_MODE_PUSH_ACT) {
-		lr.r.active = lr.r.active ? 0 : 1;
-	}
-	if (lr.r.active != prev_active) {
-		midi_inform_lr_change(i, offsetof(struct layer_state_reg, config), 1);
+		if (lr.r.active)
+			lr.r.active_status = val ? 0 : 1;
+		else
+			lr.r.active_status = val ? 1 : 0;
 	}
 }
 
@@ -184,7 +183,13 @@ void midi_handle_pedal_input(uint8_t pedal, uint8_t val)
 
 	for (i = 0; i < LAYERS; i++) {
 		struct layer_state & lr = ls[i];
+		uint8_t prev_active = lr.r.active_status;
+
 		layer_handle_pedal_input(lr, pedal, val);
+
+		if (lr.r.active_status != prev_active) {
+			midi_inform_lr_change(i, offsetof(struct layer_state_reg, status), 1);
+		}
 	}
 }
 #endif
@@ -277,8 +282,15 @@ void midi_update_layer(struct layer_state & lr, struct layer_state & lr_prev, st
 		MS1.sendSysEx(reslen, s, false);
 	}
 
-	midi_update_layer_pedal(lr, lr_prev, changes, false);
-	midi_update_layer_pedal(lr, lr, changes, true);
+	midi_update_layer_pedal(lr, lr_prev, changes, true);
+	if (changes.active)
+		lr.r.active_status = lr.r.active;
+
+	midi_update_layer_pedal(lr, lr, changes, false);
+
+	if (lr.r.active_status != lr_prev.r.active_status) {
+		midi_inform_lr_change(lr.index, offsetof(struct layer_state_reg, status), 1);
+	}
 }
 
 void control_handle_midi_msg(int origin, const Message<128> & msg)
@@ -371,9 +383,12 @@ void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 		reg2layer(lr);
 
 		if (lr.r.init) {
-			lr.r.init = 0;
 			changes.all = 1;
 		}
+
+		/* R/O values */
+		lr.r.init = 0;
+		lr.r.active_status = lr_prev.r.active_status;
 
 		if (lr_prev.r.bs != lr.r.bs || lr_prev.r.bs_lsb != lr.r.bs_lsb || lr_prev.r.pgm != lr.r.pgm)
 			changes.program = 1;
@@ -605,9 +620,8 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 		lmask = 1 << l;
 		lchannel = ((lr.channel_out_offset + l) & 0x0F) + 1;
 		lnote = (b1 + lr.transposition + lr.transposition_extra) & 0x7F;
-		//lenabled = lr.r.enabled && ((lr.activate == 0 && lr.r.active == 1) || (lr.activate == 1 && lr.r.active == 0));
 		lenabled = lr.r.enabled;
-		lactive = (lr.activate == 0 && lr.r.active == 1) || (lr.activate == 1 && lr.r.active == 0);
+		lactive = lr.r.active_status;
 
 		note_in_bounds = (b1 + lr.transposition + lr.transposition_extra) == lnote ? 1 : 0;
 
@@ -808,6 +822,7 @@ void midi_init()
 
 		lr.r.enabled = 0;
 		lr.r.active = 1;
+		lr.r.active_status = 1;
 		lr.r.status = 0;
 		lr.r.init = 0;
 		lr.r.pgm = 0;
@@ -832,11 +847,6 @@ void midi_init()
 		lr.r.attack = 0x40;
 		lr.r.cutoff = 0x40;
 		lr.r.decay = 0x40;
-
-		/* TODO: "activate" feature (mode of pedal) is to temporary disable (default) or enable channel */
-		//lr.active = 0; /* pedal mode == activate */
-		lr.r.active = 1; /* pedal mode == deactivate */
-		lr.activate = 0; /* This represents current state of the "activate" pedal */
 
 		lr.part = l + 1;
 		layer2reg(lr);

@@ -128,6 +128,7 @@ LayerProps: list[CheckedProp[Any]] = [
     SIntProp('transposition_extra'),
     BoolProp('enabled'),
     BoolProp('active', True),
+    BoolProp('active_status', True),
     CheckedProp('rangel', 21, lambda s, v: clamp(v, 0, s._rangeu)),
     CheckedProp('rangeu', 108, lambda s, v: clamp(v, s._rangel, v)),
     CheckedProp('program', 'piano', check_prop_program, initial='-unknown-'),

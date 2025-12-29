@@ -56,7 +56,12 @@ struct layer_state_reg {
 		uint8_t config;
 	};
 
-	uint8_t status;	/* R/O */
+	union {
+		struct {
+			bool active_status: 1; /* R/O */
+		};
+		uint8_t status;	/* R/O */
+	};
 	uint8_t init;	/* W/O */
 	uint8_t pgm;
 	uint8_t bs;

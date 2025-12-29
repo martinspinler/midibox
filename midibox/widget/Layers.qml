@@ -25,7 +25,7 @@ Item {
 						Rectangle {
 							anchors.fill: parent
 							opacity: 0.5
-							color: midibox.layers[modelData].enabled ? (midibox.layers[modelData].active ? "green" : "blue") : "red"
+							color: midibox.layers[modelData].enabled ? (midibox.layers[modelData].active_status ? "green" : "blue") : "red"
 						}
 					}
 

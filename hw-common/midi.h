@@ -15,10 +15,6 @@
 struct layer_state {
 	struct layer_state_reg r;
 
-	struct {
-		uint8_t active: 1;
-		uint8_t activate: 1;
-	};
 	uint8_t index;
 	int8_t  transposition;
 	int8_t  transposition_extra;

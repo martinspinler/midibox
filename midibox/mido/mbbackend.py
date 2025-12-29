@@ -392,6 +392,9 @@ class MidoMidibox(BaseMidibox):
         if "active" in names:
             c[0] = sbit(c[0], 1, lr.active)
 
+        if "active_status" in names:
+            lr.active_status = True if c[1] & 1 else False
+
         #c[2] = 1 if self._do_init.get(lr, 1) else 0
         #self._do_init[lr] = False
 
@@ -457,6 +460,7 @@ class MidoMidibox(BaseMidibox):
         c = self._config[lr._index]
         lr.enabled = True if c[0] & 1 else False
         lr.active = True if c[0] & 2 else False
+        lr.active_status = True if c[1] & 1 else False
         lr.rangel, lr.rangeu, lr.volume = c[6], c[7], c[8]
         lr.transposition = c[10] - 64
         lr.transposition_extra = c[11] - 64
