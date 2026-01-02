@@ -75,12 +75,17 @@ def main() -> None:
     midibox.connect()
 
     if args.osc_server:
-        if not isinstance(midibox, MidoMidibox):
+        if isinstance(midibox, MidoMidibox):
+            vmidibox = midibox
+        elif args.debug and not hasattr(midibox, '_output_port_name'):
+            vmidibox = MidoMidibox(port_name="Midi Through", find=True)
+            vmidibox._open_port()
+        else:
             raise ValueError("The MidoMidibox must be used for server mode")
 
-        mp = Midiplayer(midibox._output_port_name)
+        mp = Midiplayer(vmidibox._output_port_name)
         mp.init()
-        mr = Recorder(midibox._input_port_name)
+        mr = Recorder(vmidibox._input_port_name)
 
         midi_file = config.get("midiplayer", {}).get("autoload")
         if midi_file:
