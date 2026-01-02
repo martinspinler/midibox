@@ -229,14 +229,13 @@ class BundleManager:
 
     def __enter__(self) -> None:
         if self._mb._bundle_inner == 0:
-            self._mb._bundle = None
             self._mb._bundle = []
         self._mb._bundle_inner += 1
 
     def __exit__(self, exc_type: Optional[Type[BaseException]], exc: Optional[BaseException], traceback: Optional[TracebackType]) -> Optional[bool]:
         self._mb._bundle_inner -= 1
         if self._mb._bundle_inner == 0:
-            if self._mb._bundle:
+            if self._mb._bundle is not None:
                 bundle = self._mb._bundle
                 self._mb._bundle = None
                 self._mb.set_props(bundle)
