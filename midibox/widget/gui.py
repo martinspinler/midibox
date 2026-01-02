@@ -1,5 +1,7 @@
 import time
 import mido
+import re
+
 from typing import Any, Optional
 
 from PyQt5 import QtCore, QtGui
@@ -179,6 +181,9 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
 
         self._presets: dict[int, Preset] = {}
 
+        self._gpedal_regex = r"pedal(\d+)_(\w+)"
+
+
     def init(self, ro: QQuickItem, config: dict[str, Any], presets: dict[str, Preset]) -> None:
         presets_btns = ro.findChild(QObject, "presets")
         presets_list = list(presets.values())
@@ -272,7 +277,21 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
                             setattr(layer, k, v)
 
                 for k, v in config.get("general", {}).items():
-                    if hasattr(self._general, k):
+                    if k.startswith("pedal"):
+                        match_res = re.fullmatch(self._gpedal_regex, k)
+                        if match_res is None:
+                            grps = None
+                        else:
+                            grps = match_res.groups()
+
+                        if grps is not None:
+                            index = int(grps[0])
+                            prop = grps[1]
+                            pedal = self._general._pedals[index]
+
+                            if hasattr(pedal, prop):
+                                setattr(pedal, prop, v)
+                    elif hasattr(self._general, k):
                         setattr(self._general, k, v)
 
 

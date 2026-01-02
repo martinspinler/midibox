@@ -2,7 +2,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import Optional, Any
 
-from .controller.base import GeneralProps, LayerProps, PedalProps
+from .controller.base import GeneralProps, GeneralPedalProps, LayerProps, PedalProps
 
 SAdict = dict[str, Any]
 
@@ -25,6 +25,8 @@ def validate_config(config: dict[str, Any]) -> None:
                 "name": str,
                 Optional("general"): {
                     Optional("enabled"): bool,
+                    **{Optional(f"pedal{i}_min"): int for i in range(8)},
+                    **{Optional(f"pedal{i}_max"): int for i in range(8)},
                 },
 
                 Optional("copy"): Or(
@@ -268,7 +270,10 @@ class Preset():
 
 def presets_from_config(config: dict[str, Any]) -> dict[str, Preset]:
     props = SimpleNamespace(
-        glob=[prop.name for prop in GeneralProps],
+        glob=(
+            [prop.name for prop in GeneralProps] +
+            [f"pedal{i}_{prop.name}" for prop in GeneralPedalProps for i in range(8)]
+        ),
         layer=[prop.name for prop in LayerProps],
         pedal=[prop.name for prop in PedalProps],
     )
