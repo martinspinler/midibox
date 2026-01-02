@@ -101,6 +101,7 @@ class OscClient(threading.Thread):
 class OscMidibox(BaseMidibox):
     def __init__(self, url: Optional[str] = None, addr: str = "localhost", port: int = 4302, debug: bool = False) -> None:
         super().__init__()
+        self._debug = debug
 
         if url is not None:
             paddr = urllib.parse.urlsplit(f"//{url}")
@@ -125,6 +126,9 @@ class OscMidibox(BaseMidibox):
     def handle_msg(self, m: TimedMessage) -> None:
         addrs, params = m.message.address, m.message.params
         addr = addrs.split("/")
+
+        if self._debug:
+            print("Recv", addrs, params)
 
         if len(addr) < 2 or addr[1] != "midibox":
             return
@@ -188,6 +192,8 @@ class OscMidibox(BaseMidibox):
             builder = OscMessageBuilder(address=address)
             builder.add_arg(p.value)
             bundle.add_content(builder.build()) # type: ignore
+            if self._debug:
+                print("Send", address, p.value)
 
         msg = bundle.build()
         self.client.send_msg(msg)
