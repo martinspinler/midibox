@@ -819,11 +819,12 @@ void midi_init()
 
 	for (uint8_t l = 0; l < LAYERS; l++) {
 		struct layer_state & lr = ls[l];
+		lr.r.config = 0;
+		lr.r.status = 0;
 
 		lr.r.enabled = 0;
 		lr.r.active = 1;
 		lr.r.active_status = 1;
-		lr.r.status = 0;
 		lr.r.init = 0;
 		lr.r.pgm = 0;
 		lr.r.bs = 0;
