@@ -3,34 +3,33 @@ import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
 
-//Column{
 ColumnLayout {
 	Layout.fillWidth: true
 	Layout.fillHeight: true
-	//padding: 0
 
-		TabBar {
-			id: mainBar
+	TabBar {
+		id: mainBar
+		Layout.fillWidth: true
+		Component.onCompleted: currentIndex = 0
+		Repeater {
 			Layout.fillWidth: true
-			Component.onCompleted: currentIndex = 0
-			Repeater {
-				Layout.fillWidth: true
-				model: ["Main", "Pedals"]
+			model: ["Main", "Pedals"]
 
-				delegate: TabButton {
-					text: qsTr(modelData)
-					background: Rectangle {color: parent.checked ? palette.window : palette.button}
-				}
+			delegate: TabButton {
+				text: qsTr(modelData)
+				background: Rectangle {color: parent.checked ? palette.window : palette.button}
 			}
 		}
+	}
 
 	StackLayout {
 		Layout.fillWidth: true
+		Layout.fillHeight: true
 		Layout.margins: 10
 
 		currentIndex: mainBar.currentIndex
-		Column{
 
+		Column {
 			Switch{
 				text: "Enable"
 				onToggled: midibox.general.enabled = checked
@@ -58,9 +57,10 @@ ColumnLayout {
 			}
 
 			GroupBox {
+				property int rangeH: 10
+				id: rangeOverview
 				width: parent.width
-				height: 8*8 + 16
-				//leftPadding: 0
+				height: 8*rangeH + 2
 				padding: 1
 				Control {
 					anchors.fill: parent
@@ -84,12 +84,11 @@ ColumnLayout {
 						Item {
 							anchors.fill: parent
 							Rectangle {
-								//Layout.fillWidth: true
-								y: modelData * parent.height/8
+								y: modelData * rangeOverview.rangeH
 								x: midibox.layers[modelData].rangel * (parent.width/127)
-								width: midibox.layers[modelData].rangeu * (parent.width/127) - midibox.layers[modelData].rangel * 5
-								height: midibox.layers[modelData].enabled ? parent.height/8 - 2 : 1
-								color: ( modelData % 2 ? "orange" : "orange")
+								width: (midibox.layers[modelData].rangeu  - midibox.layers[modelData].rangel) * (parent.width/127)
+								height: rangeOverview.rangeH - 2
+								color: ( midibox.layers[modelData].enabled ? "orange" : "#332222")
 							}
 						}
 					}

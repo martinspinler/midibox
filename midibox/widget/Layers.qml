@@ -252,7 +252,7 @@ Item {
 							Layout.fillWidth: true
 							//anchors.fill: parent
 							columns: 3
-							Label{text: qsTr("Pedal " + (modelData+1))}
+							Label{text: qsTr("Ped " + (modelData+1))}
 
 							ComboBox {
 								Layout.fillWidth: true
