@@ -2,7 +2,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import Optional, Any
 
-from .controller.base import GeneralProps, GeneralPedalProps, LayerProps, PedalProps
+from .controller.base import BaseMidibox, GeneralProps, GeneralPedalProps, LayerProps, PedalProps
 
 SAdict = dict[str, Any]
 
@@ -56,7 +56,7 @@ def validate_config(config: dict[str, Any]) -> None:
                                 Optional("copy"): Or(None),
                                 Optional("pedal"): int,
                                 Optional("mode"): Or("none", "normal", "note_length", "toggle_active", "push_active"),
-                                Optional("cc"): int,
+                                Optional("cc"): Or(int, *list(BaseMidibox.pedal_cc.keys())),
                             }
                         ],
                     }
@@ -115,7 +115,10 @@ class PedalPreset():
 
         for k, v in self._cfg.items():
             if k in self.layer.preset._props.pedal:
-                config[k] = v
+                if k == "cc" and isinstance(v, str):
+                    config[k] = BaseMidibox.pedal_cc.get(v, 0)
+                else:
+                    config[k] = v
 
 
 class LayerPreset():
