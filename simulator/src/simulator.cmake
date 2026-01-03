@@ -7,7 +7,7 @@
 #set(SIM_COMMON_SRC_DIR "../../simulator/src")
 set(MIDIBOX_SRC_DIR "..")
 set(ARDUINO_LIBRARIES_DIR "$ENV{HOME}/Arduino/libraries")
-set(ARDUINO_CORE_DIR "$ENV{HOME}/.arduino15/packages/rp2040/hardware/rp2040/3.4.1/cores/rp2040")
+set(ARDUINO_CORE_DIR "$ENV{HOME}/.arduino15/packages/rp2040/hardware/rp2040/5.4.2/cores/rp2040")
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
