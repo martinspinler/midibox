@@ -214,7 +214,8 @@ void midi_update_layer_pedal(struct layer_state & lr, struct layer_state & lr_fr
 		if (mode == PEDAL_MODE_NORMAL) {
 			if (
 				(ccc || pmc) &&
-				(cc != PortamentoTime && cc != ExpressionController)
+				//(cc != PortamentoTime && cc != ExpressionController && cc != Pan && cc != ChannelVolume && cc != 71)
+				(cc == Sustain || cc == Sostenuto || cc == SoftPedal || cc == Portamento)
 			   ) {
 					set = true;
 			}
