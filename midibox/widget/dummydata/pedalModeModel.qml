@@ -2,11 +2,11 @@ import QtQuick 2.3
 
 ListModel {
 	ListElement {
-		text: "Piano"
-		value: "piano"
+        text: "Ignore"
+		value : 0
 	}
 	ListElement {
-		text: "Bass"
-		value: "bass"
+		text: "Normal"
+		value: 1
 	}
 }
