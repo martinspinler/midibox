@@ -3,6 +3,7 @@ import time
 import yaml
 import argparse
 import mido
+import threading
 
 from . import backends
 from .mido import MidoMidibox
@@ -14,6 +15,29 @@ from .controller import BaseMidibox
 from .recorder import Recorder
 from .beater import TempoPredictor, TempoPredictorOSCClientHandler, TempoListener
 from .beater.visualiser import Visualiser
+
+
+class ThreadedTempoPredictor(TempoPredictor):
+    def __init__(self, *args, **kwargs):
+        self.start_time = time.time()
+        super().__init__(*args, **kwargs)
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._run_check_beat)
+
+    def start(self):
+        self._thread.run()
+
+    def stop(self):
+        self._stop.set()
+        self._thread.join()
+
+    def on_note_event(self, time, msg_id, msg, msg_text):
+        super().on_note_event(time - self.start_time, msg_id, msg, msg_text)
+
+    def _run_check_beat(self):
+        while not self._stop.is_set():
+            time.sleep(0.01)
+            self.check_beat(time.time() - self.start_time)
 
 
 def parse_args() -> argparse.Namespace:
@@ -66,11 +90,10 @@ class MyTempoListener(TempoListener):
 def connect_tempo_predictor_t1(midibox, tp, tl, mp):
     def note_event(msg):
         try:
-            print(msg)
             if msg.type == 'note_on' and msg.note < 60:
                 mp.play()
             if msg.type == 'control_change' and msg.control == 67:
-                tp.on_note_event(time.time() - tl.time_start, 0, msg, str(msg))
+                tp.on_note_event(time.time(), 0, msg, str(msg))
         except Exception as e:
             import traceback
             print(e)
@@ -120,8 +143,9 @@ def main() -> None:
 
     if args.predictor:
         tl = MyTempoListener(midibox)
-        tempopredictor = TempoPredictor()
+        tempopredictor = ThreadedTempoPredictor()
         connect_tempo_predictor_t1(midibox, tempopredictor, tl, midiplayer)
+        tempopredictor.start()
 
     if args.osc_server:
         class MbOCH(MidiboxOSCClientHandler):
@@ -149,8 +173,7 @@ def main() -> None:
             main_loop_gui(args, midibox, config)
         else:
             while True:
-                tempopredictor.check_beat(time.time() - tl.time_start)
-                time.sleep(0.01)
+                time.sleep(0.1)
     finally:
         if args.recorder:
             recorder.close()
@@ -161,6 +184,9 @@ def main() -> None:
 
         if args.player:
             midiplayer.destroy()
+
+        if args.predictor:
+            tempopredictor.stop()
 
         midibox.disconnect()
 
