@@ -4,14 +4,16 @@ from pathlib import Path
 from typing import Optional
 from mido import Message, MidiFile, MidiTrack
 
+from ..controller.base import BaseMidibox
+
 
 DEFAULT_TEMPO = 500000
 DEFAULT_TICKS_PER_BEAT = 480
 
 
 class Recorder():
-    def __init__(self, port: str):
-        self._port_name = port
+    def __init__(self, midibox: BaseMidibox):
+        self._midibox = midibox
         self._midifile = None
 
         self.track = MidiTrack()
@@ -23,8 +25,7 @@ class Recorder():
         self.init()
 
     def init(self) -> None:
-        self.portin = mido.open_input(self._port_name)
-        self.portin.callback = self._input_callback
+        self._midibox._callbacks.append(self._input_callback)
 
     def _input_callback(self, msg: Message) -> None:
         ts = time.time()
@@ -49,4 +50,5 @@ class Recorder():
 
     def close(self):
         self.last_save = self.last_event
-        self._input_callback(Message('reset'))
+        if self.filepath is not None:
+            self._input_callback(Message('reset'))

@@ -10,6 +10,8 @@ from typing import Optional, Callable, Tuple, Iterable
 import dataclasses
 from dataclasses import dataclass
 
+from ..controller.base import BaseMidibox
+
 
 def now() -> float:
     return time.time()
@@ -49,8 +51,8 @@ class MidiplayerState():
 
 
 class Midiplayer():
-    def __init__(self, port: str):
-        self._port_name = port
+    def __init__(self, midibox: BaseMidibox):
+        self._midibox = midibox
         self._midifile = None
         self._seek_state: MidiplayerState = MidiplayerState(iter(()))
 
@@ -70,8 +72,6 @@ class Midiplayer():
         ]
 
     def init(self) -> None:
-        self._output = mido.open_output(self._port_name)
-
         self._thread = threading.Thread(target=self._run)
         self._thread.start()
 
@@ -142,12 +142,16 @@ class Midiplayer():
         self._seek.set()
 
     def _stop_all_playing_notes(self) -> None:
-        # FIXME: send AllNotesOff(), because user can play too
-        self._output.reset()
+        ALL_NOTES_OFF = 123
+        ALL_SOUNDS_OFF = 120
+        RESET_ALL_CONTROLLERS = 121
+        for channel in range(8):
+            for control in [ALL_NOTES_OFF, RESET_ALL_CONTROLLERS]:
+                self._midibox.sendmsg(mido.Message('control_change', channel=channel, control=control))
 
         for c in set([channel for (note, channel), vel in self._playing_notes.items()]):
-            self._output.send(mido.Message('control_change', channel=c, control=120, value=0))
-            #self._output.send(mido.Message('note_off', channel=c, note=note, velocity=0))
+            self._midibox.sendmsg(mido.Message('control_change', channel=c, control=ALL_SOUNDS_OFF, value=0))
+            #self._midibox.sendmsg(mido.Message('note_off', channel=c, note=note, velocity=0))
         self._playing_notes.clear()
 
     def _handle_msg(self, pt: float, st: MidiplayerState, msg: mido.Message) -> None:
@@ -170,7 +174,7 @@ class Midiplayer():
                     del self._playing_notes[note]
 
             if True or msg.type in ['note_on', 'note_off', 'control_change', 'program_change']:
-                self._output.send(msg)
+                self._midibox.sendmsg(msg)
 
     def _handle_msg_meta(self, pt: float, st: MidiplayerState, msg: mido.Message) -> None:
         if msg.type == 'time_signature':

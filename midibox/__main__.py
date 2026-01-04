@@ -25,6 +25,8 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument("--osc-server-port", help="Specify OSC server port", metavar='int', type=int, default=4302)
     parser.add_argument("--disable-sandbox", help="Disable sandbox for QtWebEngine", action='store_true')
+    parser.add_argument("--player", help="Enable MIDI player", action='store_true')
+    parser.add_argument("--recorder", help="Enable MIDI recording", action='store_true')
     return parser.parse_args()
 
 
@@ -42,10 +44,6 @@ def create_midibox_instance(args: argparse.Namespace) -> BaseMidibox:
     if args.port:
         mb_params["port_name"] = args.port
     return backends.create_midibox_from_config(mb_backend, **mb_params)
-
-
-class MainOSCClientHandler(MidiboxOSCClientHandler, MidiplayerOSCClientHandler):
-    pass
 
 
 def main_loop_gui(args, midibox, config):
@@ -74,25 +72,28 @@ def main() -> None:
     midibox = create_midibox_instance(args)
     midibox.connect()
 
-    if args.osc_server:
-        if isinstance(midibox, MidoMidibox):
-            vmidibox = midibox
-        elif args.debug and not hasattr(midibox, '_output_port_name'):
-            vmidibox = MidoMidibox(port_name="Midi Through", find=True)
-            vmidibox._open_port()
-        else:
-            raise ValueError("The MidoMidibox must be used for server mode")
-
-        mp = Midiplayer(vmidibox._output_port_name)
-        mp.init()
-        mr = Recorder(vmidibox._input_port_name)
+    if args.player:
+        midiplayer = Midiplayer(midibox)
+        midiplayer.init()
 
         midi_file = config.get("midiplayer", {}).get("autoload")
         if midi_file:
-            mp.open(midi_file)
-        MainOSCClientHandler.mp = mp
-        MainOSCClientHandler.mb = midibox
-        osc_srv = TCPOSCServer(("0.0.0.0", args.osc_server_port), MainOSCClientHandler)
+            midiplayer.open(midi_file)
+
+    if args.recorder:
+        recorder= Recorder(midibox)
+
+    if args.osc_server:
+        class MbOCH(MidiboxOSCClientHandler):
+            mb = midibox
+
+        OCH = MbOCH
+        if args.player:
+            class MplOCH(OCH, MidiplayerOSCClientHandler):  # type: ignore[valid-type, misc]
+                mp = midiplayer
+            OCH = MplOCH
+
+        osc_srv = TCPOSCServer(("0.0.0.0", args.osc_server_port), OCH)
         osc_srv.start()
         allowed_ips = None
         #allowed_ips = ['10.42.0.1']
@@ -105,12 +106,15 @@ def main() -> None:
             while True:
                 time.sleep(0.1)
     finally:
+        if args.recorder:
+            recorder.close()
+
         if args.osc_server:
-            mr.close()
             zc.stop()
             osc_srv.stop()
 
-            mp.destroy()
+        if args.player:
+            midiplayer.destroy()
 
         midibox.disconnect()
 
