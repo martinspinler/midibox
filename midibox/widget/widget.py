@@ -21,7 +21,7 @@ from PyQt5.QtCore import QUrl, QSize, QObject
 
 from ..controller import BaseMidibox
 from ..config import presets_from_config
-from .gui import QMidiBox, NameDataItemModel, ProgramPresetModel, PedalCcModel, PedalModeModel, GraphUpdater
+from .gui import QMidiBox, NameDataItemModel, ProgramPresetModel, PedalCcModel, PedalModeModel, GraphUpdater, PlayModeModel
 
 
 __webengine: Any
@@ -39,6 +39,7 @@ class ApplicationContext:
     ppm: NameDataItemModel
     pcm: NameDataItemModel
     pmm: NameDataItemModel
+    plmm: NameDataItemModel
 
 
 @dataclass
@@ -64,6 +65,7 @@ def populate_context(ctx: QQmlContext, box: BaseMidibox) -> ApplicationContext:
         ProgramPresetModel(box),
         PedalCcModel(box),
         PedalModeModel(box),
+        PlayModeModel(box),
     )
 
     ctx.setContextProperty("midibox", ns.qbox)
@@ -71,6 +73,7 @@ def populate_context(ctx: QQmlContext, box: BaseMidibox) -> ApplicationContext:
     ctx.setContextProperty("monitor", ns.gu)
     ctx.setContextProperty("pedalCcModel", ns.pcm)
     ctx.setContextProperty("pedalModeModel", ns.pmm)
+    ctx.setContextProperty("playModeModel", ns.plmm)
 
     return ns
 

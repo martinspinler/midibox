@@ -418,6 +418,8 @@ class MidoMidibox(BaseMidibox):
             c[7] = lr.rangeu
         if "volume" in names:
             c[8] = lr.volume
+        if "mode" in names:
+            c[9] = lr.mode
         if "transposition" in names:
             c[10] = lr.transposition + 64
         if "transposition_extra" in names:
@@ -476,6 +478,7 @@ class MidoMidibox(BaseMidibox):
         lr.active = True if c[0] & 2 else False
         lr.active_status = True if c[1] & 1 else False
         lr.rangel, lr.rangeu, lr.volume = c[6], c[7], c[8]
+        lr.mode = c[9]
         lr.transposition = c[10] - 64
         lr.transposition_extra = c[11] - 64
         lr.release = c[12] - 64

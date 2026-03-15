@@ -370,3 +370,7 @@ def PedalCcModel(box: BaseMidibox) -> NameDataItemModel:
 
 def PedalModeModel(box: BaseMidibox) -> NameDataItemModel:
     return _NameDataItemModel([PedalMode(v, k) for k, v in box.pedal_mode.items()])
+
+
+def PlayModeModel(box: BaseMidibox) -> NameDataItemModel:
+    return _NameDataItemModel([PedalMode(v, k) for k, v in box.layers[0].modes_r.items()])

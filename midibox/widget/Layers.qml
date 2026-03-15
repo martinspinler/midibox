@@ -81,6 +81,14 @@ Item {
 							checked: layerx.current.active
 							text: "Active"
 						}
+						ComboBox {
+							Layout.fillWidth: true
+							model: playModeModel
+							onActivated: layerx.current.mode = currentValue
+							currentIndex: indexOfValue(layerx.current.mode)
+							textRole: 'text'
+							valueRole: 'value'
+						}
 					}
 					GroupBox {
 						Layout.fillWidth: true
