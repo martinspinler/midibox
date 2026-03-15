@@ -626,6 +626,9 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 
 		note_in_bounds = (b1 + lr.transposition + lr.transposition_extra) == lnote ? 1 : 0;
 
+		if (!(lr.channel_in_mask & (1 << (uint16_t) (channel-1))))
+			continue;
+
 		/* NoteOff must be passed even when midibox not enabled */
 		if (cmd == midi::NoteOff || (cmd == midi::NoteOn && b2 == 0)) {
 			/* Original note (before any transposition */
@@ -747,7 +750,7 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 						tc.bsl = msg_out.data2;
 				}
 			} else if (b1 == ChannelVolume) {
-				if (msg.channel == lr.r.volume_ch) {
+				if (channel == lr.r.volume_ch) {
 					lr.r.volume = b2;
 					changes.volume = 1;
 					midi_update_layer(lr, lr, changes);
