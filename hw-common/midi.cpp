@@ -32,6 +32,9 @@ static uint8_t pedal_value[PEDALS] = {0};
 void midi_loop()
 {
 	MS1.read();
+#ifdef MIDIBOX_HAVE_PORT1
+	MS2.read();
+#endif
 	MU.read();
 }
 
@@ -572,7 +575,7 @@ void layer_handle_note_on_special(struct layer_state & lr, uint8_t lnote, uint8_
 #endif
 }
 
-void handleS1MidiMessage(const midi::Message<128> & msg)
+void handleSMidiMessage(const midi::Message<128> & msg, uint8_t port)
 {
 	static midi::Message<128> msg_out;
 
@@ -600,7 +603,7 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 	changes = {0};
 
 	if (msg.type == ActiveSensing) {
-		if ((gs.r.status & GS_STATUS_INITED) == 0) {
+		if ((gs.r.status & GS_STATUS_INITED) == 0 && port == 0) {
 			if (++gs.init_delay > 10) {
 				midi_send_init();
 			}
@@ -766,12 +769,26 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 	}
 }
 
+void handleS1MidiMessage(const midi::Message<128> & msg)
+{
+	handleSMidiMessage(msg, 0);
+}
+
+void handleS2MidiMessage(const midi::Message<128> & msg)
+{
+	handleSMidiMessage(msg, 1);
+}
+
 void handleS1Error(int8_t e)
 {
 	if (e & (1 << ErrorActiveSensingTimeout) && (gs.r.status & GS_STATUS_INITED)) {
 		gs.r.status &= ~GS_STATUS_INITED;
 		midi_inform_lr_change(MIDIBOX_LAYER_ID_GLOBAL, offsetof(struct global_state_reg, status), 1);
 	}
+}
+
+void handleS2Error(int8_t e)
+{
 }
 
 void midi_init()
@@ -914,6 +931,13 @@ void midi_init()
 	MS1.turnThruOff();
 	MS1.setHandleMessage(handleS1MidiMessage);
 	MS1.setHandleError(handleS1Error);
+
+#ifdef MIDIBOX_HAVE_PORT1
+	MS2.begin(MIDI_CHANNEL_OMNI);
+	MS2.turnThruOff();
+	MS2.setHandleMessage(handleS2MidiMessage);
+	MS2.setHandleError(handleS2Error);
+#endif
 
 	midi_piano_connect();
 	//midi_send_init();
