@@ -133,6 +133,7 @@ LayerProps: list[CheckedProp[Any]] = [
     CheckedProp('rangeu', 108, lambda s, v: clamp(v, s._rangel, v)),
     CheckedProp('program', 'piano', check_prop_program, initial='-unknown-'),
     IntProp('volume', default=100),
+    CheckedProp('mode', 0, lambda s, v: (v if v in s.modes else s._mode)),
     SIntProp('release'),
     SIntProp('attack'),
     SIntProp('cutoff'),
@@ -177,6 +178,14 @@ class Layer(PropHandler):
         ('4, Long'       , 0x41), # noqa
         ('2+2/3, Long'   , 0x42), # noqa
     ]
+    modes = {
+        0x00: 'Normal'      , # noqa
+        0x10: 'Shuffle'     , # noqa
+        0x41: 'Hold to next', # noqa
+        0x42: 'Hold 1/2'    , # noqa
+        0x44: 'Hold 1/4'    , # noqa
+    }
+    modes_r = {v: k for k, v in modes.items()}
 
     def __init__(self, dev: "BaseMidibox", index: int):
         super().__init__(dev)
