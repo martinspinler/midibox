@@ -361,6 +361,9 @@ class MidoMidibox(BaseMidibox):
         if "_send-adc-rawdata" in names:
             c[0] = sbit(c[0], 5, names["_send-adc-rawdata"])
 
+        if "tempo" in names:
+            c[4] = (self.general.tempo >> 7) & 0x7F
+            c[5] = (self.general.tempo >> 0) & 0x7F
         #####c[2] = 1 if self._do_init.get(self.general, 1) else 0
         #c[3] = self._selected_layer
         self._do_init[self.general] = False
@@ -381,6 +384,7 @@ class MidoMidibox(BaseMidibox):
     def _load_general_config(self) -> None:
         c = self._config[self._LAYER_GENERAL]
         self.general.enabled = True if c[0] & 1 else False
+        self.general.tempo = (c[4] << 7) + c[5]
 
         for i in range(8):
             p = self.general.pedals[i]
