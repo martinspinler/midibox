@@ -28,6 +28,9 @@ struct midi_changes {
 
 static uint8_t pedal_value[PEDALS] = {0};
 
+
+void midi_handle_tc();
+
 void midi_loop()
 {
 	MS1.read();
@@ -35,6 +38,16 @@ void midi_loop()
 	MS2.read();
 #endif
 	MU.read();
+
+#ifdef MIDI_TC_INTERNAL
+	static unsigned long us;
+
+	us = micros();
+	if (us > next_tick) {
+		next_tick = us + 1000000 / (gs.tempo * 24 / 60);
+		midi_handle_tc();
+	}
+#endif
 }
 
 void midi_change_tempo(unsigned long t)
@@ -348,7 +361,7 @@ void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 
 		memcpy(((uint8_t*)(&gs.r)) + offset, c, reqlen);
 
-		gs.tempo = gs.r.tempo_msb << 7 + gs.r.tempo_lsb;
+		gs.tempo = (gs.r.tempo_msb << 7) + gs.r.tempo_lsb;
 
 		if (gs.r.init) {
 			gs.r.init = 0;
@@ -543,35 +556,33 @@ void handleMidiMessage(int origin, const Message<128> & msg)
 
 void layer_handle_note_on_special(struct layer_state & lr, uint8_t lnote, uint8_t vol)
 {
+	uint16_t v;
+
 	lr.ticks_remains[lnote] = 0;
 	lr.last_note = lnote;
 	lr.last_note_vol = vol;
-#if 0
-	if (lr.cc_pedal3_mode == PEDAL_MODE_NOTELENGTH) {
-		if (true || lr.cc_expression < 127) {
-			uint16_t v = lr.cc_expression;
-			if (lr.mode == NOTE_MODE_HOLD1_4 || lr.mode == NOTE_MODE_CUT1_4) {
-				lr.ticks_remains[lnote] = v / 4;
-			} else if (lr.mode == NOTE_MODE_HOLD1_2) {
-				lr.ticks_remains[lnote] = v / 2;
-			} else if (lr.mode == NOTE_MODE_SHUFFLE) {
-				lr.ticks_remains[lnote] = v / 8;
-				lr.ticks_remains[lnote] = 4 + v * 15 / 127;
-			}
 
-			/* HOLD TO NEXT */
-			for (int j = 0; j < 128; j++) {
-				/* FIXME: Repeat already playing same note for NOTE_MODE_HOLD??? */
-				if (/*lnote != j &&*/ layer_is_playing(lr, j)) {
-					if (lnote != j) {
-						layer_set_playing(lr, j, false, -1);
-					}
-					MS1.sendNoteOff(j, 0, lchannel);
+	if (lr.r.mode & NOTE_MODE_HOLD) {
+		if (lr.r.mode == NOTE_MODE_HOLD1_4 || lr.r.mode == NOTE_MODE_CUT1_4) {
+			lr.ticks_remains[lnote] = 24;
+		} else if (lr.r.mode == NOTE_MODE_HOLD1_2) {
+			lr.ticks_remains[lnote] = 48;
+		} else if (lr.r.mode == NOTE_MODE_SHUFFLE) {
+			lr.ticks_remains[lnote] = 12;
+			//lr.ticks_remains[lnote] = 4 + v * 15 / 127;
+		}
+
+		/* HOLD TO NEXT */
+		for (int j = 0; j < 128; j++) {
+			/* FIXME: Repeat already playing same note for NOTE_MODE_HOLD??? */
+			if (/*lnote != j &&*/ layer_is_playing(lr, j)) {
+				if (lnote != j) {
+					layer_set_playing(lr, j, false, -1);
 				}
+				MS1.sendNoteOff(j, 0, lr.channel);
 			}
 		}
 	}
-#endif
 }
 
 void handleSMidiMessage(const midi::Message<128> & msg, uint8_t port)
@@ -976,10 +987,11 @@ void midi_send_init()
 	midi_inform_lr_change(MIDIBOX_LAYER_ID_GLOBAL, offsetof(struct global_state_reg, status), 1);
 }
 
-#if 0
+#if 1
 void midi_handle_tc()
 {
 	uint8_t l, n;
+	uint8_t lchannel;
 	gs.mc.tc++;
 	if (gs.mc.tc >= 24) {
 		gs.mc.tc = 0;
@@ -992,12 +1004,13 @@ void midi_handle_tc()
 
 	for (l = 0; l < LAYERS; l++) {
 		struct layer_state & lr = ls[l];
+		lchannel = ((lr.channel_out_offset + l) & 0x0F) + 1;
 		if (
-				lr.mode == NOTE_MODE_HOLDTONEXT ||
-				lr.mode == NOTE_MODE_HOLD1_4 ||
-				lr.mode == NOTE_MODE_HOLD1_2 ||
-				lr.mode == NOTE_MODE_CUT1_4  ||
-				lr.mode == NOTE_MODE_SHUFFLE) {
+				lr.r.mode == NOTE_MODE_HOLDTONEXT ||
+				lr.r.mode == NOTE_MODE_HOLD1_4 ||
+				lr.r.mode == NOTE_MODE_HOLD1_2 ||
+				lr.r.mode == NOTE_MODE_CUT1_4  ||
+				lr.r.mode == NOTE_MODE_SHUFFLE) {
 			for (n = 0; n < 128; n++) {
 				if (layer_is_playing(lr, n)) {
 					if (lr.ticks_remains[n] > 0) {
@@ -1006,10 +1019,8 @@ void midi_handle_tc()
 					if (lr.ticks_remains[n] == 0) {
 						if (!layer_is_pressed(lr, n)) {
 							layer_set_playing(lr, n, false, -1);
-							Serial1.write(midi::NoteOff| ((lr.channel_out_offset + l) & 0xF));
-							Serial1.write(n);
-							Serial1.write((uint8_t)0);
-							if (lr.mode == NOTE_MODE_SHUFFLE && n == lr.last_note) {
+							MS1.sendNoteOff(n, 0, lr.channel);
+							if (lr.r.mode == NOTE_MODE_SHUFFLE && n == lr.last_note) {
 							/* FIXME: check bounds */
 								int16_t v = lr.note_length_mod;
 								uint16_t vol = lr.last_note_vol;
@@ -1019,9 +1030,7 @@ void midi_handle_tc()
 //								lr.ticks_remains[n+12] = v / 8;
 								lr.ticks_remains[n+12] = 20 - v * 15 / 127;
 								layer_set_playing(lr, n+12, true, -1);
-								Serial1.write(midi::NoteOn| ((lr.channel_out_offset + l) & 0xF));
-								Serial1.write(n+12);
-								Serial1.write(lr.last_note_vol);
+								MS1.sendNoteOn(n+12, lr.last_note_vol, lchannel);
 							}
 						}
 					}
@@ -1044,6 +1053,7 @@ void midi_handle_tc()
 	}
 }
 #endif
+
 #if 0
 void midi_handle_instrument_cmd(uint8_t cmd, uint8_t b1, uint8_t b2)
 {
