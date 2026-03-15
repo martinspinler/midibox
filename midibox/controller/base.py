@@ -92,6 +92,11 @@ class SIntProp(IntProp):
         super().__init__(name, min=-64, max=63)
 
 
+class UInt14Prop(IntProp):
+    def __init__(self, name: str) -> None:
+        super().__init__(name, max=16383)
+
+
 def mb_properties_init(cls: type[PropHandler]) -> type[PropHandler]:
     for item in cls._mb_properties:
         setattr(cls, f"_{item.name}", item.initial)
@@ -207,6 +212,7 @@ class Layer(PropHandler):
 GeneralProps: list[CheckedProp[Any]] = [
     BoolProp('enabled'),
     BoolProp('mute'),
+    UInt14Prop('tempo'),
 ]
 
 GeneralPedalProps: list[CheckedProp[Any]] = [
