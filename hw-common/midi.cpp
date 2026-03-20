@@ -2,7 +2,6 @@
 #include "midi.h"
 
 #define MIDI_TC_INTERNAL
-#define USE_ROLAND_VOLUME_SYSEX
 
 using namespace midi;
 
@@ -694,13 +693,9 @@ void handleSMidiMessage(const midi::Message<128> & msg, uint8_t port)
 				layer_set_playing(lr, lnote, true, b1);
 				layer_handle_note_on_special(lr, lnote, b2);
 
-#ifndef USE_ROLAND_VOLUME_SYSEX
-				MS1.sendNoteOn(lnote, b2, lchannel);
-#else
 				vol = b2;
-				vol *= lr.r.volume;
+				vol *= lr.r.noteon_volume;
 				MS1.sendNoteOn(lnote, vol / 127, lchannel);
-#endif
 			}
 		} else if (cmd == midi::ProgramChange) {
 			/* Send PC only to selected layer */
@@ -890,6 +885,8 @@ void midi_init()
 			lr.r.volume_ch = 3;
 		else
 			lr.r.volume_ch = 0;
+
+		lr.r.noteon_volume = 127;
 
 		for (uint8_t j = 0; j < 128/8; j++) {
 			lr.note[j] = 0;
