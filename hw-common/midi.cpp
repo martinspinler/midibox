@@ -653,8 +653,9 @@ void handleSMidiMessage(const midi::Message<128> & msg, uint8_t port)
 				note_in_bounds = 1;
 			}
 
+			layer_set_pressed(lr, lnote, false);
 			if (note_in_bounds && layer_is_playing(lr, lnote)) {
-				if (lr.r.mode & NOTE_MODE_HOLD && lr.ticks_remains[lnote] != 0)
+				if (lr.r.mode & NOTE_MODE_HOLD/* && lr.ticks_remains[lnote] != 0*/)
 					continue;
 
 				layer_set_playing(lr, lnote, false, b1);
@@ -689,6 +690,7 @@ void handleSMidiMessage(const midi::Message<128> & msg, uint8_t port)
 		if (cmd == midi::NoteOn) {
 			if (lactive && note_in_bounds /*&& !layer_is_playing(lr, lnote)*/ && b1 >= lr.r.lo && b1 <= lr.r.hi) {
 				/* FIXME: Repeat already playing same note for NOTE_MODE_HOLD */
+				layer_set_pressed(lr, lnote, true);
 				layer_set_playing(lr, lnote, true, b1);
 				layer_handle_note_on_special(lr, lnote, b2);
 
@@ -891,6 +893,7 @@ void midi_init()
 
 		for (uint8_t j = 0; j < 128/8; j++) {
 			lr.note[j] = 0;
+			lr.note_pressed[j] = 0;
 		}
 		for (i = 0; i < CC_INT_COUNT; i++) {
 			lr.cc_val[i] = 0;
@@ -1002,7 +1005,9 @@ void midi_handle_tc()
 				if (layer_is_playing(lr, n)) {
 					if (lr.ticks_remains[n] > 0) {
 						lr.ticks_remains[n]--;
-						if (lr.ticks_remains[n] == 0) {
+					}
+					if (lr.ticks_remains[n] == 0) {
+						if (!layer_is_pressed(lr, n)) {
 							layer_set_playing(lr, n, false, -1);
 							Serial1.write(midi::NoteOff| ((lr.channel_out_offset + l) & 0xF));
 							Serial1.write(n);
