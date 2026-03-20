@@ -810,6 +810,7 @@ void midi_init()
 
 	gs.init_delay = 0;
 	gs.tempo = 120;
+	gs.r.enabled = 1;
 
 	gs2reg(gs);
 
@@ -859,7 +860,7 @@ void midi_init()
 		lr.index = l;
 		lr.transposition = 0;
 		lr.transposition_extra = 0;
-		lr.channel_in_mask = 0xffff;
+		lr.channel_in_mask = 0xffff & (~0x10);
 		lr.channel = l + 1;
 		lr.channel_out_offset = 0;
 
@@ -933,8 +934,17 @@ void midi_init()
 */
 #endif
 
+	ls[5].channel_in_mask = 0x10;
+	ls[5].r.enabled = 1;
+	ls[5].r.bs_lsb = 71;
+	ls[5].r.bs = 0;
+	ls[5].r.pgm = 33-1;
+	ls[5].r.noteon_volume = 95;
+	ls[5].r.mode = NOTE_MODE_HOLD1_4;
+
 	layer2reg(ls[0]);
 	layer2reg(ls[1]);
+	layer2reg(ls[5]);
 
 	next_tick = micros();
 
