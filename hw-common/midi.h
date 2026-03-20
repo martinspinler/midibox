@@ -44,6 +44,7 @@ struct layer_state {
 
 //	uint8_t status;
 	uint8_t note[128/8];
+	uint8_t note_pressed[128/8];
 
 	uint8_t ticks_remains[128];
 	uint8_t note_origin[128];
@@ -83,6 +84,25 @@ void midi_secondary_handle_input();
 
 void midi_change_tempo(unsigned long t);
 
+static inline bool layer_is_pressed(struct layer_state & ls, uint8_t note)
+{
+	if (note >= 0x80)
+		return false;
+	return ls.note_pressed[note >> 3] & (1 << (note & 0x7));
+}
+
+static inline void layer_set_pressed(struct layer_state & ls, uint8_t note, bool playing)
+{
+	if (note >= 0x80)
+		return;
+
+	if (playing) {
+		ls.note_pressed[note >> 3] |= (1 << (note & 0x7));
+	} else {
+		ls.note_pressed[note >> 3] &= ~(1 << (note & 0x7));
+	}
+}
+
 static inline bool layer_is_playing(struct layer_state & ls, uint8_t note)
 {
 	return ls.note[note >> 3] & (1 << (note & 0x7));
@@ -101,7 +121,7 @@ static inline void layer_set_playing(struct layer_state & ls, uint8_t note, bool
 		if (note < 0x80) {
 			ls.note[note >> 3] &= ~(1 << (note & 0x7));
 		}
-		if (origin < 0x80 || true) {
+		if (origin < 0x80) {
 			ls.note_origin[origin] = 0;
 		}
 	}
