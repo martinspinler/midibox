@@ -78,7 +78,6 @@ struct layer_state_reg {
 	uint8_t attack;
 	uint8_t cutoff;
 	uint8_t decay;
-//	uint8_t _unusedp0[6];
 
 	/* offset 16 */
 	uint8_t pedal_cc[PEDALS];
@@ -89,7 +88,8 @@ struct layer_state_reg {
 	uint8_t harmonic_bar[9];
 	/* offset 42 */
 	uint8_t portamento_time;
-	uint8_t volume_ch;	/* React to volume controller on channel (0 = disabled) */
+	uint8_t volume_ch;      /* React to volume controller on channel (0 = disabled) */
+	uint8_t noteon_volume;	/* Maximal NoteOn volume. result = orig * noteon_volume / 127 */
 };
 
 struct global_state_reg {
