@@ -30,6 +30,7 @@ ColumnLayout {
 		currentIndex: mainBar.currentIndex
 
 		Column {
+			Layout.fillWidth: true
 			Switch{
 				text: "Enable"
 				onToggled: midibox.general.enabled = checked
@@ -54,6 +55,16 @@ ColumnLayout {
 				onClicked: midibox.allSoundsOff()
 				text: "All sounds off"
 				icon.name: "emblem-important-symbolic"
+			}
+			Label {
+				text: "Tempo:\n" + midibox.general.tempo
+			}
+			Slider {
+				width: parent.width
+				id:tempoSlider
+				from: 40; to: 240; stepSize: 1
+				value: midibox.general.tempo
+				onMoved: midibox.general.tempo = value
 			}
 
 			GroupBox {
