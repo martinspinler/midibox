@@ -194,6 +194,14 @@ class MidoMidibox(BaseMidibox):
 
         self.portin.callback = self._input_callback
 
+    def close(self):
+        if self.portin is not None:
+            self.portin.close()
+        if self.portout  is not None:
+            self.portout.close()
+        self.portout = None
+        self.portin = None
+
     def _connection_check(self) -> None:
         checking = False
         self._midi_last_activity = time.time()
@@ -204,8 +212,7 @@ class MidoMidibox(BaseMidibox):
             if time.time() > self._midi_last_activity + 1:
                 if time.time() > self._midi_last_activity + 2:
                     self._log.info("Midibox reconnecting")
-                    self.portout = None
-                    self.portin = None
+                    self.close()
 
                     while self.portin is None and not self._midi_thread_exit:
                         try:
@@ -217,8 +224,7 @@ class MidoMidibox(BaseMidibox):
                         try:
                             self._init_config(retries=1)
                         except ConnectionError:
-                            self.portout = None
-                            self.portin = None
+                            self.close()
 
                     self.emit_all()
 
