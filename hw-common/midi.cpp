@@ -616,6 +616,14 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 
 	thread_midi_msg_send_to_control(0, msg);
 
+	/* FIXME: Disable input event processing when not inited.
+	 * Piano sends on power-on program changes,
+	 * last one is CH3: Bass+Cymbal, which results in
+	 * configurig "selected_layer" (== 0) with this program
+	 */
+	if ((gs.r.status & GS_STATUS_INITED) == 0)
+		return;
+
 	for (l = 0; l < LAYERS; l++) {
 		struct layer_state & lr = ls[l];
 		lmask = 1 << l;
