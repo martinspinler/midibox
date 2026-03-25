@@ -585,6 +585,7 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 	static unsigned char b1, b2;
 	static unsigned char lnote;
 	static unsigned char lchannel;
+	static int8_t cc_int;
 
 	static unsigned char lmask;
 	static bool send, already_sent, note_in_bounds, lenabled, lactive;
@@ -669,30 +670,8 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 		if (!gs.r.enabled)
 			continue;
 
-#if 0
 		send = false;
 		already_sent = false;
-		if (cmd == midi::ControlChange) {
-			if (b1 == midi::Sustain && lr.cc_sustain) {
-				lr.cc_sustain = b2;
-				send = true;
-				already_sent = true;
-			}
-
-			if ((b1 == midi::Sostenuto && lr.cc_pedal2_mode == PEDAL_MODE_TOGGLE_EN) ||
-				(b1 == midi::SoftPedal && lr.cc_pedal3_mode == PEDAL_MODE_TOGGLE_EN)) {
-				if (b2 == 0) {
-					lr.enabled = lr.status;
-				} else if (b2 == 0x7F) {
-					lr.enabled = !lr.status;
-				}
-			}
-
-			if (send) {
-				MS1.sendControlChange(lnote, b2, lchannel);
-			}
-		}
-		#endif
 
 		if (!lenabled)
 			continue;
@@ -718,28 +697,6 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 				MS1.sendNoteOn(lnote, vol / 127, lchannel);
 #endif
 			}
-#if 0
-		} else if (cmd == midi::ControlChange) {
-			send = true;
-			if (b1 == midi::Sustain) {
-				lr.cc_sustain = b2;
-
-				if (lr.cc_pedal1_mode != PEDAL_MODE_NORMAL)
-					send = false;
-			} else if ((b1 == midi::SoftPedal && lr.cc_pedal3_mode == PEDAL_MODE_NOTELENGTH) ||
-					   (b1 == midi::Sostenuto && lr.cc_pedal2_mode == PEDAL_MODE_NOTELENGTH)) {
-				lr.cc_expression = b2;
-
-//					if (lr.cc_pedal3_mode != PEDAL_MODE_NORMAL)
-					send = false;
-			} else if (b1 == midi::Sostenuto) {
-				if (lr.cc_pedal2_mode != PEDAL_MODE_NORMAL)
-					send = false;
-			}
-			if (send && !already_sent) {
-				MS1.send(msg);
-			}
-		#endif
 		} else if (cmd == midi::ProgramChange) {
 			/* Send PC only to selected layer */
 			if (l == gs.r.selected_layer) {
@@ -753,6 +710,7 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 				midi_inform_lr_change(l, offsetof(struct layer_state_reg, pgm), 3);
 			}
 		} else if (cmd == midi::ControlChange) {
+			send = false;
 			if (b1 == BankSelect || b1 == BankSelectLSB) {
 				if (l == gs.r.selected_layer) {
 					MS1.send(msg_out);
@@ -770,6 +728,30 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 					MS1.send(msg_out);
 				}
 			} else {
+				send = true;
+			}
+
+			if (0) {
+			} else if (b2 == midi::Sustain) {
+				cc_int = CC_INT_SUSTAIN;
+			} else if (b2 == midi::Sostenuto) {
+				cc_int = CC_INT_SOSTENUTO;
+			} else if (b2 == midi::SoftPedal) {
+				cc_int = CC_INT_SOFT;
+			} else {
+				cc_int = -1;
+			}
+
+			if (cc_int >= 0) {
+				lr.cc_val[cc_int] = b2;
+				if (lr.cc_mode[cc_int] != PEDAL_MODE_NORMAL) {
+					send = false;
+				}
+				if (lr.cc_mode[cc_int] == PEDAL_MODE_NOTELENGTH) {
+					lr.note_length_mod = b2 - 64;
+				}
+			}
+			if (send && !already_sent) {
 				MS1.send(msg_out);
 			}
 		} else if (cmd == midi::SystemExclusive) {
@@ -779,9 +761,6 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 				MS1.send(msg);
 			}
 		} else {
-			/* TODO: filter out:
-			 * - balance CC
-			 */
 			MS1.send(msg_out);
 		}
 	}
@@ -858,8 +837,6 @@ void midi_init()
 		lr.channel_in_mask = 0xffff;
 		lr.channel = l + 1;
 		lr.channel_out_offset = 0;
-		lr.cc_sustain = 0;
-		lr.cc_expression = 100;
 
 		lr.r.release = 0x40;
 		lr.r.attack = 0x40;
@@ -898,6 +875,11 @@ void midi_init()
 		for (uint8_t j = 0; j < 128/8; j++) {
 			lr.note[j] = 0;
 		}
+		for (i = 0; i < CC_INT_COUNT; i++) {
+			lr.cc_val[i] = 0;
+			lr.cc_mode[i] = PEDAL_MODE_NORMAL;
+		}
+		lr.note_length_mod = 64;
 	}
 
 #if 0
@@ -1003,7 +985,7 @@ void midi_handle_tc()
 							Serial1.write((uint8_t)0);
 							if (lr.mode == NOTE_MODE_SHUFFLE && n == lr.last_note) {
 							/* FIXME: check bounds */
-								uint16_t v = lr.cc_expression;
+								int16_t v = lr.note_length_mod;
 								uint16_t vol = lr.last_note_vol;
 								vol *= vol * 16 / 12;
 								vol = vol > 127 ? 127 : vol;

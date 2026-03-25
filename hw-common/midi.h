@@ -11,6 +11,13 @@
 
 #include "api.h"
 
+enum {
+	CC_INT_SUSTAIN = 0,
+	CC_INT_SOSTENUTO,
+	CC_INT_SOFT,
+
+	CC_INT_COUNT,
+};
 
 struct layer_state {
 	struct layer_state_reg r;
@@ -18,26 +25,21 @@ struct layer_state {
 	uint8_t index;
 	int8_t  transposition;
 	int8_t  transposition_extra;
-	uint8_t cc_sustain;
-	uint8_t cc_expression;
+	uint8_t cc_mode[CC_INT_COUNT];
+	uint8_t cc_val[CC_INT_COUNT];
 	uint8_t part; /* Maybe RO */
 	uint8_t channel; /* 1..16, Maybe RO */
 	uint8_t channel_out_offset;
 	uint16_t channel_in_mask;
 	uint8_t last_note_vol;
 	uint8_t last_note;
+	int8_t note_length_mod;
 
 #if 0
 	int8_t release;
 	int8_t attack;
 	int8_t cutoff;
 	int8_t decay;
-#endif
-
-#if 0
-	uint8_t cc_pedal1_mode; /* ignore, normal, bass... */
-	uint8_t cc_pedal2_mode;
-	uint8_t cc_pedal3_mode;
 #endif
 
 //	uint8_t status;
