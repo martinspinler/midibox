@@ -59,6 +59,7 @@ struct global_state {
 	/* Not paged values */
 	unsigned long tempo;
 	struct midi_clock mc;
+	uint8_t init_delay;
 };
 
 extern struct layer_state ls[LAYERS];

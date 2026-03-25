@@ -598,12 +598,16 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 	struct midi_changes changes;
 	changes = {0};
 
-
-	if ((gs.r.status & GS_STATUS_INITED) == 0) {
-		midi_send_init();
+	if (msg.type == ActiveSensing) {
+		if ((gs.r.status & GS_STATUS_INITED) == 0) {
+			if (++gs.init_delay > 10) {
+				midi_send_init();
+			}
+		}
+		return;
 	}
 
-	if (msg.type == ActiveSensing || msg.type == Clock)
+	if (msg.type == Clock)
 		return;
 
 	channel = msg.channel;
@@ -800,6 +804,7 @@ void midi_init()
 	gs.r.init = 0;
 	gs.r.selected_layer = 0;
 
+	gs.init_delay = 0;
 	gs.tempo = 120;
 
 	gs2reg(gs);
@@ -960,6 +965,7 @@ void midi_send_init()
 		midi_update_layer(lr, lr, changes);
 	}
 
+	gs.init_delay = 0;
 	gs.r.status |= GS_STATUS_INITED;
 	midi_inform_lr_change(MIDIBOX_LAYER_ID_GLOBAL, offsetof(struct global_state_reg, status), 1);
 }
