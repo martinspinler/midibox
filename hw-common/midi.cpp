@@ -557,6 +557,7 @@ void handleMidiMessage(int origin, const Message<128> & msg)
 void layer_handle_note_on_special(struct layer_state & lr, uint8_t lnote, uint8_t vol)
 {
 	uint16_t v;
+	uint16_t ticks;
 
 	lr.ticks_remains[lnote] = 0;
 	lr.last_note = lnote;
@@ -564,13 +565,15 @@ void layer_handle_note_on_special(struct layer_state & lr, uint8_t lnote, uint8_
 
 	if (lr.r.mode & NOTE_MODE_HOLD) {
 		if (lr.r.mode == NOTE_MODE_HOLD1_4 || lr.r.mode == NOTE_MODE_CUT1_4) {
-			lr.ticks_remains[lnote] = 24;
+			ticks = 24;
 		} else if (lr.r.mode == NOTE_MODE_HOLD1_2) {
-			lr.ticks_remains[lnote] = 48;
+			ticks = 48;
 		} else if (lr.r.mode == NOTE_MODE_SHUFFLE) {
-			lr.ticks_remains[lnote] = 12;
-			//lr.ticks_remains[lnote] = 4 + v * 15 / 127;
+			ticks = 12;
+		} else {
+			ticks = 0;
 		}
+		lr.ticks_remains[lnote] = ticks + (lr.note_length_mod * (ticks/2)) / 64;
 
 		/* HOLD TO NEXT */
 		for (int j = 0; j < 128; j++) {

@@ -26,7 +26,7 @@ enum {
         NOTE_MODE_HOLDTONEXT  = (NOTE_MODE_HOLD | 1),
         NOTE_MODE_HOLD1_2     = (NOTE_MODE_HOLD | 2),
         NOTE_MODE_HOLD1_4     = (NOTE_MODE_HOLD | 4),
-        NOTE_MODE_CUT1_4      = (NOTE_MODE_CUT  | 2),
+        NOTE_MODE_CUT1_4      = (NOTE_MODE_CUT  | 4),
 };
 
 enum {
