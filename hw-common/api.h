@@ -19,6 +19,14 @@ enum {
 };
 
 enum {
+	CC_INT_SUSTAIN = 0,
+	CC_INT_SOSTENUTO,
+	CC_INT_SOFT,
+
+	CC_INT_COUNT,
+};
+
+enum {
         NOTE_MODE_NORMAL      = 0,
         NOTE_MODE_HOLD        = 0x40,
         NOTE_MODE_CUT         = 0x20,
@@ -90,6 +98,8 @@ struct layer_state_reg {
 	uint8_t portamento_time;
 	uint8_t volume_ch;      /* React to volume controller on channel (0 = disabled) */
 	uint8_t noteon_volume;	/* Maximal NoteOn volume. result = orig * noteon_volume / 127 */
+	/* offset 45 to 47 (3) */
+	uint8_t cc_mode[CC_INT_COUNT];
 };
 
 struct global_state_reg {

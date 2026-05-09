@@ -758,10 +758,10 @@ void handleSMidiMessage(const midi::Message<128> & msg, uint8_t port)
 
 			if (cc_int >= 0) {
 				lr.cc_val[cc_int] = b2;
-				if (lr.cc_mode[cc_int] != PEDAL_MODE_NORMAL) {
+				if (lr.r.cc_mode[cc_int] != PEDAL_MODE_NORMAL) {
 					send = false;
 				}
-				if (lr.cc_mode[cc_int] == PEDAL_MODE_NOTELENGTH) {
+				if (lr.r.cc_mode[cc_int] == PEDAL_MODE_NOTELENGTH) {
 					lr.note_length_mod = b2 - 64;
 				}
 			}
@@ -909,7 +909,7 @@ void midi_init()
 		}
 		for (i = 0; i < CC_INT_COUNT; i++) {
 			lr.cc_val[i] = 0;
-			lr.cc_mode[i] = PEDAL_MODE_NORMAL;
+			lr.r.cc_mode[i] = PEDAL_MODE_NORMAL;
 		}
 		lr.note_length_mod = 64;
 	}
