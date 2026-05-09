@@ -62,7 +62,7 @@ ColumnLayout {
 			Slider {
 				width: parent.width
 				id:tempoSlider
-				from: 40; to: 240; stepSize: 1
+				from: 40; to: 300; stepSize: 1
 				value: midibox.general.tempo
 				onMoved: midibox.general.tempo = value
 			}
