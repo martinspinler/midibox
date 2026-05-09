@@ -11,13 +11,7 @@
 
 #include "api.h"
 
-enum {
-	CC_INT_SUSTAIN = 0,
-	CC_INT_SOSTENUTO,
-	CC_INT_SOFT,
 
-	CC_INT_COUNT,
-};
 
 struct layer_state {
 	struct layer_state_reg r;
@@ -25,7 +19,7 @@ struct layer_state {
 	uint8_t index;
 	int8_t  transposition;
 	int8_t  transposition_extra;
-	uint8_t cc_mode[CC_INT_COUNT];
+//	uint8_t cc_mode[CC_INT_COUNT];
 	uint8_t cc_val[CC_INT_COUNT];
 	uint8_t part; /* Maybe RO */
 	uint8_t channel; /* 1..16, Maybe RO */
