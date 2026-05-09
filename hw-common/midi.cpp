@@ -746,11 +746,11 @@ void handleSMidiMessage(const midi::Message<128> & msg, uint8_t port)
 			}
 
 			if (0) {
-			} else if (b2 == midi::Sustain) {
+			} else if (b1 == midi::Sustain) {
 				cc_int = CC_INT_SUSTAIN;
-			} else if (b2 == midi::Sostenuto) {
+			} else if (b1 == midi::Sostenuto) {
 				cc_int = CC_INT_SOSTENUTO;
-			} else if (b2 == midi::SoftPedal) {
+			} else if (b1 == midi::SoftPedal) {
 				cc_int = CC_INT_SOFT;
 			} else {
 				cc_int = -1;
