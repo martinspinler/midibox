@@ -455,6 +455,13 @@ class MidoMidibox(BaseMidibox):
         if "volume_ch" in names:
             c[43] = lr._volume_ch
 
+        if "cc_int_mode1" in names:
+            c[45] = lr._cc_int_mode1
+        if "cc_int_mode2" in names:
+            c[46] = lr._cc_int_mode2
+        if "cc_int_mode3" in names:
+            c[47] = lr._cc_int_mode3
+
     def _update_pedal_config(self, p: Pedal, names: list[str]) -> None:
         lr = p._layer
         i = p._index
@@ -472,7 +479,7 @@ class MidoMidibox(BaseMidibox):
 
     def _read_layer_config(self, layer: Layer, retries: Optional[int] = None, timeout: float = READ_TIMEOUT) -> None:
         lr = layer
-        self._config[lr._index] = self._read_regs(lr._index, 0, 44, retries, timeout)
+        self._config[lr._index] = self._read_regs(lr._index, 0, 48, retries, timeout)
         self._load_layer_config(lr)
 
     def _load_layer_config(self, layer: Layer) -> None:
@@ -505,3 +512,6 @@ class MidoMidibox(BaseMidibox):
 
         lr.portamento_time = c[42]
         lr.volume_ch = c[43]
+        lr.cc_int_mode1 = c[45]
+        lr.cc_int_mode2 = c[46]
+        lr.cc_int_mode3 = c[47]
