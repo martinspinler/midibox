@@ -563,7 +563,7 @@ void layer_handle_note_on_special(struct layer_state & lr, uint8_t lnote, uint8_
 	lr.last_note = lnote;
 	lr.last_note_vol = vol;
 
-	if (lr.r.mode & NOTE_MODE_HOLD) {
+	if (lr.r.mode & (NOTE_MODE_HOLD | NOTE_MODE_CUT)) {
 		if (lr.r.mode == NOTE_MODE_HOLD1_4 || lr.r.mode == NOTE_MODE_CUT1_4) {
 			ticks = 24;
 		} else if (lr.r.mode == NOTE_MODE_HOLD1_2) {
@@ -1030,7 +1030,7 @@ void midi_handle_tc()
 						lr.ticks_remains[n]--;
 					}
 					if (lr.ticks_remains[n] == 0) {
-						if (!layer_is_pressed(lr, n)) {
+						if (!layer_is_pressed(lr, n) || (lr.r.mode & NOTE_MODE_CUT)) {
 							layer_set_playing(lr, n, false, -1);
 							MS1.sendNoteOff(n, 0, lr.channel);
 							if (lr.r.mode == NOTE_MODE_SHUFFLE && n == lr.last_note) {
