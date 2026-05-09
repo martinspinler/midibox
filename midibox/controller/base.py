@@ -184,11 +184,12 @@ class Layer(PropHandler):
         ('2+2/3, Long'   , 0x42), # noqa
     ]
     modes = {
-        0x00: 'Normal'      , # noqa
-        0x10: 'Shuffle'     , # noqa
-        0x41: 'Hold to next', # noqa
-        0x42: 'Hold 1/2'    , # noqa
-        0x44: 'Hold 1/4'    , # noqa
+        0x00: 'Normal',
+        0x10: 'Shuffle',
+        0x24: 'Cut 1/4',
+        0x41: 'Hold to next',
+        0x42: 'Hold 1/2',
+        0x44: 'Hold 1/4',
     }
     modes_r = {v: k for k, v in modes.items()}
 
