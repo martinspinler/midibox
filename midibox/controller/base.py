@@ -149,6 +149,10 @@ LayerProps: list[CheckedProp[Any]] = [
         CheckedProp(f'harmonic_bar{i}', 0, lambda s, v: clamp(v, 0, 15)) for i in range(9)
     ],
     UIntProp('volume_ch'),
+
+    UIntProp("cc_int_mode1"),
+    UIntProp("cc_int_mode2"),
+    UIntProp("cc_int_mode3"),
 ]
 
 efx = {
