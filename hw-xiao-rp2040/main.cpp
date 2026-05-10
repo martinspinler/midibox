@@ -243,6 +243,13 @@ int main(void)
 	gs.r.check_keep_alive = 1;
 #endif
 
+	gs.r.pedal_min[0] = 80;
+	gs.r.pedal_max[0] = 100;
+	gs.r.pedal_min[1] = 80;
+	gs.r.pedal_max[1] = 100;
+	gs.r.pedal_min[2] = 42;
+	gs.r.pedal_max[2] = 120;
+
 	while (1) {
 		tud_task();
 		midi_loop();
