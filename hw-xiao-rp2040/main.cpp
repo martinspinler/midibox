@@ -19,6 +19,7 @@
 #include "midibox-compat.h"
 
 //#define OVERRIDE_DEFAULT_MIDI_CONFIG
+#define ENABLE_PEDAL_AVG
 
 UartMidiSerial    Serial_HW1;
 PioUartMidiSerial Serial_HW2;
@@ -220,6 +221,7 @@ int main(void)
 	adc_init();
 	for (i = 26; i <= 26 + ANALOG_PEDALS; i++) {
 		adc_gpio_init(i);
+		gpio_set_pulls(i, true, false);
 	}
 
 	uart_init(uart0, 31250);
