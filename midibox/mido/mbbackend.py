@@ -280,7 +280,7 @@ class MidoMidibox(BaseMidibox):
 
     def _read_regs(self, lr_index: int, firstreg: int, lastreg: int, retries: Optional[int] = None, timeout: float = READ_TIMEOUT) -> List[int]:
         ret: List[int] = []
-        MAXREQ = 64
+        MAXREQ = 32
         while lastreg > firstreg:
             reqlen = min(lastreg - firstreg, MAXREQ)
 
