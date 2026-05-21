@@ -4,23 +4,23 @@ import re
 
 from typing import Any, Optional
 
-from PyQt5 import QtCore, QtGui
+from PyQt6 import QtCore, QtGui
 
-from PyQt5.QtCore import QObject, pyqtSlot, pyqtSignal
-from PyQt5.QtCore import pyqtProperty
-#from PyQt5.QtDeclarative import QDeclarativeItem
+from PyQt6.QtCore import QObject, pyqtSlot, pyqtSignal
+from PyQt6.QtCore import pyqtProperty
+#from PyQt6.QtDeclarative import QDeclarativeItem
 
-from PyQt5.QtCore import QTimer
-#import PyQt5.QtChart
+from PyQt6.QtCore import QTimer
+#import PyQt6.QtCharts
 
-from PyQt5.QtQuick import QQuickItem
+from PyQt6.QtQuick import QQuickItem
 
 
 from ..controller.base import GeneralProps, GeneralPedalProps, LayerProps, PedalProps, BaseMidibox, General, GeneralPedal, Layer, Pedal
 
 from ..config import Preset
 
-from sip import wrappertype as pyqtWrapperType
+from PyQt6.sip import wrappertype as pyqtWrapperType
 
 
 class PropertyMeta(pyqtWrapperType):  # type: ignore
@@ -327,7 +327,7 @@ class GraphUpdater(QObject):
 class NameDataItem(QtGui.QStandardItem):
     def __init__(self, iid: Any, name: str):
         super().__init__(name)
-        self.setData(iid, QtCore.Qt.UserRole)
+        self.setData(iid, QtCore.Qt.ItemDataRole.UserRole)
 
 
 class NameDataItemModel(QtGui.QStandardItemModel):
@@ -337,8 +337,8 @@ class NameDataItemModel(QtGui.QStandardItemModel):
 def _NameDataItemModel(items: list[NameDataItem]) -> NameDataItemModel:
     model = NameDataItemModel()
     model.setItemRoleNames({
-        QtCore.Qt.DisplayRole: b"text",
-        QtCore.Qt.UserRole: b"value",
+        QtCore.Qt.ItemDataRole.DisplayRole: b"text",
+        QtCore.Qt.ItemDataRole.UserRole: b"value",
     })
     for i in items:
         model.appendRow(i)

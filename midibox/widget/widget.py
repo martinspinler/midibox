@@ -7,17 +7,17 @@ import pathlib
 from typing import Any
 from dataclasses import dataclass
 
-import PyQt5
-import PyQt5.QtWebEngine
+import PyQt6
+import PyQt6.QtWebEngineQuick
 
-from PyQt5.QtGui import QIcon, QFont
-from PyQt5.QtQml import QQmlApplicationEngine
-from PyQt5.QtWidgets import QApplication
+from PyQt6.QtGui import QIcon, QFont
+from PyQt6.QtQml import QQmlApplicationEngine
+from PyQt6.QtWidgets import QApplication
 
-from PyQt5.QtQml import QQmlContext
-from PyQt5.QtQuick import QQuickItem
-from PyQt5.QtQuickWidgets import QQuickWidget
-from PyQt5.QtCore import QUrl, QSize, QObject
+from PyQt6.QtQml import QQmlContext
+from PyQt6.QtQuick import QQuickItem
+from PyQt6.QtQuickWidgets import QQuickWidget
+from PyQt6.QtCore import QUrl, QSize, QObject
 
 from ..controller import BaseMidibox
 from ..config import presets_from_config
@@ -28,8 +28,8 @@ __webengine: Any
 
 
 def initialize_webengine() -> None:
-    __webengine = PyQt5.QtWebEngine.QtWebEngine
-    __webengine.initialize()  # type: ignore
+    # In Qt6, the web engine is initialized automatically; no explicit call is needed.
+    pass
 
 
 @dataclass
@@ -89,7 +89,7 @@ class MidiboxQuickWidget(QQuickWidget):
         self.ctx = populate_context(self.rootContext(), self.midibox)
         self.qmidibox = self.ctx.qbox
 
-        self.setResizeMode(self.SizeRootObjectToView)
+        self.setResizeMode(QQuickWidget.ResizeMode.SizeRootObjectToView)
 
         self.setSource(QUrl.fromLocalFile(str(pathlib.Path(__file__).parent / "StandaloneWidget.qml")))
         ro = self.rootObject()

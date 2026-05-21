@@ -13,15 +13,14 @@ dependencies = [
 
 [project.optional-dependencies]
 gui = [
-	"PyQt5",
-	"PyQtChart",
-	"PyQtWebengine",
+	"PyQt6",
+	"PyQt6-Charts",
+	"PyQt6-WebEngine",
 	"qasync",
 ]
 
 types = [
 	"types-pyyaml",
-	"PyQt5-stubs",
 ]
 
 [project.scripts]
@@ -35,5 +34,5 @@ build-backend = "setuptools.build_meta"
 packages = ["midibox"]
 
 [[tool.mypy.overrides]]
-module = "pydispatch,mido,schema,qasync,schema,netifaces,PyQt5.QtWebEngine,sip"
+module = "pydispatch,mido,schema,qasync,schema,netifaces,PyQt6.QtWebEngineQuick,sip"
 ignore_missing_imports = true
