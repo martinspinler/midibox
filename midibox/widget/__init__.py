@@ -1,3 +1,3 @@
-from .widget import MidiboxQuickWidget, initialize_webengine, create_gui
+from .widget import MidiboxQuickWidget, create_gui
 
-__all__ = ["MidiboxQuickWidget", "initialize_webengine", "create_gui"]
+__all__ = ["MidiboxQuickWidget", "create_gui"]

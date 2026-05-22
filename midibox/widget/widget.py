@@ -7,9 +7,6 @@ import pathlib
 from typing import Any
 from dataclasses import dataclass
 
-import PyQt6
-import PyQt6.QtWebEngineQuick
-
 from PyQt6.QtGui import QIcon, QFont
 from PyQt6.QtQml import QQmlApplicationEngine
 from PyQt6.QtWidgets import QApplication
@@ -21,15 +18,14 @@ from PyQt6.QtCore import QUrl, QSize, QObject
 
 from ..controller import BaseMidibox
 from ..config import presets_from_config
-from .gui import QMidiBox, NameDataItemModel, ProgramPresetModel, PedalCcModel, PedalModeModel, GraphUpdater, PlayModeModel
+from .gui import (
+    QMidiBox, NameDataItemModel, ProgramPresetModel, PedalCcModel,
+    PedalModeModel, GraphUpdater, PlayModeModel,
+)
 
 
-__webengine: Any
-
-
-def initialize_webengine() -> None:
-    # In Qt6, the web engine is initialized automatically; no explicit call is needed.
-    pass
+DEFAULT_WIDTH = 1280
+DEFAULT_HEIGHT = 720
 
 
 @dataclass
@@ -43,22 +39,30 @@ class ApplicationContext:
 
 
 @dataclass
-class Application():
+class Application:
     qapp: QApplication
     qml_engine: QQmlApplicationEngine
     ctx: ApplicationContext
     box: BaseMidibox
 
 
-def init_context(ctx: ApplicationContext, ro: QQuickItem, config: dict[str, Any]) -> None:
-    ro.children()[1].setProperty("my_scale", config.get("gui", {}).get("scale", 1))
+def init_context(
+    ctx: ApplicationContext, ro: QQuickItem, config: dict[str, Any]
+) -> None:
+    children = ro.children()
+    if len(children) > 1:
+        children[1].setProperty(
+            "my_scale", config.get("gui", {}).get("scale", 1)
+        )
 
     presets = presets_from_config(config)
     ctx.qbox.init(ro, config, presets)
 
 
-def populate_context(ctx: QQmlContext, box: BaseMidibox) -> ApplicationContext:
-    # Info: store all CP into namespace: setContextProperty doesnt't increment refcnt
+def populate_context(
+    ctx: QQmlContext, box: BaseMidibox
+) -> ApplicationContext:
+    # Store all context properties: setContextProperty doesn't increment refcnt
     ns = ApplicationContext(
         QMidiBox(box),
         GraphUpdater(box),
@@ -79,11 +83,10 @@ def populate_context(ctx: QQmlContext, box: BaseMidibox) -> ApplicationContext:
 
 
 class MidiboxQuickWidget(QQuickWidget):
-    def __init__(self, app: QApplication, midibox: BaseMidibox, **kwargs: Any) -> None:
+    def __init__(
+        self, app: QApplication, midibox: BaseMidibox, **kwargs: Any
+    ) -> None:
         super().__init__()
-
-        pathlib.Path(__file__).parent.resolve()
-        #e.addImportPath(str(path.joinpath("midibox/style/")))
 
         self.midibox = midibox
         self.ctx = populate_context(self.rootContext(), self.midibox)
@@ -91,36 +94,44 @@ class MidiboxQuickWidget(QQuickWidget):
 
         self.setResizeMode(QQuickWidget.ResizeMode.SizeRootObjectToView)
 
-        self.setSource(QUrl.fromLocalFile(str(pathlib.Path(__file__).parent / "StandaloneWidget.qml")))
+        self.setSource(
+            QUrl.fromLocalFile(
+                str(pathlib.Path(__file__).parent / "StandaloneWidget.qml")
+            )
+        )
         ro = self.rootObject()
-        config = kwargs.get('config', {})
+        config = kwargs.get("config", {})
         init_context(self.ctx, ro, config)
 
-        if kwargs.get("playlist_url") is not None:
+        playlist_url = kwargs.get("playlist_url")
+        if playlist_url is not None:
             wv = ro.findChild(QObject, "playlistWebView")
             if wv is not None:
-                wv.setProperty("url", kwargs.get("playlist_url"))
+                wv.setProperty("url", playlist_url)
 
-        if hasattr(app, "aboutToQuit"):
-            # Set empty source to avoid bad contextProperty references on exit
-            getattr(app, "aboutToQuit").connect(functools.partial(self.setSource, QUrl.fromLocalFile("")))
+        # Set empty source to avoid bad contextProperty references on exit
+        app.aboutToQuit.connect(
+            functools.partial(self.setSource, QUrl.fromLocalFile(""))
+        )
 
     def minimumSizeHint(self) -> QSize:
-        return QSize(0, 720)#1280//2, 720//2)
-        return QSize(1280 // 2, 720 // 2)
+        return QSize(0, DEFAULT_HEIGHT)
 
     def sizeHint(self) -> QSize:
-        return QSize(0, 720)
-        return QSize(1280 // 1, 720 // 1)
+        return QSize(0, DEFAULT_HEIGHT)
 
 
-def create_gui(midibox: BaseMidibox, big_mode: bool = False, disable_sandbox: bool = False, config: Any = None) -> Application:
+def create_gui(
+    midibox: BaseMidibox,
+    big_mode: bool = False,
+    disable_sandbox: bool = False,
+    config: Any = None,
+) -> Application:
     QIcon.setThemeName("Adwaita")
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     if disable_sandbox:
-        os.environ["QTWEBENGINE_DISABLE_SANDBOX"] = str(1)
-    initialize_webengine()
+        os.environ["QTWEBENGINE_DISABLE_SANDBOX"] = "1"
 
     qapp = QApplication(sys.argv)
     if big_mode:
@@ -132,19 +143,20 @@ def create_gui(midibox: BaseMidibox, big_mode: bool = False, disable_sandbox: bo
 
     ctx = populate_context(e.rootContext(), midibox)
 
-    e.load(str(cwd.joinpath('midibox.qml')))
+    e.load(str(cwd.joinpath("midibox.qml")))
     e.quit.connect(qapp.quit)
     qapp.aboutToQuit.connect(e.deleteLater)
 
-    if len(e.rootObjects()) == 0:
+    if not e.rootObjects():
         sys.exit(1)
-    root: QQuickItem = e.rootObjects()[0]  # type: ignore
+
+    root: QQuickItem = e.rootObjects()[0]  # type: ignore[assignment]
     init_context(ctx, root, config)
 
     if big_mode:
         root.setProperty("visibility", "FullScreen")
     else:
-        root.setProperty("width", 1280 // 1)
-        root.setProperty("height", 720 // 1)
+        root.setProperty("width", DEFAULT_WIDTH)
+        root.setProperty("height", DEFAULT_HEIGHT)
 
     return Application(qapp, e, ctx, midibox)
