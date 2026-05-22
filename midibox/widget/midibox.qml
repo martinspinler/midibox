@@ -1,13 +1,7 @@
-import QtQuick 2.15
-import QtQuick.Controls 2.15
-import QtQuick.Layouts 1.15
-import QtWebEngine 1.10
-
-//import QtQuick.Controls.Material 2.12
-//import QtQuick.Controls.Imagine 2.12
-//import QtQuick.Controls.Material 2.12
-
-//import "style"
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import QtWebEngine
 
 ApplicationWindow {
 	title: "MidiBox"
