@@ -11,8 +11,8 @@ Item {
 		property var current: midibox.layers[layersBar.currentIndex]
 
 		TabBar {
-			Layout.fillWidth: true
 			id: layersBar
+			Layout.fillWidth: true
 			objectName: "layersBar"
 			Repeater {
 				Layout.fillWidth: true
@@ -25,9 +25,7 @@ Item {
 						Rectangle {
 							anchors.fill: parent
 							opacity: 0.5
-							color: midibox.layers[modelData].enabled
-								? (midibox.layers[modelData].active_status ? "green" : "blue")
-								: "red"
+							color: midibox.layers[modelData].enabled ? (midibox.layers[modelData].active_status ? "green" : "blue") : "red"
 						}
 					}
 
@@ -39,7 +37,7 @@ Item {
 		Connections {
 			target: layersBar
 			function onCurrentIndexChanged() {
-				layerBar.currentIndex = 0
+				layerBar.currentIndex = 0;
 			}
 		}
 
@@ -163,12 +161,7 @@ Item {
 					}
 
 					Label {
-						text: "Transposition:\n" +
-							((layerx.current.transposition == 0)
-								? " "
-								: (layerx.current.transposition < 0 ? "-" : "+")) +
-							Math.floor(Math.abs(layerx.current.transposition / 12)) + "." +
-							Math.abs(layerx.current.transposition % 12)
+						text: "Transposition:\n" + ((layerx.current.transposition == 0) ? " " : (layerx.current.transposition < 0 ? "-" : "+")) + Math.floor(Math.abs(layerx.current.transposition / 12)) + "." + Math.abs(layerx.current.transposition % 12)
 					}
 					RowLayout {
 						id: transpRow
@@ -178,8 +171,8 @@ Item {
 							onClicked: layerx.current.transposition -= 12
 						}
 						Slider {
-							Layout.fillWidth: true
 							id: transpositionSlider
+							Layout.fillWidth: true
 							from: -63
 							to: 63
 							stepSize: 1
@@ -241,42 +234,72 @@ Item {
 			/* Effects */
 			Item {
 				Layout.fillWidth: true
-				ColumnLayout {
+				TextMetrics {
+					id: effectsMetrics
+					text: qsTr("Portamento time: 127")
+				}
+				GridLayout {
 					anchors.fill: parent
-					LabeledSlider {
-						labelText: qsTr("Release: " + layerx.current.release)
+					columns: 2
+					Label {
+						Layout.preferredWidth: effectsMetrics.width
+						text: qsTr("Release: " + layerx.current.release)
+					}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
 						from: -64
 						to: 63
 						stepSize: 1
 						value: layerx.current.release
 						onMoved: layerx.current.release = Math.round(value)
 					}
-					LabeledSlider {
-						labelText: qsTr("Attack: " + layerx.current.attack)
+					Label {
+						Layout.preferredWidth: effectsMetrics.width
+						text: qsTr("Attack: " + layerx.current.attack)
+					}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
 						from: -64
 						to: 63
 						stepSize: 1
 						value: layerx.current.attack
 						onMoved: layerx.current.attack = Math.round(value)
 					}
-					LabeledSlider {
-						labelText: qsTr("Cutoff: " + layerx.current.cutoff)
+					Label {
+						Layout.preferredWidth: effectsMetrics.width
+						text: qsTr("Cutoff: " + layerx.current.cutoff)
+					}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
 						from: -64
 						to: 63
 						stepSize: 1
 						value: layerx.current.cutoff
 						onMoved: layerx.current.cutoff = Math.round(value)
 					}
-					LabeledSlider {
-						labelText: qsTr("Decay: " + layerx.current.decay)
+					Label {
+						Layout.preferredWidth: effectsMetrics.width
+						text: qsTr("Decay: " + layerx.current.decay)
+					}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
 						from: -64
 						to: 63
 						stepSize: 1
 						value: layerx.current.decay
 						onMoved: layerx.current.decay = Math.round(value)
 					}
-					LabeledSlider {
-						labelText: qsTr("Portamento time: " + layerx.current.portamento_time)
+					Label {
+						Layout.preferredWidth: effectsMetrics.width
+						text: qsTr("Portamento time: " + layerx.current.portamento_time)
+					}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
 						from: 0
 						to: 127
 						stepSize: 1
@@ -328,82 +351,137 @@ Item {
 
 			Item {
 				Layout.fillWidth: true
-				ColumnLayout {
+				TextMetrics {
+					id: harmonicMetrics
+					text: qsTr("Harmonic Bar 5+1/3': 15")
+				}
+				GridLayout {
 					anchors.fill: parent
-					LabeledSlider {
-						labelText: qsTr("Percussion: " + layerx.current.percussion)
+					columns: 2
+					Label {
+						Layout.preferredWidth: harmonicMetrics.width
+						text: qsTr("Percussion: " + layerx.current.percussion)
+					}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
 						from: 0
 						to: 4
 						stepSize: 1
 						value: layerx.current.percussion
 						onMoved: layerx.current.percussion = Math.round(value)
 					}
-					LabeledSlider {
-						labelText: qsTr("Harmonic Bar 16': " + layerx.current.harmonic_bar0)
+					Label {
+						Layout.preferredWidth: harmonicMetrics.width
+						text: qsTr("Harmonic Bar 16': " + layerx.current.harmonic_bar0)
+					}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
 						from: 0
 						to: 15
 						stepSize: 1
 						value: layerx.current.harmonic_bar0
 						onMoved: layerx.current.harmonic_bar0 = Math.round(value)
 					}
-					LabeledSlider {
-						labelText: qsTr("Harmonic Bar 5+1/3': " + layerx.current.harmonic_bar1)
+					Label {
+						Layout.preferredWidth: harmonicMetrics.width
+						text: qsTr("Harmonic Bar 5+1/3': " + layerx.current.harmonic_bar1)
+					}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
 						from: 0
 						to: 15
 						stepSize: 1
 						value: layerx.current.harmonic_bar1
 						onMoved: layerx.current.harmonic_bar1 = Math.round(value)
 					}
-					LabeledSlider {
-						labelText: qsTr("Harmonic Bar 8': " + layerx.current.harmonic_bar2)
+					Label {
+						Layout.preferredWidth: harmonicMetrics.width
+						text: qsTr("Harmonic Bar 8': " + layerx.current.harmonic_bar2)
+					}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
 						from: 0
 						to: 15
 						stepSize: 1
 						value: layerx.current.harmonic_bar2
 						onMoved: layerx.current.harmonic_bar2 = Math.round(value)
 					}
-					LabeledSlider {
-						labelText: qsTr("Harmonic Bar 4': " + layerx.current.harmonic_bar3)
+					Label {
+						Layout.preferredWidth: harmonicMetrics.width
+						text: qsTr("Harmonic Bar 4': " + layerx.current.harmonic_bar3)
+					}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
 						from: 0
 						to: 15
 						stepSize: 1
 						value: layerx.current.harmonic_bar3
 						onMoved: layerx.current.harmonic_bar3 = Math.round(value)
 					}
-					LabeledSlider {
-						labelText: qsTr("Harmonic Bar 2+2/3': " + layerx.current.harmonic_bar4)
+					Label {
+						Layout.preferredWidth: harmonicMetrics.width
+						text: qsTr("Harmonic Bar 2+2/3': " + layerx.current.harmonic_bar4)
+					}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
 						from: 0
 						to: 15
 						stepSize: 1
 						value: layerx.current.harmonic_bar4
 						onMoved: layerx.current.harmonic_bar4 = Math.round(value)
 					}
-					LabeledSlider {
-						labelText: qsTr("Harmonic Bar 2': " + layerx.current.harmonic_bar5)
+					Label {
+						Layout.preferredWidth: harmonicMetrics.width
+						text: qsTr("Harmonic Bar 2': " + layerx.current.harmonic_bar5)
+					}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
 						from: 0
 						to: 15
 						stepSize: 1
 						value: layerx.current.harmonic_bar5
 						onMoved: layerx.current.harmonic_bar5 = Math.round(value)
 					}
-					LabeledSlider {
-						labelText: qsTr("Harmonic Bar 1+3/5': " + layerx.current.harmonic_bar6)
+					Label {
+						Layout.preferredWidth: harmonicMetrics.width
+						text: qsTr("Harmonic Bar 1+3/5': " + layerx.current.harmonic_bar6)
+					}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
 						from: 0
 						to: 15
 						stepSize: 1
 						value: layerx.current.harmonic_bar6
 						onMoved: layerx.current.harmonic_bar6 = Math.round(value)
 					}
-					LabeledSlider {
-						labelText: qsTr("Harmonic Bar 1+1/3': " + layerx.current.harmonic_bar7)
+					Label {
+						Layout.preferredWidth: harmonicMetrics.width
+						text: qsTr("Harmonic Bar 1+1/3': " + layerx.current.harmonic_bar7)
+					}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
 						from: 0
 						to: 15
 						stepSize: 1
 						value: layerx.current.harmonic_bar7
 						onMoved: layerx.current.harmonic_bar7 = Math.round(value)
 					}
-					LabeledSlider {
-						labelText: qsTr("Harmonic Bar 1': " + layerx.current.harmonic_bar8)
+					Label {
+						Layout.preferredWidth: harmonicMetrics.width
+						text: qsTr("Harmonic Bar 1': " + layerx.current.harmonic_bar8)
+					}
+					Slider {
+						Layout.fillWidth: true
+						Layout.alignment: Qt.AlignHCenter
 						from: 0
 						to: 15
 						stepSize: 1
