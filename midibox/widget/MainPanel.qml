@@ -17,7 +17,9 @@ ColumnLayout {
 
 			delegate: TabButton {
 				text: qsTr(modelData)
-				background: Rectangle {color: parent.checked ? palette.window : palette.button}
+				background: Rectangle {
+					color: parent.checked ? palette.window : palette.button
+				}
 			}
 		}
 	}
@@ -31,12 +33,12 @@ ColumnLayout {
 
 		Column {
 			Layout.fillWidth: true
-			Switch{
+			Switch {
 				text: "Enable"
 				onToggled: midibox.general.enabled = checked
 				checked: midibox.general.enabled
 			}
-			Switch{
+			Switch {
 				text: "Transpose 1ova on ch0"
 				onToggled: midibox.transpositionExtra = checked
 				checked: midibox.transpositionExtra
@@ -61,8 +63,10 @@ ColumnLayout {
 			}
 			Slider {
 				width: parent.width
-				id:tempoSlider
-				from: 40; to: 300; stepSize: 1
+				id: tempoSlider
+				from: 40
+				to: 300
+				stepSize: 1
 				value: midibox.general.tempo
 				onMoved: midibox.general.tempo = value
 			}
@@ -71,20 +75,19 @@ ColumnLayout {
 				property int rangeH: 10
 				id: rangeOverview
 				width: parent.width
-				height: 8*rangeH + 2
+				height: 8 * rangeH + 2
 				padding: 1
 				Control {
 					anchors.fill: parent
 					Rectangle {
-						width: (parent.width/127)*21
+						width: (parent.width / 127) * 21
 						height: parent.height
 						color: "black"
 					}
 
 					Rectangle {
-						Layout.fillWidth: true
-						x: 108 * (parent.width/127)
-						width: (127-108) * (parent.width/127)
+						x: 108 * (parent.width / 127)
+						width: (127 - 108) * (parent.width / 127)
 						height: parent.height
 						color: "black"
 					}
@@ -96,10 +99,10 @@ ColumnLayout {
 							anchors.fill: parent
 							Rectangle {
 								y: modelData * rangeOverview.rangeH
-								x: midibox.layers[modelData].rangel * (parent.width/127)
-								width: (midibox.layers[modelData].rangeu  - midibox.layers[modelData].rangel) * (parent.width/127)
+								x: midibox.layers[modelData].rangel * (parent.width / 127)
+								width: (midibox.layers[modelData].rangeu  - midibox.layers[modelData].rangel) * (parent.width / 127)
 								height: rangeOverview.rangeH - 2
-								color: ( midibox.layers[modelData].enabled ? "orange" : "#332222")
+								color: midibox.layers[modelData].enabled ? "orange" : "#332222"
 							}
 						}
 					}
@@ -108,10 +111,10 @@ ColumnLayout {
 		}
 
 		/* Pedals */
-		Item{
+		Item {
 			Layout.fillWidth: true
 			Layout.fillHeight: true
-			Flickable{
+			Flickable {
 				Layout.fillWidth: true
 				Layout.fillHeight: true
 				anchors.fill: parent
@@ -125,28 +128,29 @@ ColumnLayout {
 				GridLayout {
 					id: pedalGL
 					columns: 3
-					Layout.fillWidth: true
+					width: parent.width
 
 					Repeater {
 						model: 8
-						Item {
+						ColumnLayout {
+							Layout.fillWidth: true
+
 							Slider {
-								Layout.alignment: Qt.AlignRight
-								parent: pedalGL
-								from: 0; to: 127; stepSize: 1
+								from: 0
+								to: 127
+								stepSize: 1
 								value: midibox.general.pedals[modelData].max
 								onMoved: midibox.general.pedals[modelData].max = Math.round(value)
 							}
 							Slider {
-								Layout.alignment: Qt.AlignRight
-								parent: pedalGL
-								from: 0; to: 127; stepSize: 1
+								from: 0
+								to: 127
+								stepSize: 1
 								value: midibox.general.pedals[modelData].min
 								onMoved: midibox.general.pedals[modelData].min = Math.round(value)
 							}
 							Label {
-								parent: pedalGL
-								text: qsTr("Ped " + (modelData+1) + ": " + midibox.general.pedals[modelData].min) + " - " + midibox.general.pedals[modelData].max
+								text: qsTr("Ped " + (modelData + 1) + ": " + midibox.general.pedals[modelData].min + " - " + midibox.general.pedals[modelData].max)
 							}
 						}
 					}
@@ -155,4 +159,3 @@ ColumnLayout {
 		}
 	}
 }
-

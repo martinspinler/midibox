@@ -4,8 +4,8 @@ QtObject {
 	property bool transpositionExtra: true
 
 	function note2text(i) {
-        return "a"
-    }
+		return "a"
+	}
 
 	property QtObject general: DummyGeneral{}
 

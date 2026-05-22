@@ -2,7 +2,7 @@ import QtQuick 2.3
 
 ListModel {
 	ListElement {
-        text: "Ignore"
+		text: "Ignore"
 		value : 0
 	}
 	ListElement {

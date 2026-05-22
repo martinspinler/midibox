@@ -5,13 +5,12 @@ import QtWebEngine 1.10
 
 Pane {
 	visible: true
-	width: 1280 / 2
-	height: 720 / 2
+	width: 640   // 1280 / 2
+	height: 360  // 720 / 2
 	padding: 0
 
 	Layout.fillWidth: true
-	Layout.fillHeight:true
-	//anchors.fill: parent
+	Layout.fillHeight: true
 
 	MidiboxContent {
 	}

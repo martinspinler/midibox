@@ -13,8 +13,8 @@ ApplicationWindow {
 	title: "MidiBox"
 	visible: true
 	flags: Qt.FramelessWindowHint | Qt.Window
-	width: 1280 / 1
-	height: 720 / 1
+	width: 1280
+	height: 720
 
 	MidiboxContent {
 	}
