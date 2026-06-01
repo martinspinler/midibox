@@ -104,6 +104,7 @@ class QMidiboxLayer(QObject, metaclass=PropertyMeta):
 
     programChange = pyqtSignal()
     pedalsChange = pyqtSignal()
+    presetLoaded = pyqtSignal()
 
     def __init__(self, layer: Layer, handler: BaseMidibox) -> None:
         super().__init__()
@@ -178,6 +179,7 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
     layersChange = pyqtSignal()  # Not used
     generalChange = pyqtSignal()  # Not used
     transpositionExtraChange = pyqtSignal()
+    presetLoaded = pyqtSignal()
 
     _MODE_MAP: ClassVar[dict[str, int]] = {
         "none": 0,
@@ -280,37 +282,73 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
             self._apply_layer_config(config.get("layers", {}))
             self._apply_general_config(config.get("general", {}))
 
+        self._emit_all_property_signals()
+        self.presetLoaded.emit()
+
     def _apply_layer_config(self, layers_cfg: dict[str, Any]) -> None:
         for layer_index, layer_config in layers_cfg.items():
             try:
-                layer = self._layers[layer_index]
-            except IndexError:
+                layer = self._layers[int(layer_index)]
+            except (IndexError, ValueError, TypeError):
                 logger.warning("Layer index %s out of range", layer_index)
                 continue
 
             for k, v in layer_config.items():
                 if k == "pedals":
                     self._apply_pedal_config(layer, v)
-                elif hasattr(layer, k):
-                    setattr(layer, k, v)
+                else:
+                    self._set_qobject_property(layer, k, v)
 
     def _apply_pedal_config(
         self, layer: QMidiboxLayer, pedal_configs: dict[str, Any]
     ) -> None:
         for pi, pedal_config in pedal_configs.items():
             try:
-                pedal = layer.pedals[pi]
-            except IndexError:
+                pedal = layer.pedals[int(pi)]
+            except (IndexError, ValueError, TypeError):
                 logger.warning("Pedal index %s out of range", pi)
                 continue
 
             for pk, pv in pedal_config.items():
-                if not hasattr(pedal, pk):
-                    continue
-
                 if pk == "mode":
                     pv = self._MODE_MAP.get(pv, pv)
-                setattr(pedal, pk, pv)
+                self._set_qobject_property(pedal, pk, pv)
+
+    def _emit_all_property_signals(self) -> None:
+        """Emit property-change signals for every layer/general property.
+
+        This works around QML dynamic property access  (``obj[modelData.prop]``)
+        not always updating when values are changed from Python.
+        """
+        for layer in self._layers:
+            layer._proxy.emit_all()
+        self._general._proxy.emit_all()
+        for pedal in self._general._proxy.pedals:
+            pedal.emit_all()
+
+    @pyqtSlot(int)
+    def emitLayerChanged(self, layer_index: int) -> None:
+        """Force emission of all property-change signals for a single layer."""
+        try:
+            layer = self._layers[layer_index]
+        except IndexError:
+            return
+        layer._proxy.emit_all()
+        self.presetLoaded.emit()
+
+    @pyqtSlot()
+    def emitGeneralChanged(self) -> None:
+        """Force emission of all property-change signals for general settings."""
+        self._general._proxy.emit_all()
+        for pedal in self._general._proxy.pedals:
+            pedal.emit_all()
+        self.presetLoaded.emit()
+
+    @pyqtSlot()
+    def emitAllChanged(self) -> None:
+        """Force emission of all property-change signals (all layers + general)."""
+        self._emit_all_property_signals()
+        self.presetLoaded.emit()
 
     def _apply_general_config(self, general_cfg: dict[str, Any]) -> None:
         for k, v in general_cfg.items():
@@ -328,10 +366,15 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
                     logger.warning("General pedal index %s out of range", index)
                     continue
 
-                if hasattr(pedal, prop):
-                    setattr(pedal, prop, v)
-            elif hasattr(self._general, k):
-                setattr(self._general, k, v)
+                self._set_qobject_property(pedal, prop, v)
+            else:
+                self._set_qobject_property(self._general, k, v)
+
+    @staticmethod
+    def _set_qobject_property(obj: QObject, name: str, value: Any) -> None:
+        """Set a Qt property safely, falling back to setattr."""
+        if hasattr(obj, name):
+            setattr(obj, name, value)
 
 
 class GraphUpdater(QObject):
