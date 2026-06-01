@@ -559,7 +559,7 @@ void layer_handle_note_on_special(struct layer_state & lr, uint8_t lnote, uint8_
 	uint16_t v;
 	uint16_t ticks;
 
-	lr.ticks_remains[lnote] = 0;
+	lr.notes.ticks_remains[lnote] = 0;
 	lr.last_note = lnote;
 	lr.last_note_vol = vol;
 
@@ -573,7 +573,7 @@ void layer_handle_note_on_special(struct layer_state & lr, uint8_t lnote, uint8_
 		} else {
 			ticks = 0;
 		}
-		lr.ticks_remains[lnote] = ticks + (lr.note_length_mod * (ticks/2)) / 64;
+		lr.notes.ticks_remains[lnote] = ticks + (lr.note_length_mod * (ticks/2)) / 64;
 
 		/* HOLD TO NEXT */
 		for (int j = 0; j < 128; j++) {
@@ -661,21 +661,21 @@ void handleSMidiMessage(const midi::Message<128> & msg, uint8_t port)
 		/* NoteOff must be passed even when midibox not enabled */
 		if (cmd == midi::NoteOff || (cmd == midi::NoteOn && b2 == 0)) {
 			/* Original note (before any transposition */
-			if (true || lr.note_origin[b1] & 0x80) {
-				lnote = lr.note_origin[b1] & 0x7F;
+			if (true || lr.notes.note_origin[b1] & 0x80) {
+				lnote = lr.notes.note_origin[b1] & 0x7F;
 				note_in_bounds = 1;
 			}
 
 			layer_set_pressed(lr, lnote, false);
 			if (note_in_bounds && layer_is_playing(lr, lnote)) {
-				if (lr.r.mode & NOTE_MODE_HOLD/* && lr.ticks_remains[lnote] != 0*/)
+				if (lr.r.mode & NOTE_MODE_HOLD/* && lr.notes.ticks_remains[lnote] != 0*/)
 					continue;
 
 				layer_set_playing(lr, lnote, false, b1);
 				MS1.sendNoteOff(lnote, b2, lchannel);
 
 				/* FIXME: better handling */
-				lr.ticks_remains[lnote] = 0;
+				lr.notes.ticks_remains[lnote] = 0;
 
 				if (lr.r.mode == NOTE_MODE_SHUFFLE) {
 					/* TODO: cancel next note on */
@@ -904,8 +904,8 @@ void midi_init()
 		lr.r.noteon_volume = 127;
 
 		for (uint8_t j = 0; j < 128/8; j++) {
-			lr.note[j] = 0;
-			lr.note_pressed[j] = 0;
+			lr.notes.note[j] = 0;
+			lr.notes.note_pressed[j] = 0;
 		}
 		for (i = 0; i < CC_INT_COUNT; i++) {
 			lr.cc_val[i] = 0;
@@ -1026,10 +1026,10 @@ void midi_handle_tc()
 				lr.r.mode == NOTE_MODE_SHUFFLE) {
 			for (n = 0; n < 128; n++) {
 				if (layer_is_playing(lr, n)) {
-					if (lr.ticks_remains[n] > 0) {
-						lr.ticks_remains[n]--;
+					if (lr.notes.ticks_remains[n] > 0) {
+						lr.notes.ticks_remains[n]--;
 					}
-					if (lr.ticks_remains[n] == 0) {
+					if (lr.notes.ticks_remains[n] == 0) {
 						if (!layer_is_pressed(lr, n) || (lr.r.mode & NOTE_MODE_CUT)) {
 							layer_set_playing(lr, n, false, -1);
 							MS1.sendNoteOff(n, 0, lr.channel);
@@ -1040,24 +1040,24 @@ void midi_handle_tc()
 								vol *= vol * 16 / 12;
 								vol = vol > 127 ? 127 : vol;
 
-//								lr.ticks_remains[n+12] = v / 8;
-								lr.ticks_remains[n+12] = 20 - v * 15 / 127;
+//								lr.notes.ticks_remains[n+12] = v / 8;
+								lr.notes.ticks_remains[n+12] = 20 - v * 15 / 127;
 								layer_set_playing(lr, n+12, true, -1);
 								MS1.sendNoteOn(n+12, lr.last_note_vol, lchannel);
 							}
 						}
 					}
 #if 0
-					if (lr.ticks_remains[n] == 0xFF) {
-					} else if (lr.ticks_remains[n] == 1) {
+					if (lr.notes.ticks_remains[n] == 0xFF) {
+					} else if (lr.notes.ticks_remains[n] == 1) {
 						layer_set_playing(lr, n, false);
 						Serial1.write(midi::NoteOff | ((lr.channel_out_offset + l) & 0xF));
 						Serial1.write(n);
 						Serial1.write(0);
 
-						lr.ticks_remains[n]--;
-					} else if (lr.ticks_remains[n] != 0) {
-						lr.ticks_remains[n]--;
+						lr.notes.ticks_remains[n]--;
+					} else if (lr.notes.ticks_remains[n] != 0) {
+						lr.notes.ticks_remains[n]--;
 					}
 #endif
 				}
@@ -1195,13 +1195,13 @@ void midi_loop()
 
 			if (cmd == midi::NoteOff) {
 				/* Original note (before any transposition */
-				if (true || lr.note_origin[b1] & 0x80) {
-					lnote = lr.note_origin[b1] & 0x7F;
+				if (true || lr.notes.note_origin[b1] & 0x80) {
+					lnote = lr.notes.note_origin[b1] & 0x7F;
 					note_in_bounds = 1;
 				}
 
 				if (note_in_bounds && layer_is_playing(lr, lnote)) {
-					if (lr.mode & NOTE_MODE_HOLD && lr.ticks_remains[lnote] != 0)
+					if (lr.mode & NOTE_MODE_HOLD && lr.notes.ticks_remains[lnote] != 0)
 						continue;
 
 					layer_set_playing(lr, lnote, false, b1);
@@ -1210,7 +1210,7 @@ void midi_loop()
 					Serial1.write(b2);
 
 					/* FIXME: better handling */
-					lr.ticks_remains[lnote] = 0;
+					lr.notes.ticks_remains[lnote] = 0;
 
 					if (lr.mode == NOTE_MODE_SHUFFLE) {
 						/* TODO: cancel next note on */
@@ -1256,7 +1256,7 @@ void midi_loop()
 				if (note_in_bounds /*&& !layer_is_playing(lr, lnote)*/ && b1 >= lr.lo && b1 <= lr.hi) {
 					/* FIXME: Repeat already playing same note for NOTE_MODE_HOLD */
 					layer_set_playing(lr, lnote, true, b1);
-					lr.ticks_remains[lnote] = 0;
+					lr.notes.ticks_remains[lnote] = 0;
 					lr.last_note = lnote;
 					lr.last_note_vol = b2;
 
@@ -1264,12 +1264,12 @@ void midi_loop()
 						if (true || lr.cc_expression < 127) {
 							uint16_t v = lr.cc_expression;
 							if (lr.mode == NOTE_MODE_HOLD1_4 || lr.mode == NOTE_MODE_CUT1_4) {
-								lr.ticks_remains[lnote] = v / 4;
+							    lr.notes.ticks_remains[lnote] = v / 4;
 							} else if (lr.mode == NOTE_MODE_HOLD1_2) {
-								lr.ticks_remains[lnote] = v / 2;
+							    lr.notes.ticks_remains[lnote] = v / 2;
 							} else if (lr.mode == NOTE_MODE_SHUFFLE) {
-								lr.ticks_remains[lnote] = v / 8;
-								lr.ticks_remains[lnote] = 4 + v * 15 / 127;
+							    lr.notes.ticks_remains[lnote] = v / 8;
+							    lr.notes.ticks_remains[lnote] = 4 + v * 15 / 127;
 							}
 
 							/* HOLD TO NEXT */
