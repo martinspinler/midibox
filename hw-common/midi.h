@@ -78,6 +78,9 @@ void midi_secondary_handle_input();
 
 void midi_change_tempo(unsigned long t);
 
+void midi_update_layer(struct layer_state &lr, struct layer_state_reg &lr_prev_r, struct midi_changes &changes);
+void midi_update_layer_pedal(struct layer_state &lr, struct layer_state_reg &lr_from_r, struct midi_changes &changes, bool from);
+
 static inline bool layer_is_pressed(struct layer_state & ls, uint8_t note)
 {
 	if (note >= 0x80)

@@ -149,13 +149,13 @@ void midi_inform_lr_change(uint8_t l, uint8_t reg, uint8_t len)
 
 /* TODO */
 
-void _layer_handle_pedal_input(struct layer_state & lr, struct layer_state & lr_from, int pedal, uint8_t val)
+void _layer_handle_pedal_input(struct layer_state & lr, struct layer_state_reg & lr_from_r, int pedal, uint8_t val)
 {
 	uint8_t i = lr.index;
 	uint8_t cc, pm;
 
-	cc = lr_from.r.pedal_cc[pedal];
-	pm = lr_from.r.pedal_mode[pedal];
+	cc = lr_from_r.pedal_cc[pedal];
+	pm = lr_from_r.pedal_mode[pedal];
 	if (pm == PEDAL_MODE_NORMAL) {
 		MS1.sendControlChange(cc, val, i + 1);
 		if (cc == PortamentoTime) {
@@ -176,7 +176,7 @@ void _layer_handle_pedal_input(struct layer_state & lr, struct layer_state & lr_
 
 void layer_handle_pedal_input(struct layer_state & lr, int pedal, uint8_t val)
 {
-	return _layer_handle_pedal_input(lr, lr, pedal, val);
+	return _layer_handle_pedal_input(lr, lr.r, pedal, val);
 }
 
 #if 1
@@ -209,7 +209,7 @@ void midi_handle_pedal_input(uint8_t pedal, uint8_t val)
 }
 #endif
 
-void midi_update_layer_pedal(struct layer_state & lr, struct layer_state & lr_from, struct midi_changes & changes, bool from)
+void midi_update_layer_pedal(struct layer_state & lr, struct layer_state_reg & lr_from_r, struct midi_changes & changes, bool from)
 {
 	uint8_t cc, mode;
 	uint8_t val;
@@ -219,8 +219,8 @@ void midi_update_layer_pedal(struct layer_state & lr, struct layer_state & lr_fr
 
 	for (i = 0; i < PEDALS; i++) {
 		set = false;
-		mode = lr_from.r.pedal_mode[i];
-		cc = lr_from.r.pedal_cc[i];
+		mode = lr_from_r.pedal_mode[i];
+		cc = lr_from_r.pedal_cc[i];
 		val = from ? 0 : pedal_value[i];
 
 		ccc = (changes.pedal_cc & (1 << i)) ? true : false;
@@ -239,11 +239,11 @@ void midi_update_layer_pedal(struct layer_state & lr, struct layer_state & lr_fr
 		}
 
 		if (set)
-			_layer_handle_pedal_input(lr, lr_from, i, val);
+			_layer_handle_pedal_input(lr, lr_from_r, i, val);
 	}
 }
 
-void midi_update_layer(struct layer_state & lr, struct layer_state & lr_prev, struct midi_changes &changes)
+void midi_update_layer(struct layer_state & lr, struct layer_state_reg & lr_prev_r, struct midi_changes &changes)
 {
 	uint8_t i, j;
 	static uint8_t s[32];
@@ -255,19 +255,19 @@ void midi_update_layer(struct layer_state & lr, struct layer_state & lr_prev, st
 		MS1.sendProgramChange(lr.r.pgm, lr.channel);
 	}
 
-	if (lr_prev.r.release != lr.r.release || changes.all)
+	if (lr_prev_r.release != lr.r.release || changes.all)
 		MS1.sendControlChange(72, lr.r.release, lr.channel);
 
-	if (lr_prev.r.attack != lr.r.attack || changes.all)
+	if (lr_prev_r.attack != lr.r.attack || changes.all)
 		MS1.sendControlChange(73, lr.r.attack, lr.channel);
 
-	if (lr_prev.r.cutoff != lr.r.cutoff || changes.all)
+	if (lr_prev_r.cutoff != lr.r.cutoff || changes.all)
 		MS1.sendControlChange(74, lr.r.cutoff, lr.channel);
 
-	if (lr_prev.r.decay != lr.r.decay || changes.all)
+	if (lr_prev_r.decay != lr.r.decay || changes.all)
 		MS1.sendControlChange(75, lr.r.decay, lr.channel);
 
-	if (lr_prev.r.portamento_time != lr.r.portamento_time || changes.all)
+	if (lr_prev_r.portamento_time != lr.r.portamento_time || changes.all)
 		MS1.sendControlChange(5, lr.r.portamento_time, lr.channel);
 
 	if ((changes.harmonic_bar_set || changes.program || changes.all) &&
@@ -298,13 +298,13 @@ void midi_update_layer(struct layer_state & lr, struct layer_state & lr_prev, st
 		MS1.sendSysEx(reslen, s, false);
 	}
 
-	midi_update_layer_pedal(lr, lr_prev, changes, true);
+	midi_update_layer_pedal(lr, lr_prev_r, changes, true);
 	if (changes.active)
 		lr.r.active_status = lr.r.active;
 
-	midi_update_layer_pedal(lr, lr, changes, false);
+	midi_update_layer_pedal(lr, lr.r, changes, false);
 
-	if (lr.r.active_status != lr_prev.r.active_status) {
+	if (lr.r.active_status != lr_prev_r.active_status) {
 		midi_inform_lr_change(lr.index, offsetof(struct layer_state_reg, status), 1);
 	}
 }
@@ -325,7 +325,7 @@ void control_handle_midi_msg(int origin, const Message<128> & msg)
 void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 {
 	static Message<128> msg;
-	static struct layer_state lr_prev;
+	static struct layer_state_reg lr_prev_r;
 	static struct global_state gs_prev;
 	static uint8_t _sysex[32];
 
@@ -392,7 +392,7 @@ void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 		if (reqlen != len || offset + reqlen > sizeof(lr.r))
 			return;
 
-		lr_prev = ls[layer];
+		lr_prev_r = ls[layer].r;
 
 		memcpy(((uint8_t*)(&lr.r)) + offset, c, reqlen);
 
@@ -404,19 +404,19 @@ void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 
 		/* R/O values */
 		lr.r.init = 0;
-		lr.r.active_status = lr_prev.r.active_status;
+		lr.r.active_status = lr_prev_r.active_status;
 
-		if (lr_prev.r.bs != lr.r.bs || lr_prev.r.bs_lsb != lr.r.bs_lsb || lr_prev.r.pgm != lr.r.pgm)
+		if (lr_prev_r.bs != lr.r.bs || lr_prev_r.bs_lsb != lr.r.bs_lsb || lr_prev_r.pgm != lr.r.pgm)
 			changes.program = 1;
 
-		if (lr_prev.r.volume != lr.r.volume)
+		if (lr_prev_r.volume != lr.r.volume)
 			changes.volume = 1;
 
-		if (lr_prev.r.percussion != lr.r.percussion)
+		if (lr_prev_r.percussion != lr.r.percussion)
 			changes.harmonic_bar_set = 1;
 
 		for (i = 0; i < 9; i++) {
-			if (lr_prev.r.harmonic_bar[i] != lr.r.harmonic_bar[i]) {
+			if (lr_prev_r.harmonic_bar[i] != lr.r.harmonic_bar[i]) {
 				changes.harmonic_bar_set = 1;
 			}
 		}
@@ -429,18 +429,18 @@ void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 		}
 #endif
 
-		if (lr_prev.r.active != lr.r.active)
+		if (lr_prev_r.active != lr.r.active)
 			changes.active = 1;
 
 		for (i = 0; i < PEDALS; i++) {
-			if (lr_prev.r.pedal_cc[i] != lr.r.pedal_cc[i]) {
+			if (lr_prev_r.pedal_cc[i] != lr.r.pedal_cc[i]) {
 				changes.pedal_cc |= (1 << i);
 			}
-			if (lr_prev.r.pedal_mode[i] != lr.r.pedal_mode[i]) {
+			if (lr_prev_r.pedal_mode[i] != lr.r.pedal_mode[i]) {
 				changes.pedal_cc |= (1 << i);
 			}
 		}
-		midi_update_layer(lr, lr_prev, changes);
+		midi_update_layer(lr, lr_prev_r, changes);
 	} else if (cmd == MIDIBOX_CMD_READ_REQ && layer < LAYERS) {
 		struct layer_state & lr = ls[layer];
 
@@ -737,7 +737,7 @@ void handleSMidiMessage(const midi::Message<128> & msg, uint8_t port)
 				if (channel == lr.r.volume_ch) {
 					lr.r.volume = b2;
 					changes.volume = 1;
-					midi_update_layer(lr, lr, changes);
+					midi_update_layer(lr, lr.r, changes);
 					midi_inform_lr_change(l, offsetof(struct layer_state_reg, volume), 1);
 					MS1.send(msg_out);
 				}
@@ -992,7 +992,7 @@ void midi_send_init()
 		struct midi_changes changes;
 
 		changes.all = 1;
-		midi_update_layer(lr, lr, changes);
+		midi_update_layer(lr, lr.r, changes);
 	}
 
 	gs.init_delay = 0;
