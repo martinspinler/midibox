@@ -13,6 +13,13 @@
 
 
 
+struct layer_note_state {
+	uint8_t note[128/8];
+	uint8_t note_pressed[128/8];
+	uint8_t ticks_remains[128];
+	uint8_t note_origin[128];
+};
+
 struct layer_state {
 	struct layer_state_reg r;
 
@@ -37,11 +44,7 @@ struct layer_state {
 #endif
 
 //	uint8_t status;
-	uint8_t note[128/8];
-	uint8_t note_pressed[128/8];
-
-	uint8_t ticks_remains[128];
-	uint8_t note_origin[128];
+	struct layer_note_state notes;
 };
 
 struct midi_clock {
@@ -85,7 +88,7 @@ static inline bool layer_is_pressed(struct layer_state & ls, uint8_t note)
 {
 	if (note >= 0x80)
 		return false;
-	return ls.note_pressed[note >> 3] & (1 << (note & 0x7));
+	return ls.notes.note_pressed[note >> 3] & (1 << (note & 0x7));
 }
 
 static inline void layer_set_pressed(struct layer_state & ls, uint8_t note, bool playing)
@@ -94,32 +97,32 @@ static inline void layer_set_pressed(struct layer_state & ls, uint8_t note, bool
 		return;
 
 	if (playing) {
-		ls.note_pressed[note >> 3] |= (1 << (note & 0x7));
+		ls.notes.note_pressed[note >> 3] |= (1 << (note & 0x7));
 	} else {
-		ls.note_pressed[note >> 3] &= ~(1 << (note & 0x7));
+		ls.notes.note_pressed[note >> 3] &= ~(1 << (note & 0x7));
 	}
 }
 
 static inline bool layer_is_playing(struct layer_state & ls, uint8_t note)
 {
-	return ls.note[note >> 3] & (1 << (note & 0x7));
+	return ls.notes.note[note >> 3] & (1 << (note & 0x7));
 }
 
 static inline void layer_set_playing(struct layer_state & ls, uint8_t note, bool playing, uint8_t origin)
 {
 	if (playing) {
 		if (note < 0x80) {
-			ls.note[note >> 3] |=  (1 << (note & 0x7));
+			ls.notes.note[note >> 3] |=  (1 << (note & 0x7));
 		}
 		if (origin < 0x80) {
-			ls.note_origin[origin] = 0x80 | note;
+			ls.notes.note_origin[origin] = 0x80 | note;
 		}
 	} else {
 		if (note < 0x80) {
-			ls.note[note >> 3] &= ~(1 << (note & 0x7));
+			ls.notes.note[note >> 3] &= ~(1 << (note & 0x7));
 		}
 		if (origin < 0x80) {
-			ls.note_origin[origin] = 0;
+			ls.notes.note_origin[origin] = 0;
 		}
 	}
 }
