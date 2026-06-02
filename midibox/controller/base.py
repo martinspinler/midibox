@@ -4,6 +4,7 @@ from pydispatch import Dispatcher
 from typing import NamedTuple, List, Any, Callable, Optional, Tuple, TypeVar, Sequence, Type
 from types import TracebackType
 
+from midibox.props import CheckedProp, BoolProp, IntProp, UIntProp, SIntProp, UInt14Prop
 
 def clamp(val: int, lower: int, upper: int) -> int:
     return lower if val < lower else upper if val > upper else val
@@ -57,44 +58,6 @@ class PropHandler(Dispatcher):  # type: ignore[misc]
             setattr(self, _name, value)
             self.on_checkedprop_change(cp.name, value)
             self.emit('control_change', **{cp.name: value})
-
-
-class CheckedProp[T]:
-    def __init__(self, name: str, default: T, validator: Callable[[PropHandler, T], T], initial: Optional[T] = None) -> None:
-        self.name = name
-        self.validator = validator
-        self.default = default
-        self.initial = initial if initial is not None else default
-
-        getter: Callable[[PropHandler], T] = lambda cph: getattr(cph, f'_{name}')
-        setter: Callable[[PropHandler, T], None] = lambda cph, val: cph._on_checkedprop_change(self, val)
-        self.prop = property(getter, setter)
-
-
-class BoolProp(CheckedProp[bool]):
-    def __init__(self, name: str, default: bool = False) -> None:
-        validator: Callable[[PropHandler, bool], bool] = lambda s, v: True if v else False
-        super().__init__(name, default, validator)
-
-
-class IntProp(CheckedProp[int]):
-    def __init__(self, name: str, default: int = 0, min: int = 0, max: int = 127) -> None:
-        validator: Callable[[PropHandler, int], int] = lambda s, v: clamp(v, min, max)
-        super().__init__(name, default, validator)
-
-
-class UIntProp(IntProp):
-    pass
-
-
-class SIntProp(IntProp):
-    def __init__(self, name: str) -> None:
-        super().__init__(name, min=-64, max=63)
-
-
-class UInt14Prop(IntProp):
-    def __init__(self, name: str) -> None:
-        super().__init__(name, max=16383)
 
 
 def mb_properties_init(cls: type[PropHandler]) -> type[PropHandler]:

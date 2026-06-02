@@ -4,7 +4,7 @@ import yaml
 import argparse
 
 from . import backends
-from .mido import MidoMidibox
+from .mido.mbbackend import MidoMidibox
 from .osc.client_handler import MidiboxOSCClientHandler
 from .osc.server import TCPOSCServer, ZCPublisher
 
