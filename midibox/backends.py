@@ -1,7 +1,7 @@
 from typing import Any, Tuple
 
 from .controller import BaseMidibox
-from .mido import MidoMidibox
+from .mido.mbbackend import MidoMidibox
 from .osc.client import OscMidibox
 
 default_backend = "mido"
