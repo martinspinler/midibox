@@ -12,7 +12,7 @@ from midibox.props import BoolProp, UIntProp, SIntProp, CheckedProp
 from .reg_spec import (
     PropMeta, BoolPropMeta, UIntPropMeta, SIntPropMeta,
     SubobjectMeta, ExpandMeta, SubStructMeta,
-    RegLayout, RegField, SubStructItem,
+    RegLayout, RegField,
 )
 
 
@@ -78,6 +78,58 @@ class RegSIntProp(RegLayout, SIntProp):
                  byte_name: str = 'config') -> None:
         self._init_reg_layout(offset=offset, bit=bit, byte_name=byte_name)
         SIntProp.__init__(self, name)
+
+
+# ── PropMeta.build_items implementations (cross-module) ─────────────
+#
+# These depend on RegBoolProp / RegUIntProp / RegSIntProp / UIntProp
+# which are not available in reg_spec.py (deliberate: no midibox.props dep).
+# We attach them here after the combined classes are defined.
+
+def _bool_meta_build_items(self: BoolPropMeta, f_name: str, *, offset: int,
+                            bit: int | None, count: int | None,
+                            byte_name: str, dim: str | None) -> list[Any]:
+    name = self.name or f_name
+    return [RegBoolProp(name, self.default, offset=offset,
+                        bit=bit if bit is not None else 0,
+                        byte_name=byte_name)]
+
+
+def _uint_meta_build_items(self: UIntPropMeta, f_name: str, *, offset: int,
+                           bit: int | None, count: int | None,
+                           byte_name: str, dim: str | None) -> list[Any]:
+    name = self.name or f_name
+    if self.validator is not None:
+        return [RegUIntProp(name, self.default, offset=offset,
+                            byte_name=byte_name, validator=self.validator)]
+    return [RegUIntProp(name, self.default, max=self.max,
+                        offset=offset, byte_name=byte_name)]
+
+
+def _sint_meta_build_items(self: SIntPropMeta, f_name: str, *, offset: int,
+                           bit: int | None, count: int | None,
+                           byte_name: str, dim: str | None) -> list[Any]:
+    name = self.name or f_name
+    return [RegSIntProp(name, offset=offset, byte_name=byte_name)]
+
+
+def _expand_meta_build_items(self: ExpandMeta, f_name: str, *, offset: int,
+                             bit: int | None, count: int | None,
+                             byte_name: str, dim: str | None) -> list[Any]:
+    items: list[Any] = [RegField(f_name, offset=offset, count=count,
+                                 byte_name=byte_name, dim=dim)]
+    assert count is not None
+    prefix = self.prefix or f_name
+    for i in range(count):
+        idx = i + 1 if self.one_based else i
+        items.append(UIntProp(f'{prefix}{idx}', max=self.max))
+    return items
+
+
+BoolPropMeta.build_items = _bool_meta_build_items
+UIntPropMeta.build_items = _uint_meta_build_items
+SIntPropMeta.build_items = _sint_meta_build_items
+ExpandMeta.build_items = _expand_meta_build_items
 
 
 # ── Sync map types ───────────────────────────────────────────────────
@@ -187,50 +239,10 @@ class RegStruct:
                 items.append(RegField(f.name, offset=offset, bit=bit,
                                       count=count, byte_name=byte_name,
                                       dim=dim))
-                continue
-
-            if isinstance(meta, SubStructMeta):
-                # Interleaved sub-struct array: SubStructItem for C + no direct UI props
-                items.append(SubStructItem(meta.cls,
-                                           name=f.name,
-                                           offset=offset, array_count=count // meta.cls.SIZE,
-                                           dim=dim))
-                continue
-
-            if isinstance(meta, SubobjectMeta):
-                # Flat sub-object array: register field only, UI props on sub-handler
-                items.append(RegField(f.name, offset=offset, count=count,
-                                      byte_name=byte_name, dim=dim))
-                continue
-
-            if isinstance(meta, ExpandMeta):
-                # Array field: register field for C + expanded UI props
-                items.append(RegField(f.name, offset=offset, count=count,
-                                      byte_name=byte_name, dim=dim))
-                count_val: int = f.metadata['count']
-                prefix = meta.prefix or f.name
-                for i in range(count_val):
-                    idx = i + 1 if meta.one_based else i
-                    items.append(UIntProp(f'{prefix}{idx}', max=meta.max))
-                continue
-
-            if isinstance(meta, BoolPropMeta):
-                name = meta.name or f.name
-                items.append(RegBoolProp(name, meta.default, offset=offset,
-                                         bit=bit if bit is not None else 0,
-                                         byte_name=byte_name))
-            elif isinstance(meta, SIntPropMeta):
-                name = meta.name or f.name
-                items.append(RegSIntProp(name, offset=offset, byte_name=byte_name))
-            elif isinstance(meta, UIntPropMeta):
-                name = meta.name or f.name
-                if meta.validator is not None:
-                    items.append(RegUIntProp(name, meta.default, offset=offset,
-                                             byte_name=byte_name,
-                                             validator=meta.validator))
-                else:
-                    items.append(RegUIntProp(name, meta.default, max=meta.max,
-                                             offset=offset, byte_name=byte_name))
+            else:
+                items.extend(meta.build_items(f.name, offset=offset, bit=bit,
+                                              count=count, byte_name=byte_name,
+                                              dim=dim))
 
         # Append extras (virtual props with no register backing)
         extras = getattr(cls, '_prop_extras', [])

@@ -12,6 +12,17 @@ from typing import Any, Callable
 class PropMeta:
     """Base: describes how a register field maps to a UI property."""
 
+    def build_items(self, f_name: str, *, offset: int, bit: int | None,
+                    count: int | None, byte_name: str, dim: str | None) -> list[Any]:
+        """Build items produced by this meta given register context.
+
+        Override in subclasses to return the appropriate list of items
+        (RegField, RegBoolProp, UIntProp, etc.).  The default raises
+        NotImplementedError; implementations that depend on midibox.props
+        types are attached from reg_struct.py after import.
+        """
+        raise NotImplementedError(type(self).__name__)
+
 
 class BoolPropMeta(PropMeta):
     def __init__(self, name: str | None = None, default: bool = False) -> None:
@@ -40,6 +51,11 @@ class SubobjectMeta(PropMeta):
         self.subobject: str = subobject
         self.field: str = field
 
+    def build_items(self, f_name: str, *, offset: int, bit: int | None,
+                    count: int | None, byte_name: str, dim: str | None) -> list[Any]:
+        return [RegField(f_name, offset=offset, count=count,
+                         byte_name=byte_name, dim=dim)]
+
 
 class ExpandMeta(PropMeta):
     """Array field expanded to individually numbered props (e.g. harmonic_bar0..8)."""
@@ -58,6 +74,12 @@ class SubStructMeta(PropMeta):
     """
     def __init__(self, cls: type) -> None:
         self.cls: type = cls          # RegStruct subclass defining the sub-struct
+
+    def build_items(self, f_name: str, *, offset: int, bit: int | None,
+                    count: int | None, byte_name: str, dim: str | None) -> list[Any]:
+        return [SubStructItem(self.cls, name=f_name,
+                              offset=offset, array_count=count // self.cls.SIZE,
+                              dim=dim)]
 
 
 class RegLayout:
