@@ -12,6 +12,8 @@
 #include "api.h"
 
 
+#define LAYERS (MIDIBOX_LAYERS)
+#define PEDALS (MIDIBOX_PEDALS)
 
 struct layer_note_state {
 	uint8_t note[128/8];

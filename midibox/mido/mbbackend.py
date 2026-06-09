@@ -1,13 +1,29 @@
-import time
-import mido
-import re
 import logging
-from typing import List, Optional, Tuple, Any
-
-from ..controller.base import BaseMidibox, Layer, PropHandler, General, GeneralPedal, Pedal, PropChange
-
+import re
+import time
 from threading import Thread
+from typing import Any, Optional
 
+import mido
+
+from ..controller.base import (
+    BaseMidibox,
+    General,
+    GeneralPedal,
+    Layer,
+    Pedal,
+    PropChange,
+    PropHandler,
+)
+from .mido_regs import (
+    MidiboxDefs,
+    MidiboxCmd,
+    GeneralState,
+    LayerState,
+    GENERAL_SYNC,
+    LAYER_SYNC,
+)
+from .reg_struct import load_from_reg, update_reg_from_handler
 
 READ_TIMEOUT = 1.0
 
@@ -27,30 +43,12 @@ def get_diff_range(a: list[int], b: list[int]) -> Optional[range]:
     return range(di_b, di_e)
 
 
-def sbit(val: int, n: int, set: bool = True, numbits: int = 8) -> int:
-    if set:
-        return val | (1 << n)
-    else:
-        return val & (((1 << numbits) - 1) - (1 << n))
-
-
 class PortNotFoundError(Exception):
     pass
 
 
 class MidoMidibox(BaseMidibox):
     PERIODIC_CHECK = False
-
-    _SYSEX_ID = 0x77
-    _LAYER_GENERAL = 15
-
-    _CMD_INFO      = 0 # noqa
-    _CMD_UPDATE    = 1 # noqa
-    _CMD_READ_REQ  = 2 # noqa
-    _CMD_READ_RES  = 3 # noqa
-    _CMD_WRITE_REQ = 4 # noqa
-    _CMD_WRITE_ACK = 5 # noqa
-    _CMD_WRITE_NAK = 6 # noqa
 
     _config: dict[int, List[int]]
     _do_init: dict[PropHandler, bool]
@@ -108,12 +106,12 @@ class MidoMidibox(BaseMidibox):
             ns = np.source if isinstance(np, PropChange) else None
 
             if isinstance(s, General):
-                index = self._LAYER_GENERAL
+                index = MidiboxDefs.LAYER_ID_GLOBAL
                 if index not in origs:
                     origs[index] = self._config[index].copy()
                 self._update_general_config({p.name: p.value})
             elif isinstance(s, GeneralPedal):
-                index = self._LAYER_GENERAL
+                index = MidiboxDefs.LAYER_ID_GLOBAL
                 if index not in origs:
                     origs[index] = self._config[index].copy()
                 self._update_general_pedal_config(s, [p.name])
@@ -223,7 +221,7 @@ class MidoMidibox(BaseMidibox):
 
                 elif not checking:
                     checking = True
-                    self._send_mbreq(self._CMD_READ_REQ, self._LAYER_GENERAL, 0, 1)
+                    self._send_mbreq(MidiboxCmd.READ_REQ, MidiboxDefs.LAYER_ID_GLOBAL, 0, 1)
             elif checking:
                 checking = False
 
@@ -245,7 +243,7 @@ class MidoMidibox(BaseMidibox):
         for lr in self.layers:
             self._read_layer_config(lr, retries, timeout)
 
-        c = self._config.get(self._LAYER_GENERAL)
+        c = self._config.get(MidiboxDefs.LAYER_ID_GLOBAL)
         if c is None:
             return
 
@@ -260,7 +258,7 @@ class MidoMidibox(BaseMidibox):
         assert c < 0xF0
         if msg:
             assert reqlen == len(msg)
-        self.send([0xF0, self._SYSEX_ID, c, offset, reqlen] + msg + [0xF7])
+        self.send([0xF0, MidiboxDefs.SYSEX_ID1, c, offset, reqlen] + msg + [0xF7])
 
     def _wait_for_cb_data(self, timeout: float = READ_TIMEOUT) -> Optional[list[int]]:
         while not self._cb_data and timeout > 0:
@@ -285,7 +283,7 @@ class MidoMidibox(BaseMidibox):
             while c is None:
                 self._cb_data = None
                 self._cb_data_waiting = (lr_index, firstreg, reqlen)
-                self._send_mbreq(self._CMD_READ_REQ, lr_index, firstreg, reqlen)
+                self._send_mbreq(MidiboxCmd.READ_REQ, lr_index, firstreg, reqlen)
                 c = self._wait_for_cb_data(timeout)
                 if c is None:
                     if burst_retries is not None and burst_retries == 0:
@@ -299,7 +297,7 @@ class MidoMidibox(BaseMidibox):
         return ret
 
     def _rc_callback(self, msg: mido.Message) -> bool:
-        if msg.type == 'sysex' and len(msg.data) > 2 and msg.data[0] == self._SYSEX_ID:
+        if msg.type == 'sysex' and len(msg.data) > 2 and msg.data[0] == MidiboxDefs.SYSEX_ID1:
             cmd = (msg.data[1] >> 4) & 0x07
             layer = msg.data[1] & 0x0F
             offset = msg.data[2]
@@ -315,12 +313,12 @@ class MidoMidibox(BaseMidibox):
                 self._cb_data = data
                 self._cb_data_waiting = None
             # Unrequested update
-            elif cmd == self._CMD_READ_RES:
+            elif cmd == MidiboxCmd.READ_RES:
                 grp: Optional[PropHandler] = None
 
                 if layer < 8:
                     grp = self.layers[layer]
-                elif layer == self._LAYER_GENERAL:
+                elif layer == MidiboxDefs.LAYER_ID_GLOBAL:
                     grp = self.general
 
                 if grp is not None:
@@ -341,63 +339,39 @@ class MidoMidibox(BaseMidibox):
             self._load_layer_config(source._layer)
 
     def _write_general_config(self) -> None:
-        c = self._config.get(self._LAYER_GENERAL)
+        c = self._config.get(MidiboxDefs.LAYER_ID_GLOBAL)
         if c is None:
             self._log.info("not connected")
             return
 
     def _update_general_config(self, names: dict[str, Any]) -> None:
-        c = self._config[self._LAYER_GENERAL]
-        if "enabled" in names:
-            c[0] = sbit(c[0], 0, self.general.enabled)
+        reg = GeneralState.unpack(self._config[MidiboxDefs.LAYER_ID_GLOBAL])
 
+        # Generic field update from sync map (handles enabled, tempo)
+        update_reg_from_handler(self.general, reg, list(names), GENERAL_SYNC)
+
+        # Internal flags not in the prop system
         if "_check-keep-alive" in names:
-            c[0] = sbit(c[0], 6, names["_check-keep-alive"])
-
+            reg.check_keep_alive = names["_check-keep-alive"]
         if "_send-adc-rawdata" in names:
-            c[0] = sbit(c[0], 5, names["_send-adc-rawdata"])
+            reg.debug_smsg_print = names["_send-adc-rawdata"]
 
-        if "tempo" in names:
-            c[4] = (self.general.tempo >> 7) & 0x7F
-            c[5] = (self.general.tempo >> 0) & 0x7F
-        #####c[2] = 1 if self._do_init.get(self.general, 1) else 0
-        #c[3] = self._selected_layer
         self._do_init[self.general] = False
-        #c[4:6] = [120, 0] # tempo
+        self._config[MidiboxDefs.LAYER_ID_GLOBAL] = reg.pack()
 
     def _update_general_pedal_config(self, p: GeneralPedal, names: list[str]) -> None:
-        c = self._config[self._LAYER_GENERAL]
-        i = p._index
-
-        o = 6 + 4 * i
-
-        if "cc" in names:
-            c[o + 0] = p.cc
-        if "mode" in names:
-            c[o + 1] = p.mode
-        if "min" in names:
-            c[o + 2] = p.min
-        if "max" in names:
-            c[o + 3] = p.max
+        reg = GeneralState.unpack(self._config[MidiboxDefs.LAYER_ID_GLOBAL])
+        update_reg_from_handler(self.general, reg, names, GENERAL_SYNC, sub_index=p._index)
+        self._config[MidiboxDefs.LAYER_ID_GLOBAL] = reg.pack()
 
     def _read_general_config(self, retries: Optional[int] = None, timeout: float = READ_TIMEOUT) -> None:
-        c = self._read_regs(self._LAYER_GENERAL, 0, 6 + 16 + 16, retries, timeout)
-        self._config[self._LAYER_GENERAL] = c
+        c = self._read_regs(MidiboxDefs.LAYER_ID_GLOBAL, 0, GeneralState.SIZE, retries, timeout)
+        self._config[MidiboxDefs.LAYER_ID_GLOBAL] = c
         self._load_general_config()
 
     def _load_general_config(self) -> None:
-        c = self._config[self._LAYER_GENERAL]
-        self.general.enabled = True if c[0] & 1 else False
-        self.general.tempo = (c[4] << 7) + c[5]
-
-        for i in range(8):
-            p = self.general.pedals[i]
-            o = 6 + 4 * i
-
-            p.cc = c[o + 0]
-            p.mode = c[o + 1]
-            p.min = c[o + 2]
-            p.max = c[o + 3]
+        reg = GeneralState.unpack(self._config[MidiboxDefs.LAYER_ID_GLOBAL])
+        load_from_reg(self.general, reg, GENERAL_SYNC)
 
     def _write_layer_config(self, layer: Layer) -> None:
         c = self._config.get(layer)
@@ -410,118 +384,43 @@ class MidoMidibox(BaseMidibox):
         orig_c[2] = 0
 
     def _update_layer_config(self, lr: Layer, names: list[str]) -> None:
-        c = self._config[lr._index]
-        # FIXME: general
+        reg = LayerState.unpack(self._config[lr._index])
 
-        if "enabled" in names:
-            c[0] = sbit(c[0], 0, lr.enabled)
-        if "active" in names:
-            c[0] = sbit(c[0], 1, lr.active)
+        # Generic field update from sync map
+        update_reg_from_handler(lr, reg, names, LAYER_SYNC)
 
-        if "active_status" in names:
-            lr.active_status = True if c[1] & 1 else False
-
-        #c[2] = 1 if self._do_init.get(lr, 1) else 0
-        #self._do_init[lr] = False
-
-        if "rangel" in names:
-            c[6] = lr.rangel
-        if "rangeu" in names:
-            c[7] = lr.rangeu
-        if "volume" in names:
-            c[8] = lr.volume
-        if "mode" in names:
-            c[9] = lr.mode
-        if "transposition" in names:
-            c[10] = lr.transposition + 64
-        if "transposition_extra" in names:
-            c[11] = lr.transposition_extra + 64
-        if "release" in names:
-            c[12] = lr.release + 64
-        if "attack" in names:
-            c[13] = lr.attack + 64
-        if "cutoff" in names:
-            c[14] = lr.cutoff + 64
-        if "decay" in names:
-            c[15] = lr.decay + 64
-
+        # Custom: encode program into pgm+bs+bs_lsb
         if "program" in names:
             m = re.fullmatch(r"_pgm_(\d+)_(\d+)_(\d+)_", lr.program)
             if m is not None:
                 g = m.groups()
-                pc, msb, lsb = int(g[0]), int(g[1]), int(g[2])
-                c[3:6] = [pc - 1, msb, lsb]
-        if "percussion" in names:
-            c[32] = lr.percussion
-        for i in range(9):
-            n = f'harmonic_bar{i}'
-            if n in names:
-                c[33 + i] = getattr(lr, n)
-        if "portamento_time" in names:
-            c[42] = lr._portamento_time
-
-        if "volume_ch" in names:
-            c[43] = lr._volume_ch
-
-        if "cc_int_mode1" in names:
-            c[45] = lr._cc_int_mode1
-        if "cc_int_mode2" in names:
-            c[46] = lr._cc_int_mode2
-        if "cc_int_mode3" in names:
-            c[47] = lr._cc_int_mode3
+                reg.pgm = int(g[0]) - 1
+                reg.bs = int(g[1])
+                reg.bs_lsb = int(g[2])
+        self._config[lr._index] = reg.pack()
 
     def _update_pedal_config(self, p: Pedal, names: list[str]) -> None:
-        lr = p._layer
-        i = p._index
-        c = self._config[lr._index]
-
-        o = 16 + 2 * i
-        if "cc" in names:
-            c[o + 0] = p.cc
-        if "mode" in names:
-            c[o + 1] = p.mode # Disable pedal temporarily
+        reg = LayerState.unpack(self._config[p._layer._index])
+        update_reg_from_handler(p._layer, reg, names, LAYER_SYNC, sub_index=p._index)
+        self._config[p._layer._index] = reg.pack()
 
     def _write_diff(self, id: int, c: list[int], orig_c: list[int]) -> None:
         r = get_diff_range(c, orig_c)
         if r is not None:
-            self._send_mbreq(self._CMD_WRITE_REQ, id, r.start, len(r) + 1, c[r.start:r.stop + 1])
+            self._send_mbreq(MidiboxCmd.WRITE_REQ, id, r.start, len(r) + 1, c[r.start:r.stop + 1])
 
     def _read_layer_config(self, layer: Layer, retries: Optional[int] = None, timeout: float = READ_TIMEOUT) -> None:
         lr = layer
-        self._config[lr._index] = self._read_regs(lr._index, 0, 48, retries, timeout)
+        self._config[lr._index] = self._read_regs(lr._index, 0, LayerState.SIZE, retries, timeout)
         self._load_layer_config(lr)
 
     def _load_layer_config(self, layer: Layer) -> None:
         lr = layer
-        c = self._config[lr._index]
-        lr.enabled = True if c[0] & 1 else False
-        lr.active = True if c[0] & 2 else False
-        lr.active_status = True if c[1] & 1 else False
-        lr.rangel, lr.rangeu, lr.volume = c[6], c[7], c[8]
-        lr.mode = c[9]
-        lr.transposition = c[10] - 64
-        lr.transposition_extra = c[11] - 64
-        lr.release = c[12] - 64
-        lr.attack = c[13] - 64
-        lr.cutoff = c[14] - 64
-        lr.decay = c[15] - 64
+        reg = LayerState.unpack(self._config[lr._index])
 
-        pc, bs, bs_lsb = c[3:6]
-        pc += 1
-        program = f"_pgm_{pc}_{bs}_{bs_lsb}_"
-        lr.program = program
+        # Generic field loading from sync map
+        load_from_reg(lr, reg, LAYER_SYNC)
 
-        for i in range(len(lr.pedals)):
-            o = 16 + 2 * i
-            lr.pedals[i].cc = c[o + 0]
-            lr.pedals[i].mode = c[o + 1]
-
-        lr.percussion = c[32]
-        for i in range(9):
-            setattr(lr, f'harmonic_bar{i}', c[33 + i])
-
-        lr.portamento_time = c[42]
-        lr.volume_ch = c[43]
-        lr.cc_int_mode1 = c[45]
-        lr.cc_int_mode2 = c[46]
-        lr.cc_int_mode3 = c[47]
+        # Custom: decode program from pgm+bs+bs_lsb
+        pc = reg.pgm + 1
+        lr.program = f"_pgm_{pc}_{reg.bs}_{reg.bs_lsb}_"

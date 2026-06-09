@@ -5,9 +5,8 @@ from typing import NamedTuple, List, Any, Callable, Optional, Tuple, TypeVar, Se
 from types import TracebackType
 
 from midibox.props import CheckedProp, BoolProp, IntProp, UIntProp, SIntProp, UInt14Prop
+from midibox.mido.mido_regs import LayerState, GeneralState, LayerPedalConfig, GeneralPedalConfig
 
-def clamp(val: int, lower: int, upper: int) -> int:
-    return lower if val < lower else upper if val > upper else val
 
 def prg_id(pc: int, msb: int, lsb: int) -> Tuple[int, int, int, str]:
     return pc, msb, lsb, f"_pgm_{pc}_{msb}_{lsb}_"
@@ -67,10 +66,9 @@ def mb_properties_init(cls: type[PropHandler]) -> type[PropHandler]:
     return cls
 
 
-PedalProps = [
-    UIntProp("cc"),
-    UIntProp("mode"),
-]
+# ── Pedal ────────────────────────────────────────────────────────────
+
+PedalProps = LayerPedalConfig.build_ui_props()
 
 
 @mb_properties_init
@@ -83,40 +81,10 @@ class Pedal(PropHandler):
         self._layer = layer
         self._index = index
 
-def check_prop_program(s, v):
-    if v in s.programs:
-        return s.programs[v].ident
-    elif isinstance(v, str) and v.startswith("_pgm_"):
-        return v
-    else:
-        return s._program
 
-LayerProps: list[CheckedProp[Any]] = [
-    SIntProp('transposition'),
-    SIntProp('transposition_extra'),
-    BoolProp('enabled'),
-    BoolProp('active', True),
-    BoolProp('active_status', True),
-    CheckedProp('rangel', 21, lambda s, v: clamp(v, 0, s._rangeu)),
-    CheckedProp('rangeu', 108, lambda s, v: clamp(v, s._rangel, v)),
-    CheckedProp('program', 'piano', check_prop_program, initial='-unknown-'),
-    IntProp('volume', default=100),
-    CheckedProp('mode', 0, lambda s, v: (v if v in s.modes else s._mode)),
-    SIntProp('release'),
-    SIntProp('attack'),
-    SIntProp('cutoff'),
-    SIntProp('decay'),
-    UIntProp('portamento_time'),
-    CheckedProp('percussion', 0, lambda s, v: s.percussions[clamp(v, 0, 4)][1]),
-    *[
-        CheckedProp(f'harmonic_bar{i}', 0, lambda s, v: clamp(v, 0, 15)) for i in range(9)
-    ],
-    UIntProp('volume_ch'),
+# ── Layer ────────────────────────────────────────────────────────────
 
-    UIntProp("cc_int_mode1"),
-    UIntProp("cc_int_mode2"),
-    UIntProp("cc_int_mode3"),
-]
+LayerProps = LayerState.build_ui_props()
 
 efx = {
     'none'  : [0x40, 0x40, 0x23, 0x00, 0x00, 0x00, 0x00, 0x08, 0x04], # noqa
@@ -177,18 +145,10 @@ class Layer(PropHandler):
             p.emit_all()
 
 
-GeneralProps: list[CheckedProp[Any]] = [
-    BoolProp('enabled'),
-    BoolProp('mute'),
-    UInt14Prop('tempo'),
-]
 
-GeneralPedalProps: list[CheckedProp[Any]] = [
-    #UIntProp('cc'),
-    #UIntProp('mode'),
-    UIntProp('min'),
-    UIntProp('max'),
-]
+GeneralProps = GeneralState.build_ui_props()
+
+GeneralPedalProps = GeneralPedalConfig.build_ui_props()
 
 
 @mb_properties_init
@@ -263,6 +223,7 @@ class BaseMidibox():
     }
 
     layers: List[Layer]
+    general: General
 
     _bundle: Optional[list[PropChange]]
     _bundle_inner: int
