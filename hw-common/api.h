@@ -49,6 +49,11 @@ enum {
 	/* INFO: WRITE_ACK can containts data with slightly modified/clamped values */
 };
 
+struct pedal_config_layer {
+	uint8_t cc;
+	uint8_t mode;
+};
+
 enum {
 	GS_STATUS_INITED = 1,
 };
@@ -74,8 +79,8 @@ struct layer_state_reg {
 	uint8_t pgm;
 	uint8_t bs;
 	uint8_t bs_lsb;
-	uint8_t lo; /* Lower range */
-	uint8_t hi; /* Upper range */
+	uint8_t rangel;
+	uint8_t rangeu;
 
 	/* offset 8 */
 	uint8_t volume;
@@ -86,11 +91,8 @@ struct layer_state_reg {
 	uint8_t attack;
 	uint8_t cutoff;
 	uint8_t decay;
-
 	/* offset 16 */
-	uint8_t pedal_cc[PEDALS];
-	uint8_t pedal_mode[PEDALS];
-
+	struct pedal_config_layer pedals[MIDIBOX_PEDALS];
 	/* offset 32 */
 	uint8_t percussion;
 	uint8_t harmonic_bar[9];
@@ -102,6 +104,14 @@ struct layer_state_reg {
 	uint8_t cc_mode[CC_INT_COUNT];
 };
 
+struct pedal_config_global {
+	uint8_t cc;
+	uint8_t mode;
+	uint8_t min;
+	uint8_t max;
+};
+
+/* Global state register */
 struct global_state_reg {
 	union {
 		struct {
@@ -124,14 +134,5 @@ struct global_state_reg {
 	uint8_t tempo_msb;
 	uint8_t tempo_lsb;
 //	int8_t _unused0[2];
-
-	/* offset 6 */
-	uint8_t pedal_cc[PEDALS];
-	/* offset 14 */
-	uint8_t pedal_mode[PEDALS];
-
-	/* offset 22 */
-	uint8_t pedal_min[PEDALS];
-	/* offset 30 */
-	uint8_t pedal_max[PEDALS];
+	struct pedal_config_global pedals[MIDIBOX_PEDALS];
 };

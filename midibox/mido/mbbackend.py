@@ -52,13 +52,6 @@ class MidoMidibox(BaseMidibox):
     _CMD_WRITE_ACK = 5 # noqa
     _CMD_WRITE_NAK = 6 # noqa
 
-    _LR_GENERAL_PEDAL_OFFSETS = {
-        "cc": 6,
-        "mode": 14,
-        "min": 22,
-        "max": 30
-    }
-
     _config: dict[int, List[int]]
     _do_init: dict[PropHandler, bool]
 
@@ -375,9 +368,17 @@ class MidoMidibox(BaseMidibox):
     def _update_general_pedal_config(self, p: GeneralPedal, names: list[str]) -> None:
         c = self._config[self._LAYER_GENERAL]
         i = p._index
-        for name, o in self._LR_GENERAL_PEDAL_OFFSETS.items():
-            if name in names:
-                c[o+i] = getattr(p, name)
+
+        o = 6 + 4 * i
+
+        if "cc" in names:
+            c[o + 0] = p.cc
+        if "mode" in names:
+            c[o + 1] = p.mode
+        if "min" in names:
+            c[o + 2] = p.min
+        if "max" in names:
+            c[o + 3] = p.max
 
     def _read_general_config(self, retries: Optional[int] = None, timeout: float = READ_TIMEOUT) -> None:
         c = self._read_regs(self._LAYER_GENERAL, 0, 6 + 16 + 16, retries, timeout)
@@ -391,8 +392,12 @@ class MidoMidibox(BaseMidibox):
 
         for i in range(8):
             p = self.general.pedals[i]
-            for name, o in self._LR_GENERAL_PEDAL_OFFSETS.items():
-                setattr(p, name, c[o+i])
+            o = 6 + 4 * i
+
+            p.cc = c[o + 0]
+            p.mode = c[o + 1]
+            p.min = c[o + 2]
+            p.max = c[o + 3]
 
     def _write_layer_config(self, layer: Layer) -> None:
         c = self._config.get(layer)
@@ -470,10 +475,11 @@ class MidoMidibox(BaseMidibox):
         i = p._index
         c = self._config[lr._index]
 
+        o = 16 + 2 * i
         if "cc" in names:
-            c[16 + i] = p.cc
+            c[o + 0] = p.cc
         if "mode" in names:
-            c[24 + i] = p.mode # Disable pedal temporarily
+            c[o + 1] = p.mode # Disable pedal temporarily
 
     def _write_diff(self, id: int, c: list[int], orig_c: list[int]) -> None:
         r = get_diff_range(c, orig_c)
@@ -506,8 +512,9 @@ class MidoMidibox(BaseMidibox):
         lr.program = program
 
         for i in range(len(lr.pedals)):
-            lr.pedals[i].cc = c[16 + i]
-            lr.pedals[i].mode = c[24 + i]
+            o = 16 + 2 * i
+            lr.pedals[i].cc = c[o + 0]
+            lr.pedals[i].mode = c[o + 1]
 
         lr.percussion = c[32]
         for i in range(9):

@@ -154,8 +154,8 @@ void _layer_handle_pedal_input(struct layer_state & lr, struct layer_state_reg &
 	uint8_t i = lr.index;
 	uint8_t cc, pm;
 
-	cc = lr_from_r.pedal_cc[pedal];
-	pm = lr_from_r.pedal_mode[pedal];
+	cc = lr_from_r.pedals[pedal].cc;
+	pm = lr_from_r.pedals[pedal].mode;
 	if (pm == PEDAL_MODE_NORMAL) {
 		MS1.sendControlChange(cc, val, i + 1);
 		if (cc == PortamentoTime) {
@@ -189,10 +189,10 @@ void midi_handle_pedal_input(uint8_t pedal, uint8_t val)
 
 	pedal_value[pedal] = val;
 
-	if (gs.r.pedal_mode[pedal] == PEDAL_MODE_NORMAL) {
-		MU.sendControlChange(gs.r.pedal_cc[pedal], val, 1);
+	if (gs.r.pedals[pedal].mode == PEDAL_MODE_NORMAL) {
+		MU.sendControlChange(gs.r.pedals[pedal].cc, val, 1);
 #ifdef MIDIBOX_HAVE_BT
-		MB.sendControlChange(gs.r.pedal_cc[pedal], val, 1);
+		MB.sendControlChange(gs.r.pedals[pedal].cc, val, 1);
 #endif
 	}
 
@@ -219,8 +219,8 @@ void midi_update_layer_pedal(struct layer_state & lr, struct layer_state_reg & l
 
 	for (i = 0; i < PEDALS; i++) {
 		set = false;
-		mode = lr_from_r.pedal_mode[i];
-		cc = lr_from_r.pedal_cc[i];
+		mode = lr_from_r.pedals[i].mode;
+		cc = lr_from_r.pedals[i].cc;
 		val = from ? 0 : pedal_value[i];
 
 		ccc = (changes.pedal_cc & (1 << i)) ? true : false;
@@ -433,10 +433,10 @@ void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 			changes.active = 1;
 
 		for (i = 0; i < PEDALS; i++) {
-			if (lr_prev_r.pedal_cc[i] != lr.r.pedal_cc[i]) {
+			if (lr_prev_r.pedals[i].cc != lr.r.pedals[i].cc) {
 				changes.pedal_cc |= (1 << i);
 			}
-			if (lr_prev_r.pedal_mode[i] != lr.r.pedal_mode[i]) {
+			if (lr_prev_r.pedals[i].mode != lr.r.pedals[i].mode) {
 				changes.pedal_cc |= (1 << i);
 			}
 		}
@@ -701,7 +701,7 @@ void handleSMidiMessage(const midi::Message<128> & msg, uint8_t port)
 		msg_out.length = msg.length;
 
 		if (cmd == midi::NoteOn) {
-			if (lactive && note_in_bounds /*&& !layer_is_playing(lr, lnote)*/ && b1 >= lr.r.lo && b1 <= lr.r.hi) {
+			if (lactive && note_in_bounds /*&& !layer_is_playing(lr, lnote)*/ && b1 >= lr.r.rangel && b1 <= lr.r.rangeu) {
 				/* FIXME: Repeat already playing same note for NOTE_MODE_HOLD */
 				layer_set_pressed(lr, lnote, true);
 				layer_set_playing(lr, lnote, true, b1);
@@ -820,27 +820,27 @@ void midi_init()
 	gs.r.debug_s2u_all = 1;
 	gs.r.check_keep_alive = 0;
 
-	gs.r.pedal_cc[0] = Sustain;
-	gs.r.pedal_cc[1] = SoftPedal;
-	gs.r.pedal_cc[2] = Sostenuto;
+	gs.r.pedals[0].cc = Sustain;
+	gs.r.pedals[1].cc = SoftPedal;
+	gs.r.pedals[2].cc = Sostenuto;
 #if 0
-	gs.r.pedal_cc[0] = GeneralPurposeController5;
-	gs.r.pedal_cc[1] = GeneralPurposeController6;
-	gs.r.pedal_cc[2] = GeneralPurposeController7;
-	gs.r.pedal_cc[3] = GeneralPurposeController8;
+	gs.r.pedals[0].cc = GeneralPurposeController5;
+	gs.r.pedals[1].cc = GeneralPurposeController6;
+	gs.r.pedals[2].cc = GeneralPurposeController7;
+	gs.r.pedals[3].cc = GeneralPurposeController8;
 #endif
 
-	gs.r.pedal_cc[4] = GeneralPurposeController1;
-	gs.r.pedal_cc[5] = GeneralPurposeController2;
-	gs.r.pedal_cc[6] = GeneralPurposeController3;
-	gs.r.pedal_cc[7] = GeneralPurposeController4;
+	gs.r.pedals[4].cc = GeneralPurposeController1;
+	gs.r.pedals[5].cc = GeneralPurposeController2;
+	gs.r.pedals[6].cc = GeneralPurposeController3;
+	gs.r.pedals[7].cc = GeneralPurposeController4;
 
 	for (i = 0; i < MIDIBOX_PEDALS; i++) {
-		gs.r.pedal_mode[i] = PEDAL_MODE_NORMAL;
-		gs.r.pedal_min[i] = 0x00;
-		gs.r.pedal_max[i] = 0x7f;
+		gs.r.pedals[i].mode = PEDAL_MODE_NORMAL;
+		gs.r.pedals[i].min = 0x00;
+		gs.r.pedals[i].max = 0x7f;
 	}
-	gs.r.pedal_mode[3] = PEDAL_MODE_IGNORE;
+	gs.r.pedals[3].mode = PEDAL_MODE_IGNORE;
 
 	for (uint8_t l = 0; l < LAYERS; l++) {
 		struct layer_state & lr = ls[l];
@@ -854,8 +854,8 @@ void midi_init()
 		lr.r.pgm = 0;
 		lr.r.bs = 0;
 		lr.r.bs_lsb = 68;
-		lr.r.lo = 0;
-		lr.r.hi = 127;
+		lr.r.rangel = 0;
+		lr.r.rangeu = 127;
 
 		lr.r.volume = 127;
 		lr.r.mode = 0;
@@ -875,17 +875,17 @@ void midi_init()
 		lr.part = l + 1;
 		layer2reg(lr);
 
-		lr.r.pedal_cc[0] = 0;
-		lr.r.pedal_cc[1] = 0;
-		lr.r.pedal_cc[2] = 0;
-		lr.r.pedal_cc[3] = 0;
-		lr.r.pedal_cc[4] = GeneralPurposeController1;
-		lr.r.pedal_cc[5] = GeneralPurposeController2;
-		lr.r.pedal_cc[6] = GeneralPurposeController3;
-		lr.r.pedal_cc[7] = GeneralPurposeController4;
+		lr.r.pedals[0].cc = 0;
+		lr.r.pedals[1].cc = 0;
+		lr.r.pedals[2].cc = 0;
+		lr.r.pedals[3].cc = 0;
+		lr.r.pedals[4].cc = GeneralPurposeController1;
+		lr.r.pedals[5].cc = GeneralPurposeController2;
+		lr.r.pedals[6].cc = GeneralPurposeController3;
+		lr.r.pedals[7].cc = GeneralPurposeController4;
 
 		for (i = 0; i < MIDIBOX_PEDALS; i++)
-			lr.r.pedal_mode[i] = PEDAL_MODE_IGNORE;
+			lr.r.pedals[i].mode = PEDAL_MODE_IGNORE;
 
 		lr.r.percussion = 0;
 		for (i = 0; i < 9; i++) {
@@ -927,9 +927,9 @@ void midi_init()
 	ls[0].transposition_extra = 0;
 	ls[0].r.enabled = 1;
 
-	ls[0].r.pedal_cc[0] = Sustain;
-	ls[0].r.pedal_cc[1] = SoftPedal;
-	ls[0].r.pedal_cc[2] = Sostenuto;
+	ls[0].r.pedals[0].cc = Sustain;
+	ls[0].r.pedals[1].cc = SoftPedal;
+	ls[0].r.pedals[2].cc = Sostenuto;
 /*
 	ls[0].r.pedal_mode[0] = PEDAL_MODE_NORMAL;
 	ls[0].r.pedal_mode[1] = PEDAL_MODE_NORMAL;

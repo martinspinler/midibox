@@ -108,8 +108,8 @@ void check_inputs()
 
 		for (i = 0; i < ANALOG_PEDALS; i++) {
 			send = 0;
-			pmin = gs.r.pedal_min[i];
-			pmax = gs.r.pedal_max[i];
+			pmin = gs.r.pedals[i].min;
+			pmax = gs.r.pedals[i].max;
 			invert = pmin > pmax ? 1 : 0;
 			if (invert) {
 				val = pmin;
@@ -207,9 +207,9 @@ int main(void)
 	smidi_init();
 
 #ifdef OVERRIDE_DEFAULT_MIDI_CONFIG
-	gs.r.pedal_mode[0] = PEDAL_MODE_IGNORE;
-	gs.r.pedal_mode[1] = PEDAL_MODE_IGNORE;
-	gs.r.pedal_mode[2] = PEDAL_MODE_IGNORE;
+	gs.r.pedals[0].mode = PEDAL_MODE_IGNORE;
+	gs.r.pedals[1].mode = PEDAL_MODE_IGNORE;
+	gs.r.pedals[2].mode = PEDAL_MODE_IGNORE;
 
 	gs.r.check_keep_alive = 1;
 #endif
