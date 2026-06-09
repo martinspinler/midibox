@@ -12,8 +12,8 @@ from collections import OrderedDict
 
 from midibox.mido.mido_regs import (
     MidiboxDefs,
-    LayerState, GeneralState,
-    PedalMode, CcInternal, NoteMode, MidiboxCmd, GsStatus,
+    LayerState, GeneralState, RegistrationIstruction,
+    RegOperation, PedalMode, CcInternal, NoteMode, MidiboxCmd, GsStatus,
 )
 from midibox.mido.reg_spec import RegLayout, SubStructItem
 
@@ -52,7 +52,7 @@ def gen_c_header() -> str:
     w("")
 
     # Enums
-    for enum_cls in [PedalMode, CcInternal, NoteMode, MidiboxCmd, GsStatus]:
+    for enum_cls in [RegOperation, PedalMode, CcInternal, NoteMode, MidiboxCmd, GsStatus]:
         doc = (enum_cls.__doc__ or "").strip()
         if doc:
             w(f"/* {doc} */")
@@ -74,7 +74,7 @@ def gen_c_header() -> str:
         w("")
 
     # Structs — driven by item lists, filtered for RegLayout
-    for struct_cls in [LayerState, GeneralState]:
+    for struct_cls in [LayerState, GeneralState, RegistrationIstruction]:
         all_items = struct_cls.build_items()
         reg_items = [i for i in all_items if isinstance(i, RegLayout)]
 

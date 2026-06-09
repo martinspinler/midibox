@@ -80,6 +80,19 @@ class MidiboxDefs:
         ]
 
 
+class RegOperation(IntEnum):
+    """Registration operation types"""
+    __c_prefix__ = 'REG_OP'
+    NOP = 0           # skip this instruction
+    NEXT = 1          # pedal_next[triggering_pedal] = source_value
+    STASH = 2         # stash[source_value] = target; target unchanged
+    RESTORE = 3       # target = stash[source_value]
+    SET = 4           # target = source_value
+    ADD = 5           # target += (source_value - 64), signed
+    SET_BIT = 6       # target |= (1 << source_value)
+    CLEAR_BIT = 7     # target &= ~(1 << source_value)
+
+
 class PedalMode(IntEnum):
     __c_prefix__ = 'PEDAL_MODE'
     IGNORE = 0
@@ -193,6 +206,18 @@ class GeneralState(RegStruct):
     tempo_msb: int = IntField(4)                             # composed into 'tempo' (uint14)
     tempo_lsb: int = IntField(5)                             # composed into 'tempo' (uint14)
     pedals: list[int] = ArrayField(6, 32, prop=SubStructMeta(GeneralPedalConfig), dim='PEDALS')
+
+
+@dataclass
+class RegistrationIstruction(RegStruct):
+    """Instruction encoding (4 bytes, all values 7-bit safe for SysEx)"""
+    SIZE: ClassVar[int] = 4
+    c_name: ClassVar[str] = 'reg_instruction'
+
+    operation: int = IntField(0)                             # REG_OP_* enum
+    target_layer: int = IntField(1)                          # 0..7=layer, GLOBAL=global
+    target_offset: int = IntField(2)                         # byte offset within target
+    source_value: int = IntField(3)                          # literal / stash index / next index
 
 
 

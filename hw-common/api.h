@@ -14,6 +14,18 @@
 #define MIDIBOX_REG_INSTRS 0x10
 #define MIDIBOX_REG_STASH_SLOTS 0x20
 
+/* Registration operation types */
+enum RegOperation {
+	REG_OP_NOP = 0,
+	REG_OP_NEXT = 1,
+	REG_OP_STASH = 2,
+	REG_OP_RESTORE = 3,
+	REG_OP_SET = 4,
+	REG_OP_ADD = 5,
+	REG_OP_SET_BIT = 6,
+	REG_OP_CLEAR_BIT = 7
+};
+
 enum PedalMode {
 	PEDAL_MODE_IGNORE = 0,
 	PEDAL_MODE_NORMAL = 1,
@@ -126,5 +138,13 @@ struct global_state_reg {
 	uint8_t tempo_msb;
 	uint8_t tempo_lsb;
 	struct pedal_config_global pedals[MIDIBOX_PEDALS];
+};
+
+/* Instruction encoding (4 bytes, all values 7-bit safe for SysEx) */
+struct reg_instruction {
+	uint8_t operation;
+	uint8_t target_layer;
+	uint8_t target_offset;
+	uint8_t source_value;
 };
 
