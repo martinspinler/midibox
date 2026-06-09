@@ -37,3 +37,12 @@ packages = ["midibox"]
 [[tool.mypy.overrides]]
 module = "pydispatch,mido,schema,qasync,schema,netifaces,PyQt5.QtWebEngine,sip"
 ignore_missing_imports = true
+
+[tool.basedpyright]
+stubPath = "untyped_lib_stubs"
+reportImplicitOverride = false
+reportExplicitAny = false
+reportUnusedCallResult = false
+reportUnannotatedClassAttribute = false
+reportDeprecated = false
+reportAny = false
