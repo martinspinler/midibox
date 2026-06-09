@@ -48,7 +48,7 @@ class PortNotFoundError(Exception):
 
 
 class MidoMidibox(BaseMidibox):
-    PERIODIC_CHECK = False
+    PERIODIC_CHECK: bool = False
 
     _config: dict[int, List[int]]
     _do_init: dict[PropHandler, bool]
@@ -70,7 +70,7 @@ class MidoMidibox(BaseMidibox):
         self._config = {}
 
         self._cb_data: Optional[list[int]] = None
-        self._cb_data_waiting: Optional[Tuple[int, int, int]] = None
+        self._cb_data_waiting: Optional[tuple[int, int, int]] = None
 
         self._midi_thread_exit = False
         self._midi_thread = Thread(target=self._connection_check)
@@ -105,6 +105,7 @@ class MidoMidibox(BaseMidibox):
             s = p.source if isinstance(p, PropChange) else None
             ns = np.source if isinstance(np, PropChange) else None
 
+            index = None
             if isinstance(s, General):
                 index = MidiboxDefs.LAYER_ID_GLOBAL
                 if index not in origs:
@@ -125,6 +126,8 @@ class MidoMidibox(BaseMidibox):
                 if index not in origs:
                     origs[index] = self._config[index].copy()
                 self._update_pedal_config(s, [p.name])
+            else:
+                continue
 
             if not self._same_layer(s, ns):
                 self._write_diff(index, self._config[index], origs[index])
@@ -157,8 +160,8 @@ class MidoMidibox(BaseMidibox):
                     if substr in i:
                         return i
                 raise PortNotFoundError(f'Midibox port {substr} not found in: ' + ", ".join(strings))
-            self._input_port_name = findSubstr(mido.get_input_names(), self._port_name)
-            self._output_port_name = findSubstr(mido.get_output_names(), self._port_name)
+            self._input_port_name = findSubstr(mido.get_input_names(), self._port_name)  # pyright: ignore[reportAttributeAccessIssue]
+            self._output_port_name = findSubstr(mido.get_output_names(), self._port_name)  # pyright: ignore[reportAttributeAccessIssue]
         else:
             self._input_port_name = self._output_port_name = self._port_name
 
@@ -175,15 +178,16 @@ class MidoMidibox(BaseMidibox):
         #self.portout = self.ioport.output
 
         self._log.info(f"Midibox using {self._port_name} ({self._client_name})")
-        self.portout = mido.open_output(self._output_port_name, client_name=self._client_name, virtual=self._virtual, api=api)
-        self.portin = mido.open_input(self._input_port_name, client_name=self._client_name, virtual=self._virtual, api=api)
+        self.portout = mido.open_output(self._output_port_name, client_name=self._client_name, virtual=self._virtual, api=api)  # pyright: ignore[reportAttributeAccessIssue]
+        self.portin = mido.open_input(self._input_port_name, client_name=self._client_name, virtual=self._virtual, api=api)  # pyright: ignore[reportAttributeAccessIssue]
 
+        assert self.portin is not None
         #if self.portin is None:
         # Let the patch to connect
         if self._virtual:
             time.sleep(0.3)
 
-        self.portin.callback = self._input_callback
+        self.portin.callback = self._input_callback  # pyright: ignore[reportAttributeAccessIssue]
 
     def close(self):
         if self.portin is not None:
@@ -272,8 +276,8 @@ class MidoMidibox(BaseMidibox):
 
         return ret
 
-    def _read_regs(self, lr_index: int, firstreg: int, lastreg: int, retries: Optional[int] = None, timeout: float = READ_TIMEOUT) -> List[int]:
-        ret: List[int] = []
+    def _read_regs(self, lr_index: int, firstreg: int, lastreg: int, retries: Optional[int] = None, timeout: float = READ_TIMEOUT) -> list[int]:
+        ret: list[int] = []
         MAXREQ = 32
         while lastreg > firstreg:
             reqlen = min(lastreg - firstreg, MAXREQ)

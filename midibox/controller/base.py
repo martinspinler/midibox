@@ -1,14 +1,14 @@
 import mido
 
 from pydispatch import Dispatcher
-from typing import NamedTuple, List, Any, Callable, Optional, Tuple, TypeVar, Sequence, Type
+from typing import NamedTuple, List, Any, Callable, Optional, TypeVar, Sequence, Type
 from types import TracebackType
 
 from midibox.props import CheckedProp, BoolProp, IntProp, UIntProp, SIntProp, UInt14Prop
 from midibox.mido.mido_regs import LayerState, GeneralState, LayerPedalConfig, GeneralPedalConfig
 
 
-def prg_id(pc: int, msb: int, lsb: int) -> Tuple[int, int, int, str]:
+def prg_id(pc: int, msb: int, lsb: int) -> tuple[int, int, int, str]:
     return pc, msb, lsb, f"_pgm_{pc}_{msb}_{lsb}_"
 
 
@@ -17,7 +17,7 @@ class Program(NamedTuple):
     msb: int
     lsb: int
     ident: str
-    sysex: List[List[int]]
+    sysex: list[list[int]]
     short: str
     name: str
     label: str
@@ -195,7 +195,7 @@ class BundleManager:
 
 
 class BaseMidibox():
-    pedal_cc = {
+    pedal_cc: dict[str, int] = {
         'Unknown': 0,
         'Sustain': 64,
         'Sostenuto': 66,
@@ -214,7 +214,7 @@ class BaseMidibox():
         'GPC4': 19,
         'Reset': 121,
     }
-    pedal_mode = {
+    pedal_mode: dict[str, int] = {
         'Ignore': 0,
         'Normal': 1,
         'NoteLength': 2,
@@ -222,7 +222,7 @@ class BaseMidibox():
         'Push Active': 4,
     }
 
-    layers: List[Layer]
+    layers: list[Layer]
     general: General
 
     _bundle: Optional[list[PropChange]]
@@ -235,7 +235,7 @@ class BaseMidibox():
         self.general = General(self)
         self._callbacks: list[Callable[[mido.Message], None]] = []
 
-        self._requestKey: Optional[Tuple[str, int, str]] = None
+        self._requestKey: Optional[tuple[str, int, str]] = None
         self._bundle = None
         self._bundle_inner = 0
 
