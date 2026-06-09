@@ -128,8 +128,8 @@ void check_inputs()
 
 		for (i = 0; i < ANALOG_PEDALS; i++) {
 			send = 0;
-			pmin = gs.r.pedal_min[i];
-			pmax = gs.r.pedal_max[i];
+			pmin = gs.r.pedals[i].min;
+			pmax = gs.r.pedals[i].max;
 			invert = pmin > pmax ? 1 : 0;
 			if (invert) {
 				val = pmin;
@@ -243,12 +243,12 @@ int main(void)
 	gs.r.check_keep_alive = 1;
 #endif
 
-	gs.r.pedal_min[0] = 80;
-	gs.r.pedal_max[0] = 100;
-	gs.r.pedal_min[1] = 80;
-	gs.r.pedal_max[1] = 100;
-	gs.r.pedal_min[2] = 42;
-	gs.r.pedal_max[2] = 120;
+	gs.r.pedals[0].min = 80;
+	gs.r.pedals[0].max = 100;
+	gs.r.pedals[1].min = 80;
+	gs.r.pedals[1].max = 100;
+	gs.r.pedals[2].min = 42;
+	gs.r.pedals[2].max = 120;
 
 	while (1) {
 		tud_task();
