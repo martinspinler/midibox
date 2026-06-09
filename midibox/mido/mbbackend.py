@@ -239,9 +239,12 @@ class MidoMidibox(BaseMidibox):
 
         if self._debug:
             print("recv", mido.format_as_string(msg, False))
+        try:
+            if not self._rc_callback(msg):
+                self.input_callback(msg)
+        except Exception as e:
+            print(e)
 
-        if not self._rc_callback(msg):
-            self.input_callback(msg)
 
     def _init_config(self, retries: Optional[int] = None, timeout: float = READ_TIMEOUT) -> None:
         self._read_general_config(retries, timeout)
