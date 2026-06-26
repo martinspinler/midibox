@@ -21,6 +21,7 @@ struct midi_changes {
 	int pedal_cc : 8;
 	int pedal_mode : 8;
 	int active : 1;
+	int transposition_extra_active : 1;
 #if 0
 	int part: 1;
 #endif
@@ -171,6 +172,15 @@ void _layer_handle_pedal_input(struct layer_state & lr, struct layer_state_reg &
 			lr.r.active_status = val ? 0 : 1;
 		else
 			lr.r.active_status = val ? 1 : 0;
+	} else if (pm == PEDAL_MODE_TOGGLE_TRANS_EXTRA) {
+		if (val != 0) {
+			lr.r.transposition_extra_status = lr.r.transposition_extra_status ? 0 : 1;
+		}
+	} else if (pm == PEDAL_MODE_PUSH_TRANS_EXTRA) {
+		if (lr.r.transposition_extra_active)
+			lr.r.transposition_extra_status = val ? 0 : 1;
+		else
+			lr.r.transposition_extra_status = val ? 1 : 0;
 	}
 }
 
@@ -234,7 +244,11 @@ void midi_update_layer_pedal(struct layer_state & lr, struct layer_state_reg & l
 			   ) {
 					set = true;
 			}
-		} else if (mode == PEDAL_MODE_PUSH_ACT) {
+		} else if (
+				mode == PEDAL_MODE_PUSH_ACT ||
+				mode == PEDAL_MODE_PUSH_ACT ||
+				mode == PEDAL_MODE_TOGGLE_TRANS_EXTRA ||
+				mode == PEDAL_MODE_PUSH_TRANS_EXTRA) {
 			set = true;
 		}
 
@@ -301,6 +315,8 @@ void midi_update_layer(struct layer_state & lr, struct layer_state_reg & lr_prev
 	midi_update_layer_pedal(lr, lr_prev_r, changes, true);
 	if (changes.active)
 		lr.r.active_status = lr.r.active;
+	if (changes.transposition_extra_active)
+		lr.r.transposition_extra_status = lr.r.transposition_extra_active;
 
 	midi_update_layer_pedal(lr, lr.r, changes, false);
 
@@ -405,6 +421,7 @@ void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 		/* R/O values */
 		lr.r.init = 0;
 		lr.r.active_status = lr_prev_r.active_status;
+		lr.r.transposition_extra_status = lr_prev_r.transposition_extra_status;
 
 		if (lr_prev_r.bs != lr.r.bs || lr_prev_r.bs_lsb != lr.r.bs_lsb || lr_prev_r.pgm != lr.r.pgm)
 			changes.program = 1;
@@ -431,6 +448,9 @@ void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 
 		if (lr_prev_r.active != lr.r.active)
 			changes.active = 1;
+
+		if (lr_prev_r.transposition_extra_active != lr.r.transposition_extra_active)
+			changes.transposition_extra_active = 1;
 
 		for (i = 0; i < PEDALS; i++) {
 			if (lr_prev_r.pedals[i].cc != lr.r.pedals[i].cc) {
@@ -649,11 +669,12 @@ void handleSMidiMessage(const midi::Message<128> & msg, uint8_t port)
 		struct layer_state & lr = ls[l];
 		lmask = 1 << l;
 		lchannel = ((lr.channel_out_offset + l) & 0x0F) + 1;
-		lnote = (b1 + lr.transposition + lr.transposition_extra) & 0x7F;
+		int8_t trans_extra_applied = lr.r.transposition_extra_status ? lr.transposition_extra : 0;
+		lnote = (b1 + lr.transposition + trans_extra_applied) & 0x7F;
 		lenabled = lr.r.enabled;
 		lactive = lr.r.active_status;
 
-		note_in_bounds = (b1 + lr.transposition + lr.transposition_extra) == lnote ? 1 : 0;
+		note_in_bounds = (b1 + lr.transposition + trans_extra_applied) == lnote ? 1 : 0;
 
 		if (!(lr.channel_in_mask & (1 << (uint16_t) (channel-1))))
 			continue;
@@ -850,6 +871,8 @@ void midi_init()
 		lr.r.enabled = 0;
 		lr.r.active = 1;
 		lr.r.active_status = 1;
+		lr.r.transposition_extra_active = 0;
+		lr.r.transposition_extra_status = 0;
 		lr.r.init = 0;
 		lr.r.pgm = 0;
 		lr.r.bs = 0;
