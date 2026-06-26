@@ -198,11 +198,11 @@ void midi_handle_pedal_input(uint8_t pedal, uint8_t val)
 
 	for (i = 0; i < LAYERS; i++) {
 		struct layer_state & lr = ls[i];
-		uint8_t prev_active = lr.r.active_status;
+		uint8_t prev_status = lr.r.status;
 
 		layer_handle_pedal_input(lr, pedal, val);
 
-		if (lr.r.active_status != prev_active) {
+		if (lr.r.status != prev_status) {
 			midi_inform_lr_change(i, offsetof(struct layer_state_reg, status), 1);
 		}
 	}
@@ -304,7 +304,7 @@ void midi_update_layer(struct layer_state & lr, struct layer_state_reg & lr_prev
 
 	midi_update_layer_pedal(lr, lr.r, changes, false);
 
-	if (lr.r.active_status != lr_prev_r.active_status) {
+	if (lr.r.status != lr_prev_r.status) {
 		midi_inform_lr_change(lr.index, offsetof(struct layer_state_reg, status), 1);
 	}
 }
