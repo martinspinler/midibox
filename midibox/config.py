@@ -56,7 +56,7 @@ def validate_config(config: dict[str, Any]) -> None:
                             {
                                 Optional("copy"): Or(None),
                                 Optional("pedal"): int,
-                                Optional("mode"): Or("none", "normal", "note_length", "toggle_active", "push_active", "toggle_trans_extra", "push_trans_extra"),
+                                Optional("mode"): Or("none", "normal", "note_length", "toggle_active", "push_active", "toggle_trans_extra", "push_trans_extra", "toggle_push_active", "toggle_push_trans"),
                                 Optional("cc"): Or(int, *list(BaseMidibox.pedal_cc.keys())),
                             }
                         ],

@@ -264,6 +264,8 @@ class BaseMidibox():
         'Push Active': 4,
         'Toggle Trans Extra': 5,
         'Push Trans Extra': 6,
+        'Toggle Push Active': 7,
+        'Toggle Push Trans': 8,
     }
 
     layers: List[Layer]
