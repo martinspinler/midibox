@@ -11,11 +11,13 @@ const uint8_t MIDIBOX_PEDAL_SYSEX_ID = 0x79;
 const uint8_t MIDIBOX_LAYER_ID_GLOBAL = 15;
 
 enum {
-        PEDAL_MODE_IGNORE     = 0,
-        PEDAL_MODE_NORMAL     = 1,
-        PEDAL_MODE_NOTELENGTH = 2,
-        PEDAL_MODE_TOGGLE_ACT = 3,
-        PEDAL_MODE_PUSH_ACT   = 4,
+        PEDAL_MODE_IGNORE             = 0,
+        PEDAL_MODE_NORMAL             = 1,
+        PEDAL_MODE_NOTELENGTH         = 2,
+        PEDAL_MODE_TOGGLE_ACT         = 3,
+        PEDAL_MODE_PUSH_ACT           = 4,
+        PEDAL_MODE_TOGGLE_TRANS_EXTRA = 5,
+        PEDAL_MODE_PUSH_TRANS_EXTRA   = 6,
 };
 
 enum {
@@ -65,6 +67,7 @@ struct layer_state_reg {
 			bool enabled: 1;
 			bool active: 1;
 			bool _init: 1; /* W/O */
+			bool transposition_extra_active: 1;
 		};
 		uint8_t config;
 	};
@@ -72,6 +75,7 @@ struct layer_state_reg {
 	union {
 		struct {
 			bool active_status: 1; /* R/O */
+			bool transposition_extra_status: 1; /* R/O */
 		};
 		uint8_t status;	/* R/O */
 	};
