@@ -245,7 +245,7 @@ void midi_update_layer_pedal(struct layer_state & lr, struct layer_state_reg & l
 					set = true;
 			}
 		} else if (
-				mode == PEDAL_MODE_PUSH_ACT ||
+				mode == PEDAL_MODE_TOGGLE_ACT ||
 				mode == PEDAL_MODE_PUSH_ACT ||
 				mode == PEDAL_MODE_TOGGLE_TRANS_EXTRA ||
 				mode == PEDAL_MODE_PUSH_TRANS_EXTRA) {
