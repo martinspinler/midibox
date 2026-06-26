@@ -808,6 +808,19 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 
 void handleS2MidiMessage(const midi::Message<128> & msg)
 {
+	/* Debounce pedal buttons (notes 36-60): drop Note events
+	 * received within 30ms of the last event for the same note. */
+	static unsigned long last_note_time[25];
+
+	if ((msg.type == NoteOn || msg.type == NoteOff) &&
+	    msg.data1 >= 36 && msg.data1 <= 60) {
+		uint8_t idx = msg.data1 - 36;
+		unsigned long now = micros();
+		if (now - last_note_time[idx] < 30000)
+			return;
+		last_note_time[idx] = now;
+	}
+
 	handleSMidiMessage(msg, 1);
 }
 
