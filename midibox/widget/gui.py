@@ -272,6 +272,8 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
                                                 'push_active': 4,
                                                 'toggle_trans_extra': 5,
                                                 'push_trans_extra': 6,
+                                                'toggle_push_active': 7,
+                                                'toggle_push_trans': 8,
                                             }
                                             val = mode[pv]
                                         setattr(pedal, pk, val)
