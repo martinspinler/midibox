@@ -97,6 +97,8 @@ LayerProps: list[CheckedProp[Any]] = [
     BoolProp('enabled'),
     BoolProp('active', True),
     BoolProp('active_status', True),
+    BoolProp('transposition_extra_active', False),
+    BoolProp('transposition_extra_status', False),
     CheckedProp('rangel', 21, lambda s, v: clamp(v, 0, s._rangeu)),
     CheckedProp('rangeu', 108, lambda s, v: clamp(v, s._rangel, v)),
     CheckedProp('program', 'piano', check_prop_program, initial='-unknown-'),
@@ -260,6 +262,8 @@ class BaseMidibox():
         'NoteLength': 2,
         'Toggle Active': 3,
         'Push Active': 4,
+        'Toggle Trans Extra': 5,
+        'Push Trans Extra': 6,
     }
 
     layers: List[Layer]

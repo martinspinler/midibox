@@ -46,6 +46,7 @@ def validate_config(config: dict[str, Any]) -> None:
                         Optional("program"): str,
                         Optional("enabled"): bool,
                         Optional("active"): bool,
+                        Optional("transposition_extra_active"): bool,
                         Optional("rangeu"): int,
                         Optional("rangel"): int,
                         Optional("volume"): int,
@@ -55,7 +56,7 @@ def validate_config(config: dict[str, Any]) -> None:
                             {
                                 Optional("copy"): Or(None),
                                 Optional("pedal"): int,
-                                Optional("mode"): Or("none", "normal", "note_length", "toggle_active", "push_active"),
+                                Optional("mode"): Or("none", "normal", "note_length", "toggle_active", "push_active", "toggle_trans_extra", "push_trans_extra"),
                                 Optional("cc"): Or(int, *list(BaseMidibox.pedal_cc.keys())),
                             }
                         ],

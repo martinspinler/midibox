@@ -81,6 +81,11 @@ Item {
 							checked: layerx.current.active
 							text: "Active"
 						}
+						Switch{
+							onToggled: layerx.current.transposition_extra_active = checked
+							checked: layerx.current.transposition_extra_active
+							text: "Trans Extra Active"
+						}
 						ComboBox {
 							Layout.fillWidth: true
 							model: playModeModel
