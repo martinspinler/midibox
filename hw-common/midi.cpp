@@ -29,6 +29,8 @@ struct midi_changes {
 
 static uint8_t pedal_value[PEDALS] = {0};
 
+static unsigned long last_s2_note_time[25];
+
 
 void midi_handle_tc();
 
@@ -808,6 +810,19 @@ void handleS1MidiMessage(const midi::Message<128> & msg)
 
 void handleS2MidiMessage(const midi::Message<128> & msg)
 {
+	uint8_t idx;
+	unsigned long now;
+
+	/* Debounce pedal buttons */
+	if ((msg.type == NoteOn || msg.type == NoteOff) &&
+	    msg.data1 >= 36 && msg.data1 <= 60) {
+		now = micros();
+		idx = msg.data1 - 36;
+		if (now - last_s2_note_time[idx] < 50000)
+			return;
+		last_s2_note_time[idx] = now;
+	}
+
 	handleSMidiMessage(msg, 1);
 }
 
