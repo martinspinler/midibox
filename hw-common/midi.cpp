@@ -150,13 +150,23 @@ void midi_inform_lr_change(uint8_t l, uint8_t reg, uint8_t len)
 
 /* TODO */
 
+/* Timing state for the TOGGLE_PUSH hybrid pedal modes.
+ * press_time records when the button was first pressed (0 = not tracking).
+ * press_orig stores the original *_status value at press time,
+ * used to decide between short-press TOGGLE and long-press PUSH on release. */
+static unsigned long pedal_press_time[LAYERS][PEDALS];
+static uint8_t      pedal_press_orig[LAYERS][PEDALS];
+
 void _layer_handle_pedal_input(struct layer_state & lr, struct layer_state_reg & lr_from_r, int pedal, uint8_t val)
 {
 	uint8_t i = lr.index;
 	uint8_t cc, pm;
+	unsigned long now, elapsed;
+	uint8_t orig;
 
 	cc = lr_from_r.pedals[pedal].cc;
 	pm = lr_from_r.pedals[pedal].mode;
+
 	if (pm == PEDAL_MODE_NORMAL) {
 		MS1.sendControlChange(cc, val, i + 1);
 		if (cc == PortamentoTime) {
@@ -172,6 +182,28 @@ void _layer_handle_pedal_input(struct layer_state & lr, struct layer_state_reg &
 			lr.r.active_status = val ? 0 : 1;
 		else
 			lr.r.active_status = val ? 1 : 0;
+	} else if (pm == PEDAL_MODE_TOGGLE_PUSH_ACT) {
+		/* Hybrid: short press (<= 0.8 s) → TOGGLE; long press (> 0.8 s) → PUSH */
+		if (val != 0 && pedal_press_time[i][pedal] == 0) {
+			/* Press: save original state, start push-hold (invert active_status). */
+			pedal_press_time[i][pedal] = micros();
+			pedal_press_orig[i][pedal] = lr.r.active_status;
+			lr.r.active_status = lr.r.active ? 0 : 1;
+		} else if (val == 0 && pedal_press_time[i][pedal] != 0) {
+			/* Release: decide short vs long press. */
+			now = micros();
+			elapsed = now - pedal_press_time[i][pedal];
+			orig = pedal_press_orig[i][pedal];
+			pedal_press_time[i][pedal] = 0;
+
+			if (elapsed < 800000UL) {
+				/* Short press: TOGGLE (flip from original). */
+				lr.r.active_status = orig ? 0 : 1;
+			} else {
+				/* Long press: PUSH (restore to configured active state). */
+				lr.r.active_status = lr.r.active;
+			}
+		}
 	} else if (pm == PEDAL_MODE_TOGGLE_TRANS_EXTRA) {
 		if (val != 0) {
 			lr.r.transposition_extra_status = lr.r.transposition_extra_status ? 0 : 1;
@@ -181,6 +213,26 @@ void _layer_handle_pedal_input(struct layer_state & lr, struct layer_state_reg &
 			lr.r.transposition_extra_status = val ? 0 : 1;
 		else
 			lr.r.transposition_extra_status = val ? 1 : 0;
+	} else if (pm == PEDAL_MODE_TOGGLE_PUSH_TRANS) {
+		/* Hybrid: short press (<= 0.8 s) → TOGGLE; long press (> 0.8 s) → PUSH */
+		if (val != 0 && pedal_press_time[i][pedal] == 0) {
+			pedal_press_time[i][pedal] = micros();
+			pedal_press_orig[i][pedal] = lr.r.transposition_extra_status;
+			lr.r.transposition_extra_status = lr.r.transposition_extra_active ? 0 : 1;
+		} else if (val == 0 && pedal_press_time[i][pedal] != 0) {
+			now = micros();
+			elapsed = now - pedal_press_time[i][pedal];
+			orig = pedal_press_orig[i][pedal];
+			pedal_press_time[i][pedal] = 0;
+
+			if (elapsed < 800000UL) {
+				/* Short press: TOGGLE. */
+				lr.r.transposition_extra_status = orig ? 0 : 1;
+			} else {
+				/* Long press: PUSH. */
+				lr.r.transposition_extra_status = lr.r.transposition_extra_active;
+			}
+		}
 	}
 }
 
@@ -248,7 +300,9 @@ void midi_update_layer_pedal(struct layer_state & lr, struct layer_state_reg & l
 				mode == PEDAL_MODE_TOGGLE_ACT ||
 				mode == PEDAL_MODE_PUSH_ACT ||
 				mode == PEDAL_MODE_TOGGLE_TRANS_EXTRA ||
-				mode == PEDAL_MODE_PUSH_TRANS_EXTRA) {
+				mode == PEDAL_MODE_PUSH_TRANS_EXTRA ||
+				mode == PEDAL_MODE_TOGGLE_PUSH_ACT ||
+				mode == PEDAL_MODE_TOGGLE_PUSH_TRANS) {
 			set = true;
 		}
 

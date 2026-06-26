@@ -11,13 +11,15 @@ const uint8_t MIDIBOX_PEDAL_SYSEX_ID = 0x79;
 const uint8_t MIDIBOX_LAYER_ID_GLOBAL = 15;
 
 enum {
-        PEDAL_MODE_IGNORE             = 0,
-        PEDAL_MODE_NORMAL             = 1,
-        PEDAL_MODE_NOTELENGTH         = 2,
-        PEDAL_MODE_TOGGLE_ACT         = 3,
-        PEDAL_MODE_PUSH_ACT           = 4,
-        PEDAL_MODE_TOGGLE_TRANS_EXTRA = 5,
-        PEDAL_MODE_PUSH_TRANS_EXTRA   = 6,
+        PEDAL_MODE_IGNORE                = 0,
+        PEDAL_MODE_NORMAL                = 1,
+        PEDAL_MODE_NOTELENGTH            = 2,
+        PEDAL_MODE_TOGGLE_ACT            = 3,
+        PEDAL_MODE_PUSH_ACT              = 4,
+        PEDAL_MODE_TOGGLE_TRANS_EXTRA    = 5,
+        PEDAL_MODE_PUSH_TRANS_EXTRA      = 6,
+        PEDAL_MODE_TOGGLE_PUSH_ACT       = 7,
+        PEDAL_MODE_TOGGLE_PUSH_TRANS     = 8,
 };
 
 enum {
