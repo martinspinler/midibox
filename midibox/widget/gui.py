@@ -270,6 +270,8 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
                                                 'note_length': 2,
                                                 'toggle_active': 3,
                                                 'push_active': 4,
+                                                'toggle_trans_extra': 5,
+                                                'push_trans_extra': 6,
                                             }
                                             val = mode[pv]
                                         setattr(pedal, pk, val)

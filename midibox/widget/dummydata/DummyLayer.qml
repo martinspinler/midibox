@@ -5,6 +5,8 @@ QtObject {
 	property string shortName: "Pn"
 	property bool enabled: true
 	property bool active: true
+	property bool transposition_extra_active: true
+	property bool transposition_extra_status: true
 
 	property int rangel: 44
 	property int rangeu: 120
