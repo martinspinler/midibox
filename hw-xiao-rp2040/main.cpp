@@ -70,7 +70,7 @@ static int charlieplex(struct pt *pt)
 	static uint8_t val;
 	static uint8_t b[1 << (CPP_LAST - CPP_FIRST + 1)];
 
-	static int8_t btn_map[] = {6, -1, 7, 4, -1, 5};
+	static int8_t btn_map[] = {/*6*/-1, -1, 7, 4, 6, 5};
 	PT_BEGIN(pt);
 
 	i = 0;
