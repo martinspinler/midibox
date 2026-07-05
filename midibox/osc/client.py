@@ -5,7 +5,8 @@ import re
 import threading
 import mido
 
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
+from zeroconf import Zeroconf, ServiceBrowser, ServiceInfo, ServiceListener
 
 from pythonosc.osc_packet import OscPacket, TimedMessage
 from pythonosc.osc_message import OscMessage
@@ -17,12 +18,70 @@ from .osc import OscValue
 from ..controller.base import BaseMidibox, PropChange, General, GeneralPedal, Layer, Pedal
 
 
+MIDIBOX_OSC_SERVICE_TYPE = "_osc._tcp.local."
+MIDIBOX_OSC_NAME = "MidiboxOSC"
+
+
+class _MidiboxOSCBrowser(ServiceListener):
+    """Browse the local network for the first published MidiboxOSC service."""
+
+    def __init__(self, oscname: str = MIDIBOX_OSC_NAME) -> None:
+        self._oscname = oscname
+        self._found: List[Tuple[str, int]] = []
+        self._event = threading.Event()
+
+    def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+        self._resolve(zc, type_, name)
+
+    def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+        pass
+
+    def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+        self._resolve(zc, type_, name)
+
+    def _resolve(self, zeroconf: Zeroconf, service_type: str, name: str) -> None:
+        if not name.startswith(self._oscname):
+            return
+        info: Optional[ServiceInfo] = zeroconf.get_service_info(service_type, name, timeout=1000)
+        if info is None:
+            return
+        addrs = info.parsed_addresses()
+        if not addrs:
+            return
+        host = addrs[0]
+        port = info.port if info.port is not None else 4302
+        self._found.append((host, port))
+        self._event.set()
+
+
+def find_midibox_osc(oscname: str = MIDIBOX_OSC_NAME, timeout: float = 5.0) -> Optional[Tuple[str, int]]:
+    """Use zeroconf to find the first Midibox OSC server on the local network.
+
+    Returns a (host, port) tuple or None when no service is found within the timeout.
+    """
+    zc = Zeroconf()
+    browser = _MidiboxOSCBrowser(oscname=oscname)
+    try:
+        ServiceBrowser(zc, MIDIBOX_OSC_SERVICE_TYPE, listener=browser)
+        self_event = browser._event
+        end = time.time() + timeout
+        while not self_event.is_set() and time.time() < end:
+            if self_event.wait(0.2):
+                break
+        if browser._found:
+            return browser._found[0]
+        return None
+    finally:
+        zc.close()
+
+
 class OscClient(threading.Thread):
-    def __init__(self, gp: "OscMidibox", addr: Tuple[str, int]):
+    def __init__(self, gp: "OscMidibox", addr: Optional[Tuple[str, int]] = None, discover: bool = False):
         threading.Thread.__init__(self)
         self.addr = addr
         self.gp = gp
         self.s: Optional[socket.socket] = None
+        self._discover = discover
 
     def start(self) -> None:
         self.alive = threading.Event()
@@ -67,9 +126,25 @@ class OscClient(threading.Thread):
 
         return recv
 
+    def _discover_addr(self) -> Optional[Tuple[str, int]]:
+        print("OSC client: discovering Midibox OSC server via zeroconf...")
+        return find_midibox_osc(timeout=2.0)
+
     def connect(self) -> None:
         self.s = None
+        if self._discover and self.addr is None:
+            while self.s is None and self.alive.is_set() and self.addr is None:
+                addr = self._discover_addr()
+                if addr is not None:
+                    self.addr = addr
+                    print(f"OSC client: discovered {addr[0]}:{addr[1]}")
+                else:
+                    time.sleep(0.5)
         while self.s is None and self.alive.is_set():
+            if self.addr is None:
+                # Should not happen (discover loop resolves addr), guard anyway.
+                time.sleep(0.1)
+                continue
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.settimeout(5)
@@ -103,17 +178,22 @@ class OscMidibox(BaseMidibox):
         super().__init__()
         self._debug = debug
 
-        if url is not None:
+        discover = url == "-" or addr == "-"
+        connection: Optional[Tuple[str, int]] = None
+        if discover:
+            print("Using OSC MidiBox client: discover via zeroconf")
+        elif url is not None:
             paddr = urllib.parse.urlsplit(f"//{url}")
             port = paddr.port if paddr.port else 4302
             if paddr.hostname is None:
                 raise ValueError
             connection = (paddr.hostname, port)
+            print(f"Using OSC MidiBox client: {connection}")
         else:
             connection = (addr, port)
+            print(f"Using OSC MidiBox client: {connection}")
 
-        print(f"Using OSC MidiBox client: {connection}")
-        self.client = OscClient(self, connection)
+        self.client = OscClient(self, connection, discover=discover)
 
         self._pedal_regex = r"pedal(\d+)\.(\w+)"
 

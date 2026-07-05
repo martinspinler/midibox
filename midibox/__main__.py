@@ -6,6 +6,7 @@ import argparse
 from . import backends
 from .mido.mbbackend import MidoMidibox
 from .osc.client_handler import MidiboxOSCClientHandler
+from .osc.client import find_midibox_osc
 from .osc.server import TCPOSCServer, ZCPublisher
 
 from .midiplayer import Midiplayer, MidiplayerOSCClientHandler
@@ -16,7 +17,7 @@ from .recorder import Recorder
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("-O", "--osc-server", help="Enable OSC server", action='store_true')
-    parser.add_argument("-o", "--osc-client", help="Use OSC client as device")
+    parser.add_argument("-o", "--osc-client", help="Use OSC client as device (use '-' to discover via zeroconf)")
     parser.add_argument("-s", "--simulator", help="Use simulator as device", action='store_true')
     parser.add_argument("-p", "--port", help="Specify device port")
     parser.add_argument("-G", "--no-gui", help="Do not run GUI", action='store_false', dest='gui')
@@ -35,7 +36,13 @@ def create_midibox_instance(args: argparse.Namespace) -> BaseMidibox:
 
     if args.osc_client:
         mb_backend = 'osc'
-        mb_params['url'] = args.osc_client
+        if args.osc_client == "-":
+            addr = find_midibox_osc()
+            if addr is None:
+                raise RuntimeError("No Midibox OSC server found via zeroconf")
+            mb_params['url'] = f"{addr[0]}:{addr[1]}"
+        else:
+            mb_params['url'] = args.osc_client
     else:
         mb_backend = 'simulator' if args.simulator else backends.default_backend
 
