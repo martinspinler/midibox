@@ -166,6 +166,8 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
     layersChange = pyqtSignal() # Not used
     generalChange = pyqtSignal() # Not used
     transpositionExtraChange = pyqtSignal()
+    connectedChange = pyqtSignal(bool)
+    hwConnectedChange = pyqtSignal(bool)
 
     def __init__(self, box: BaseMidibox) -> None:
         super().__init__()
@@ -182,6 +184,32 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
         self._presets: dict[int, Preset] = {}
 
         self._gpedal_regex = r"pedal(\d+)_(\w+)"
+
+        self._connected: bool = self.box._connected
+        self.box.bind_connection_change(self._on_connection_change)
+        self._hw_connected: bool = self.box._hw_connected
+        self.box.bind_hw_change(self._on_hw_change)
+
+    @pyqtProperty(bool, notify=connectedChange)  # type: ignore
+    def connected(self) -> bool:
+        return self._connected
+
+    def _on_connection_change(self, connected: bool) -> None:
+        # Invoked from the OSC client thread; emitting a Qt signal is
+        # thread-safe and gets queued to the GUI thread's slots.
+        if self._connected != connected:
+            self._connected = connected
+            self.connectedChange.emit(connected)
+
+    @pyqtProperty(bool, notify=hwConnectedChange)  # type: ignore
+    def hwConnected(self) -> bool:
+        return self._hw_connected
+
+    def _on_hw_change(self, connected: bool) -> None:
+        # May be invoked from the OSC client thread or the MIDI backend thread.
+        if self._hw_connected != connected:
+            self._hw_connected = connected
+            self.hwConnectedChange.emit(connected)
 
 
     def init(self, ro: QQuickItem, config: dict[str, Any], presets: dict[str, Preset]) -> None:

@@ -38,6 +38,7 @@ class MidiboxOSCClientHandler(DispatchedOSCRequestHandler):
         self.mb._callbacks.append(self.mb_midi_callback)
 
         self.__init_dispatcher()
+        self.mb.bind_hw_change(self.on_hw_change)
         self.__init()
 
     def __init_dispatcher(self) -> None:
@@ -87,10 +88,16 @@ class MidiboxOSCClientHandler(DispatchedOSCRequestHandler):
                     bundle.add_msg("/midibox/layers/%d/pedal%d.%s" % (lr._index, pedal._index, prop), getattr(pedal, prop))
 
         self.send_msg(bundle.build())
+        self.send_message("/midibox/_hw_connected", self.mb._hw_connected)
 
     def finish(self) -> None:
         self.mb._callbacks.remove(self.mb_midi_callback)
+        if self.on_hw_change in self.mb._hw_callbacks:
+            self.mb._hw_callbacks.remove(self.on_hw_change)
         super().finish()
+
+    def on_hw_change(self, connected: bool) -> None:
+        self.send_message("/midibox/_hw_connected", connected)
 
     def mb_midi_callback(self, msg: mido.Message) -> None:
         if msg.type == 'clock':

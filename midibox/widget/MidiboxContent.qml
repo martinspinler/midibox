@@ -47,11 +47,62 @@ Pane {
 			objectName: "mainBar"
 			Layout.fillWidth: true
 
+			Component.onCompleted: currentIndex = 0
+
 			Repeater {
 				model: ["Main", "Layers", "Presets", "Playlist", "Stats"]
 				TabButton {
 					text: qsTr(modelData)
 					background: Rectangle {color: parent.checked ? palette.window : palette.button}
+				}
+			}
+
+			// Connection status indicator (non-clickable).
+			// green: OSC server + Midibox HW + piano all connected
+			// orange: OSC + HW connected, piano Active Sensing not received
+			// red: OSC server or Midibox HW not connected
+			TabButton {
+				id: statusIndicator
+				checkable: false
+				text: ""
+				implicitWidth: 28
+				implicitHeight: mainBar.implicitHeight
+				width: implicitWidth
+
+				property bool allConnected: midibox.connected && midibox.hwConnected
+				property bool pianoConnected: midibox.general ? midibox.general.piano_connected : false
+				property color statusColor: !midibox.connected || !midibox.hwConnected ? "red"
+					: (pianoConnected ? "green" : "orange")
+
+				background: Rectangle {
+					color: palette.button
+				}
+
+				Rectangle {
+					anchors.centerIn: parent
+					width: 14
+					height: 14
+					radius: width / 2
+					color: statusIndicator.statusColor
+					border.color: "black"
+					border.width: 1
+				}
+
+				ToolTip.text: {
+					var osc = midibox.connected ? "ok" : "down"
+					var hw = midibox.hwConnected ? "ok" : "down"
+					var piano = statusIndicator.pianoConnected ? "ok" : "down"
+					return "OSC server: " + osc + "\nMidibox HW: " + hw + "\nPiano: " + piano
+				}
+				ToolTip.visible: statusMouse.containsMouse
+				ToolTip.delay: 200
+
+				MouseArea {
+					id: statusMouse
+					anchors.fill: parent
+					hoverEnabled: true
+					cursorShape: Qt.ArrowCursor
+					onPressed: mouse.accepted = true
 				}
 			}
 		}

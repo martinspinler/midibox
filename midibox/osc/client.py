@@ -96,6 +96,7 @@ class OscClient(threading.Thread):
                 self.s.close()
             except OSError:
                 pass
+            self.gp._emit_connection_change(False)
         self.join()
 
     def handle_msg(self, m: TimedMessage) -> None:
@@ -161,6 +162,7 @@ class OscClient(threading.Thread):
                 time.sleep(0.1)
         if self.s:
             print("OSC client connected")
+            self.gp._emit_connection_change(True)
 
     def run(self) -> None:
         self.connect()
@@ -175,6 +177,7 @@ class OscClient(threading.Thread):
                 for m in OscPacket(data).messages:
                     self.handle_msg(m)
             except ConnectionError:
+                self.gp._emit_connection_change(False)
                 self.connect()
                 if self.s is not None and self.alive.is_set():
                     self.gp.initialize()
@@ -227,6 +230,10 @@ class OscMidibox(BaseMidibox):
             msg = mido.Message.from_bytes(lmsg)
             for cb in self._callbacks:
                 cb(msg)
+            return
+
+        if addr == ["_hw_connected"]:
+            self._emit_hw_change(bool(params[0]))
             return
 
         if len(addr) >= 1:

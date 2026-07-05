@@ -11,6 +11,10 @@ from threading import Thread
 
 READ_TIMEOUT = 1.0
 
+# Bit in the global "status" register (offset 1 of global_state_reg)
+# set by the HW once it receives Active Sensing from the piano.
+GS_STATUS_INITED = 1
+
 
 def get_first_diff_index(a: list[int], b: list[int], reverse: bool) -> Optional[int]:
     r = reversed(range(len(a))) if reverse else range(len(a))
@@ -81,11 +85,13 @@ class MidoMidibox(BaseMidibox):
         self._open_port()
         self._midi_thread.start()
         self._init_config()
+        self._emit_hw_change(True)
 
     def disconnect(self) -> None:
         self._midi_thread_exit = True
         if self._midi_thread.is_alive():
             self._midi_thread.join()
+        self._emit_hw_change(False)
 
     def sendmsg(self, msg: mido.Message) -> None:
         if self._debug:
@@ -188,12 +194,15 @@ class MidoMidibox(BaseMidibox):
         self.portin.callback = self._input_callback
 
     def close(self):
+        was_open = self.portin is not None or self.portout is not None
         if self.portin is not None:
             self.portin.close()
         if self.portout  is not None:
             self.portout.close()
         self.portout = None
         self.portin = None
+        if was_open:
+            self._emit_hw_change(False)
 
     def _connection_check(self) -> None:
         checking = False
@@ -219,6 +228,8 @@ class MidoMidibox(BaseMidibox):
                         except ConnectionError:
                             self.close()
 
+                    if self.portin is not None:
+                        self._emit_hw_change(True)
                     self.emit_all()
 
                 elif not checking:
@@ -388,6 +399,7 @@ class MidoMidibox(BaseMidibox):
     def _load_general_config(self) -> None:
         c = self._config[self._LAYER_GENERAL]
         self.general.enabled = True if c[0] & 1 else False
+        self.general.piano_connected = bool(c[1] & GS_STATUS_INITED) if len(c) > 1 else False
         self.general.tempo = (c[4] << 7) + c[5]
 
         for i in range(8):

@@ -183,6 +183,7 @@ GeneralProps: list[CheckedProp[Any]] = [
     BoolProp('enabled'),
     BoolProp('mute'),
     UInt14Prop('tempo'),
+    BoolProp('piano_connected'),
 ]
 
 GeneralPedalProps: list[CheckedProp[Any]] = [
@@ -279,6 +280,10 @@ class BaseMidibox():
         self.layers = [Layer(self, i) for i in range(8)]
         self.general = General(self)
         self._callbacks: list[Callable[[mido.Message], None]] = []
+        self._connection_callbacks: list[Callable[[bool], None]] = []
+        self._hw_callbacks: list[Callable[[bool], None]] = []
+        self._connected: bool = False
+        self._hw_connected: bool = False
 
         self._requestKey: Optional[Tuple[str, int, str]] = None
         self._bundle = None
@@ -289,6 +294,22 @@ class BaseMidibox():
 
     def connect(self) -> None:
         pass
+
+    def bind_connection_change(self, cb: Callable[[bool], None]) -> None:
+        self._connection_callbacks.append(cb)
+
+    def _emit_connection_change(self, connected: bool) -> None:
+        self._connected = connected
+        for cb in self._connection_callbacks:
+            cb(connected)
+
+    def bind_hw_change(self, cb: Callable[[bool], None]) -> None:
+        self._hw_callbacks.append(cb)
+
+    def _emit_hw_change(self, connected: bool) -> None:
+        self._hw_connected = connected
+        for cb in self._hw_callbacks:
+            cb(connected)
 
     def emit_all(self) -> None:
         self.general.emit_all()
