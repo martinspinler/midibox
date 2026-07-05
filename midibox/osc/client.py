@@ -164,6 +164,8 @@ class OscClient(threading.Thread):
 
     def run(self) -> None:
         self.connect()
+        if self.s is not None and self.alive.is_set():
+            self.gp.initialize()
         while self.alive.is_set():
             try:
                 data = self._recv(4)
@@ -174,6 +176,8 @@ class OscClient(threading.Thread):
                     self.handle_msg(m)
             except ConnectionError:
                 self.connect()
+                if self.s is not None and self.alive.is_set():
+                    self.gp.initialize()
 
 
 class OscMidibox(BaseMidibox):
