@@ -111,8 +111,11 @@ class OscClient(threading.Thread):
 
     def send_msg(self, msg: OscMessage | OscBundle) -> None:
         if self.s is None:
-            raise ConnectionError
-        self.s.sendall(msg.size.to_bytes(length=4, byteorder='big') + msg.dgram)
+            return
+        try:
+            self.s.sendall(msg.size.to_bytes(length=4, byteorder='big') + msg.dgram)
+        except OSError:
+            pass
 
     def _recv(self, size: int) -> bytes:
         recv = bytes()
