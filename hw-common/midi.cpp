@@ -245,7 +245,7 @@ void midi_handle_pedal_input(uint8_t pedal, uint8_t val)
 {
 	uint8_t i;
 
-	if (pedal >= 8)
+	if (pedal >= PEDALS)
 		return;
 
 	pedal_value[pedal] = val;
@@ -510,7 +510,7 @@ void midi_handle_controller_cmd(int origin, const uint8_t *c, uint16_t len)
 				changes.pedal_cc |= (1 << i);
 			}
 			if (lr_prev_r.pedals[i].mode != lr.r.pedals[i].mode) {
-				changes.pedal_cc |= (1 << i);
+				changes.pedal_mode |= (1 << i);
 			}
 		}
 		midi_update_layer(lr, lr_prev_r, changes);
