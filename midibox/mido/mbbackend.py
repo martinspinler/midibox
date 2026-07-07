@@ -43,7 +43,7 @@ class PortNotFoundError(Exception):
 
 
 class MidoMidibox(BaseMidibox):
-    PERIODIC_CHECK = False
+    PERIODIC_CHECK = True
 
     _SYSEX_ID = 0x77
     _LAYER_GENERAL = 15
