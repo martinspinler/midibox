@@ -185,10 +185,13 @@ class QMidiBox(QObject, metaclass=PropertyMeta):
 
         self._gpedal_regex = r"pedal(\d+)_(\w+)"
 
-        self._connected: bool = self.box._connected
+        self._connected: bool = False
         self.box.bind_connection_change(self._on_connection_change)
-        self._hw_connected: bool = self.box._hw_connected
+        self._connected = self.box._connected
+
+        self._hw_connected: bool = False
         self.box.bind_hw_change(self._on_hw_change)
+        self._hw_connected = self.box._hw_connected
 
     @pyqtProperty(bool, notify=connectedChange)  # type: ignore
     def connected(self) -> bool:
