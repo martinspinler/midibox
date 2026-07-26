@@ -743,7 +743,7 @@ void handleSMidiMessage(const midi::Message<128> & msg, uint8_t port)
 
 			layer_set_pressed(lr, lnote, false);
 			if (note_in_bounds && layer_is_playing(lr, lnote)) {
-				if (lr.r.mode & NOTE_MODE_HOLD/* && lr.notes.ticks_remains[lnote] != 0*/)
+				if (lr.r.mode & NOTE_MODE_HOLD && lr.notes.ticks_remains[lnote] != 0)
 					continue;
 
 				layer_set_playing(lr, lnote, false, b1);
