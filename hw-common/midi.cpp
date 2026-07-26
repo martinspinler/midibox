@@ -29,7 +29,8 @@ struct midi_changes {
 
 static uint8_t pedal_value[PEDALS] = {0};
 
-static unsigned long last_s2_note_time[25];
+static unsigned long last_s2_note_on_time[25];
+static unsigned long last_s2_note_off_time[25];
 
 /* Timing state for the TOGGLE_PUSH hybrid pedal modes.
  * press_time - timestamp per pedal, shared between layers
@@ -864,14 +865,19 @@ void handleS2MidiMessage(const midi::Message<128> & msg)
 	uint8_t idx;
 	unsigned long now;
 
-	/* Debounce pedal buttons */
-	if ((msg.type == NoteOn || msg.type == NoteOff) &&
-	    msg.data1 >= 36 && msg.data1 <= 60) {
+	/* Debounce pedal buttons: filter only same-type events (on/on or off/off) */
+	if (msg.data1 >= 36 && msg.data1 <= 60) {
 		now = micros();
 		idx = msg.data1 - 36;
-		if (now - last_s2_note_time[idx] < 50000)
-			return;
-		last_s2_note_time[idx] = now;
+		if (msg.type == NoteOn) {
+			if (now - last_s2_note_on_time[idx] < 50000)
+				return;
+			last_s2_note_on_time[idx] = now;
+		} else if (msg.type == NoteOff) {
+			if (now - last_s2_note_off_time[idx] < 50000)
+				return;
+			last_s2_note_off_time[idx] = now;
+		}
 	}
 
 	handleSMidiMessage(msg, 1);
